@@ -280,21 +280,11 @@ export function MarketplaceTab() {
                 <div className="flex gap-2">
                   <Button 
                     size="sm" 
-                    variant="outline" 
-                    className="flex-1"
+                    className="w-full bg-green-600 hover:bg-green-700"
                     onClick={() => handlePlaceBid(listing)}
                   >
                     Place Bid
                   </Button>
-                  {listing.isInstantWin && (
-                    <Button 
-                      size="sm" 
-                      className="flex-1 bg-orange-600 hover:bg-orange-700"
-                      onClick={() => handleInstantWin(listing)}
-                    >
-                      Buy Now
-                    </Button>
-                  )}
                 </div>
               </CardContent>
             </Card>

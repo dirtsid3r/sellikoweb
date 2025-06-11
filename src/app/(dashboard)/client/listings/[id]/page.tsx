@@ -15,6 +15,16 @@ export default function ListingDetailPage() {
   const params = useParams()
   const listingId = params.id as string
 
+  // Generate masked vendor ID (5-digit alphanumeric)
+  const generateVendorCode = (vendorId: string) => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+    let result = ''
+    for (let i = 0; i < 5; i++) {
+      result += chars.charAt((vendorId.charCodeAt(i % vendorId.length) + i) % chars.length)
+    }
+    return result
+  }
+
   // Mock data - replace with actual API call
   const listing = {
     id: listingId,
@@ -26,15 +36,62 @@ export default function ListingDetailPage() {
     images: ['/api/placeholder/400/400'],
     status: 'receiving_bids',
     timeLeft: '18h 30m',
+    totalBids: 8,
     bids: [
       {
         id: 'bid-1',
+        vendorId: 'vendor-001',
         vendorName: 'TechWorld Kochi',
         vendorRating: 4.8,
-        amount: 65000,
+        amount: 68500,
+        timestamp: '2024-06-04T18:45:00Z',
+        message: 'Ready for immediate pickup. Cash payment.',
+        isHighest: true,
+        isNew: true
+      },
+      {
+        id: 'bid-2',
+        vendorId: 'vendor-002',
+        vendorName: 'Mobile Hub Ernakulam',
+        vendorRating: 4.6,
+        amount: 68000,
+        timestamp: '2024-06-04T17:30:00Z',
+        message: 'Interested in this device. Can pickup today.',
+        isHighest: false,
+        isNew: false
+      },
+      {
+        id: 'bid-3',
+        vendorId: 'vendor-003',
+        vendorName: 'Kerala Mobiles',
+        vendorRating: 4.9,
+        amount: 67500,
         timestamp: '2024-06-04T16:20:00Z',
-        message: 'Interested in this device.',
-        isHighest: true
+        message: 'Good condition device. Fair price offered.',
+        isHighest: false,
+        isNew: false
+      },
+      {
+        id: 'bid-4',
+        vendorId: 'vendor-004',
+        vendorName: 'Smart Device Store',
+        vendorRating: 4.7,
+        amount: 66000,
+        timestamp: '2024-06-04T15:10:00Z',
+        message: 'Verified buyer. Quick transaction.',
+        isHighest: false,
+        isNew: false
+      },
+      {
+        id: 'bid-5',
+        vendorId: 'vendor-005',
+        vendorName: 'Techno Mart',
+        vendorRating: 4.5,
+        amount: 65000,
+        timestamp: '2024-06-04T14:30:00Z',
+        message: 'Interested buyer from Kochi.',
+        isHighest: false,
+        isNew: false
       }
     ]
   }
@@ -134,6 +191,50 @@ export default function ListingDetailPage() {
               </CardContent>
             </Card>
 
+            {/* Bidding Summary */}
+            <Card className="border-blue-200 bg-blue-50/50">
+              <CardContent className="p-6">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p className="text-2xl font-bold text-blue-600">{listing.totalBids}</p>
+                    <p className="text-sm text-gray-600">Total Bids</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-green-600">₹{highestBid?.amount.toLocaleString()}</p>
+                    <p className="text-sm text-gray-600">Highest Bid</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-orange-600">
+                      {highestBid ? Math.round(((highestBid.amount - listing.askingPrice) / listing.askingPrice) * 100) : 0}%
+                    </p>
+                    <p className="text-sm text-gray-600">vs Asking Price</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Bidding Summary */}
+            <Card className="border-blue-200 bg-blue-50/50">
+              <CardContent className="p-6">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p className="text-2xl font-bold text-blue-600">{listing.totalBids}</p>
+                    <p className="text-sm text-gray-600">Total Bids</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-green-600">₹{highestBid?.amount.toLocaleString()}</p>
+                    <p className="text-sm text-gray-600">Highest Bid</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-orange-600">
+                      {highestBid ? Math.round(((highestBid.amount - listing.askingPrice) / listing.askingPrice) * 100) : 0}%
+                    </p>
+                    <p className="text-sm text-gray-600">vs Asking Price</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Device Details */}
             <Card>
               <CardHeader>
@@ -178,7 +279,10 @@ export default function ListingDetailPage() {
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                       <p className="text-sm font-medium text-green-800">Highest Bid</p>
                       <p className="text-2xl font-bold text-green-900">₹{highestBid.amount.toLocaleString()}</p>
-                      <p className="text-sm text-green-700">by {highestBid.vendorName}</p>
+                      <p className="text-sm text-green-700">Selliko Bid #{generateVendorCode(highestBid.vendorId)}</p>
+                      {highestBid.isNew && (
+                        <Badge className="bg-orange-100 text-orange-800 text-xs mt-2">New!</Badge>
+                      )}
                     </div>
                   )}
                 </div>
@@ -213,41 +317,90 @@ export default function ListingDetailPage() {
               </CardContent>
             </Card>
 
-            {/* All Bids */}
+            {/* Bid History */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
-                  <span>All Bids ({listing.bids.length})</span>
+                  <span>Bid History ({listing.totalBids} total)</span>
                   <Icons.trendingUp className="w-5 h-5 text-green-600" />
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {listing.bids.map((bid) => (
+              <CardContent className="space-y-3">
+                {listing.bids.map((bid, index) => (
                   <div 
                     key={bid.id} 
-                    className="bg-green-50 border border-green-200 rounded-lg p-4"
+                    className={`relative border rounded-lg p-4 transition-all ${
+                      bid.isHighest 
+                        ? 'bg-green-50 border-green-200 shadow-sm' 
+                        : 'bg-gray-50 border-gray-200'
+                    } ${bid.isNew ? 'ring-2 ring-blue-200' : ''}`}
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <div>
-                        <p className="font-semibold text-gray-900">{bid.vendorName}</p>
-                        <div className="flex items-center space-x-1">
-                          <Icons.star className="w-4 h-4 text-yellow-400 fill-current" />
-                          <span className="text-sm text-gray-600">{bid.vendorRating}</span>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                          bid.isHighest ? 'bg-green-600 text-white' : 'bg-gray-400 text-white'
+                        }`}>
+                          #{index + 1}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-900">
+                            Selliko Bid #{generateVendorCode(bid.vendorId)}
+                          </p>
+                          <div className="flex items-center space-x-1">
+                            <Icons.star className="w-3 h-3 text-yellow-400 fill-current" />
+                            <span className="text-xs text-gray-600">{bid.vendorRating} rating</span>
+                          </div>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-xl font-bold text-green-700">₹{bid.amount.toLocaleString()}</p>
-                        <Badge className="bg-green-100 text-green-800 text-xs">Highest</Badge>
+                        <p className={`text-lg font-bold ${bid.isHighest ? 'text-green-700' : 'text-gray-700'}`}>
+                          ₹{bid.amount.toLocaleString()}
+                        </p>
+                        <div className="flex items-center space-x-1 mt-1">
+                          {bid.isHighest && (
+                            <Badge className="bg-green-100 text-green-800 text-xs">Highest</Badge>
+                          )}
+                          {bid.isNew && (
+                            <Badge className="bg-blue-100 text-blue-800 text-xs">New</Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
+                    
                     {bid.message && (
-                      <p className="text-sm text-gray-600 mt-2">{bid.message}</p>
+                      <div className="bg-white/70 border border-gray-200 rounded p-3 mb-3">
+                        <p className="text-sm text-gray-700 italic">"{bid.message}"</p>
+                      </div>
                     )}
-                    <p className="text-xs text-gray-500 mt-2">
-                      {new Date(bid.timestamp).toLocaleString()}
-                    </p>
+                    
+                    <div className="flex items-center justify-between text-xs text-gray-500">
+                      <span>{new Date(bid.timestamp).toLocaleString('en-IN', {
+                        day: '2-digit',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}</span>
+                      <span className="flex items-center">
+                        <Icons.clock className="w-3 h-3 mr-1" />
+                        {Math.round((Date.now() - new Date(bid.timestamp).getTime()) / (1000 * 60))}m ago
+                      </span>
+                    </div>
+                    
+                    {/* Timeline connector */}
+                    {index < listing.bids.length - 1 && (
+                      <div className="absolute left-6 top-16 w-px h-4 bg-gray-300"></div>
+                    )}
                   </div>
                 ))}
+                
+                {listing.totalBids > listing.bids.length && (
+                  <div className="text-center py-4">
+                    <Button variant="outline" size="sm" className="text-xs">
+                      <Icons.chevronDown className="w-3 h-3 mr-1" />
+                      View {listing.totalBids - listing.bids.length} more bids
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
