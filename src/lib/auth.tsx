@@ -250,6 +250,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const loginAsTestAgent = async () => {
+    console.log('loginAsTestAgent called')
     const testAgent: User = {
       id: 'agent-test-001',
       phone: '+919876543212',
@@ -266,14 +267,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
     
+    console.log('Setting test agent user:', testAgent)
     setUser(testAgent)
     if (typeof window !== 'undefined') {
       localStorage.setItem('selliko_user', JSON.stringify(testAgent))
       localStorage.setItem('selliko_access_token', 'test-agent-token')
+      console.log('localStorage set for agent')
+    } else {
+      console.log('window is undefined - SSR environment')
     }
   }
 
   const loginAsTestAdmin = async () => {
+    console.log('loginAsTestAdmin called')
     const testAdmin: User = {
       id: 'admin-test-001',
       phone: '+919876543213',
@@ -289,10 +295,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
     
+    console.log('Setting test admin user:', testAdmin)
     setUser(testAdmin)
     if (typeof window !== 'undefined') {
       localStorage.setItem('selliko_user', JSON.stringify(testAdmin))
       localStorage.setItem('selliko_access_token', 'test-admin-token')
+      console.log('localStorage set for admin')
+    } else {
+      console.log('window is undefined - SSR environment')
     }
   }
 

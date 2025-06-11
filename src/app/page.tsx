@@ -75,7 +75,15 @@ function TestLoginButton() {
       </button>
 
       <button
-        onClick={loginAsTestAgent}
+        onClick={async () => {
+          try {
+            console.log('Agent button clicked')
+            await loginAsTestAgent()
+            console.log('Agent login completed')
+          } catch (error) {
+            console.error('Agent login error:', error)
+          }
+        }}
         className="inline-flex items-center px-4 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors font-medium"
       >
         <span className="mr-2">🚗</span>
@@ -86,7 +94,15 @@ function TestLoginButton() {
       </button>
 
       <button
-        onClick={loginAsTestAdmin}
+        onClick={async () => {
+          try {
+            console.log('Admin button clicked')
+            await loginAsTestAdmin()
+            console.log('Admin login completed')
+          } catch (error) {
+            console.error('Admin login error:', error)
+          }
+        }}
         className="inline-flex items-center px-4 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors font-medium"
       >
         <span className="mr-2">👤</span>
