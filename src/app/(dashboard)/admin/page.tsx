@@ -159,21 +159,27 @@ export default function AdminDashboard() {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+          <Card 
+            className="hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => router.push('/admin/assign-agents')}
+          >
             <CardContent className="p-6">
               <div className="flex items-center">
                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                   <Icons.users className="w-6 h-6 text-blue-600" />
                 </div>
                 <div className="ml-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Manage Users</h3>
-                  <p className="text-sm text-gray-600">View and manage all users</p>
+                  <h3 className="text-lg font-semibold text-gray-900">Assign Agents</h3>
+                  <p className="text-sm text-gray-600">Assign agents to accepted bids</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+          <Card 
+            className="hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => router.push('/admin/pending-approvals')}
+          >
             <CardContent className="p-6">
               <div className="flex items-center">
                 <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">

@@ -38,6 +38,9 @@ import {
   TrendingUp,
   List,
   Package,
+  Inbox,
+  FileText,
+  RefreshCw,
 } from "lucide-react"
 
 export const Icons = {
@@ -80,4 +83,7 @@ export const Icons = {
   trendingUp: TrendingUp,
   list: List,
   package: Package,
+  inbox: Inbox,
+  fileText: FileText,
+  refresh: RefreshCw,
 } 

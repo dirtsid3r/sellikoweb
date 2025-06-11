@@ -25,6 +25,8 @@ export interface AuthContextType {
   // Test accounts for development
   loginAsTestVendor: () => Promise<void>
   loginAsTestClient: () => Promise<void>
+  loginAsTestAgent: () => Promise<void>
+  loginAsTestAdmin: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -247,6 +249,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const loginAsTestAgent = async () => {
+    const testAgent: User = {
+      id: 'agent-test-001',
+      phone: '+919876543212',
+      name: 'Rajesh Agent',
+      role: 'AGENT',
+      isActive: true,
+      createdAt: new Date('2024-01-01'),
+      lastLogin: new Date(),
+      metadata: {
+        location: 'Thiruvananthapuram, Kerala',
+        verified: true,
+        areasCovered: ['Thiruvananthapuram', 'Kollam', 'Pathanamthitta'],
+        vehicleNumber: 'KL-01-AB-1234'
+      }
+    }
+    
+    setUser(testAgent)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('selliko_user', JSON.stringify(testAgent))
+      localStorage.setItem('selliko_access_token', 'test-agent-token')
+    }
+  }
+
+  const loginAsTestAdmin = async () => {
+    const testAdmin: User = {
+      id: 'admin-test-001',
+      phone: '+919876543213',
+      name: 'Admin User',
+      role: 'ADMIN',
+      isActive: true,
+      createdAt: new Date('2024-01-01'),
+      lastLogin: new Date(),
+      metadata: {
+        location: 'Kochi, Kerala',
+        verified: true,
+        permissions: ['all']
+      }
+    }
+    
+    setUser(testAdmin)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('selliko_user', JSON.stringify(testAdmin))
+      localStorage.setItem('selliko_access_token', 'test-admin-token')
+    }
+  }
+
   const value: AuthContextType = {
     user,
     isLoading,
@@ -256,7 +305,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sendOTP,
     refreshToken,
     loginAsTestVendor,
-    loginAsTestClient
+    loginAsTestClient,
+    loginAsTestAgent,
+    loginAsTestAdmin
   }
 
   return (

@@ -260,7 +260,11 @@
   .nav-item-mobile {
     @apply flex items-center px-4 py-3 text-sm font-medium
            text-foreground/80 hover:text-foreground hover:bg-accent
-           rounded-lg transition-all duration-200 active:scale-98;
+           rounded-lg transition-all duration-200;
+  }
+  
+  .nav-item-mobile:active {
+    transform: scale(0.98);
   }
   
   /* Active navigation state */
@@ -289,7 +293,11 @@
   }
   
   .active-scale-sm {
-    @apply active:scale-98 transition-transform duration-100;
+    @apply transition-transform duration-100;
+  }
+  
+  .active-scale-sm:active {
+    transform: scale(0.98);
   }
   
   /* Loading states */

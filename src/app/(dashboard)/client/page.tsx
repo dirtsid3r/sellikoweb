@@ -166,7 +166,15 @@ export default function ClientDashboard() {
         {/* Current Listings - Airbnb Style Cards */}
         {currentListings.length > 0 && (
           <div className="mb-8">
-            <h3 className="text-2xl font-bold text-gray-900 mb-6">Your Active Listings</h3>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-gray-900">Your Active Listings</h3>
+              <Link href="/client/my-listings">
+                <Button variant="outline" size="sm">
+                  <Icons.list className="w-4 h-4 mr-2" />
+                  View All Listings
+                </Button>
+              </Link>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
               {currentListings.map((listing) => {
                 const statusInfo = getStatusInfo(listing.status)
