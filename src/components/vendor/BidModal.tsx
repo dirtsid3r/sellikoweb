@@ -308,12 +308,33 @@ export function BidModal({ listing, open, onOpenChange }: BidModalProps) {
                   <p className="text-xs text-gray-600">
                     ⚠️ Minimum bid: {formatCurrency(minimumBid)}
                   </p>
-
+                  {isInstantWin && (
+                    <p className="text-xs text-orange-600 font-medium">
+                      🎯 Instant Win: This bid will immediately close the auction!
+                    </p>
+                  )}
                 </div>
               </div>
             )}
 
-
+            {/* Instant Win Callout */}
+            {isInstantWin && timeRemaining > 0 && (
+              <Card className="border-orange-200 bg-orange-50">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                      <Icons.star className="w-4 h-4 text-orange-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-orange-900 mb-1">🏆 BID AT ASKING PRICE TO WIN INSTANTLY</h4>
+                      <p className="text-sm text-orange-800">
+                        Bidding at or above {formatCurrency(listing.askingPrice)} will immediately close this auction and you'll win the device. Order tracking will begin automatically.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Bid Terms */}
             {timeRemaining > 0 && (
@@ -355,10 +376,10 @@ export function BidModal({ listing, open, onOpenChange }: BidModalProps) {
                   {isSubmitting ? (
                     <>
                       <Icons.spinner className="w-4 h-4 mr-2 animate-spin" />
-                      Placing Bid...
+                      {isInstantWin ? 'Winning...' : 'Placing Bid...'}
                     </>
                   ) : (
-                    'Place Bid'
+                    isInstantWin ? '🏆 Win Instantly' : 'Place Bid'
                   )}
                 </Button>
               ) : (

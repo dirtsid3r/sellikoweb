@@ -252,14 +252,14 @@ export default function MobileNavigation({}: MobileNavigationProps) {
                   <div className="space-y-2">
                     <Button className="w-full" asChild>
                       <Link href="/login">
-                        <ArrowRightOnRectangleIcon className="w-4 h-4 mr-2" />
-                        Login
+                      <ArrowRightOnRectangleIcon className="w-4 h-4 mr-2" />
+                      Login
                       </Link>
                     </Button>
                     <Button variant="outline" className="w-full" asChild>
                       <Link href="/login">
-                        <UserPlusIcon className="w-4 h-4 mr-2" />
-                        Create Account
+                      <UserPlusIcon className="w-4 h-4 mr-2" />
+                      Create Account
                       </Link>
                     </Button>
                   </div>

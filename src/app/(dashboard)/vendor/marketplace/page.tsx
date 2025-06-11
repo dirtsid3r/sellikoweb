@@ -239,12 +239,19 @@ export default function VendorMarketplace() {
                     </span>
                   </div>
 
-                  <div>
+                  <div className="space-y-2">
                     <Button
                       onClick={() => handlePlaceBid(listing)}
                       className="w-full bg-green-600 hover:bg-green-700"
                     >
                       Place Bid
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      className="w-full border-orange-500 text-orange-600 hover:bg-orange-50"
+                    >
+                      🎯 Buy at Asking Price
                     </Button>
                   </div>
                 </div>

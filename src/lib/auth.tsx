@@ -125,9 +125,9 @@ class AuthAPI {
       console.error('Logout error:', error)
     } finally {
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('selliko_access_token')
-        localStorage.removeItem('selliko_refresh_token')
-        localStorage.removeItem('selliko_user')
+      localStorage.removeItem('selliko_access_token')
+      localStorage.removeItem('selliko_refresh_token')
+      localStorage.removeItem('selliko_user')
       }
     }
   }
