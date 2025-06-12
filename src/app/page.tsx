@@ -1,6 +1,3 @@
-'use client'
-
-import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { 
@@ -14,79 +11,39 @@ import {
   UserGroupIcon
 } from '@heroicons/react/24/outline'
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid'
-import { useAuth } from '@/lib/auth'
-import sellikoClient from '@/selliko-client'
+import { cookies } from 'next/headers'
 
-interface User {
-  id: string
-  user_role?: string
-  role?: string
-  name?: string
-}
-
-export default function HomePage() {
-  const { isAuthenticated, isLoading } = useAuth()
-  const [mounted, setMounted] = React.useState(false)
-  const [currentUser, setCurrentUser] = useState<User | null>(null)
-  const [isAuthChecking, setIsAuthChecking] = useState(true)
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const user = await sellikoClient.getCurrentUser()
-        console.log('👤 [HOME] Current user:', user ? {
-          id: user.id,
-          role: user.user_role,
-        } : 'No user found')
-        setCurrentUser(user)
-      } catch (error) {
-        console.error('💥 [HOME] Auth check error:', error)
-      } finally {
-        setIsAuthChecking(false)
-      }
-    }
-
-    if (mounted) {
-      checkAuth()
-    }
-  }, [mounted])
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  // Avoid hydration issues by showing a loading state until both mounted and auth is loaded
-  if (!mounted || isLoading || isAuthChecking) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
-        {/* Header */}
-        <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200/60 sticky top-0 z-40">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center py-4">
-              <div className="flex items-center">
-                <h1 className="text-2xl font-bold text-gray-900">selliko</h1>
-              </div>
-              <nav className="hidden md:flex items-center space-x-8">
-                <Link href="/" className="text-gray-600 hover:text-gray-900 transition-colors">Home</Link>
-                <Link href="/how-it-works" className="text-gray-600 hover:text-gray-900 transition-colors">How it works</Link>
-                <div className="px-6 py-2 bg-gray-200 rounded-xl animate-pulse">Loading...</div>
-              </nav>
-            </div>
-          </div>
-        </header>
-
-        {/* Loading content */}
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center">
-            <div className="w-12 h-12 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading selliko...</p>
-          </div>
-        </div>
-      </div>
-    )
+async function getUser() {
+  const cookieStore = cookies()
+  const token = cookieStore.get('selliko_access_token')
+  
+  if (!token) {
+    return null
   }
 
-  const userRole = currentUser?.user_role?.toLowerCase() || currentUser?.role?.toLowerCase()
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_SELLIKO_API_BASE}functions/v1/auth-user`, {
+      headers: {
+        'Authorization': `Bearer ${token.value}`,
+        'Content-Type': 'application/json',
+      }
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    const data = await response.json()
+    return data.user
+  } catch (error) {
+    console.error('Error fetching user:', error)
+    return null
+  }
+}
+
+export default async function HomePage() {
+  const user = await getUser()
+  const userRole = user?.user_role?.toLowerCase() || user?.role?.toLowerCase()
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
@@ -100,7 +57,7 @@ export default function HomePage() {
             <nav className="hidden md:flex items-center space-x-8">
               <Link href="/" className="text-gray-600 hover:text-gray-900 transition-colors">Home</Link>
               <Link href="/how-it-works" className="text-gray-600 hover:text-gray-900 transition-colors">How it works</Link>
-              {currentUser ? (
+              {user ? (
                 <>
                   <Link 
                     href={`/${userRole}`} 
@@ -151,7 +108,7 @@ export default function HomePage() {
             
             {/* CTA Button */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
-              {currentUser ? (
+              {user ? (
                 <Link href="/list-device" className="btn-primary text-lg px-8 py-4 rounded-xl font-semibold text-white bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-lg transition-mobile inline-flex items-center justify-center">
                   Sell Your Phone Now
                   <ArrowRightIcon className="w-5 h-5 ml-2" />
@@ -469,7 +426,7 @@ export default function HomePage() {
           <p className="text-xl mb-8 text-green-100">
             Join thousands of satisfied sellers across Kerala.
           </p>
-          {currentUser ? (
+          {user ? (
             <Link href="/list-device" className="inline-flex items-center px-8 py-4 bg-white text-green-600 font-semibold text-lg rounded-xl hover:bg-gray-50 transition-mobile shadow-lg active-scale-sm">
               Sell Your Phone Now
               <ArrowRightIcon className="w-5 h-5 ml-2" />
