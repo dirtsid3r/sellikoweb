@@ -68,7 +68,10 @@ export default async function HomePage() {
                   </Link>
                 </>
               ) : (
-                <Link href="/login" className="btn-primary px-6 py-2 rounded-xl">Login</Link>
+                <Link href="/login" className="btn-primary px-6 py-2 rounded-xl inline-flex items-center">
+                  My Dashboard
+                  <ArrowRightIcon className="w-4 h-4 ml-2" />
+                </Link>
               )}
             </nav>
           </div>
