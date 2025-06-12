@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useAuth } from '@/lib/auth'
+import { useInstanceId } from '@/contexts/instance-context'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Icons } from '@/components/ui/icons'
@@ -10,13 +11,14 @@ import { useRouter } from 'next/navigation'
 
 export default function AdminDashboard() {
   const { user, logout } = useAuth()
+  const { instanceId } = useInstanceId()
   const router = useRouter()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
+    console.log('🔄 [ADMIN-DASH] Logout button clicked')
     setIsLoggingOut(true)
-    await logout()
-    router.push('/')
+    router.push('/logout')
   }
 
   // Mock data for demonstration

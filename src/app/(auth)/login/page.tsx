@@ -4,23 +4,39 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Icons } from '@/components/ui/icons'
 import { toast } from 'react-hot-toast'
-import { useAuth } from '@/lib/auth'
+import sellikoClient from '@/selliko-client'
 import Link from 'next/link'
 
 export default function SignInPage() {
+  console.log('🚀 [LOGIN] Component initialization started')
+  
   const [phoneNumber, setPhoneNumber] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
-  const { sendOTP } = useAuth()
 
   const [isMounted, setIsMounted] = useState(false)
 
+  console.log('🔧 [LOGIN] Initial state set:', {
+    phoneNumber: phoneNumber || 'empty',
+    isLoading,
+    isMounted
+  })
+
   // Prevent hydration mismatches
   useEffect(() => {
+    console.log('⚡ [LOGIN] useEffect triggered - mounting component')
     setIsMounted(true)
     if (typeof window !== 'undefined') {
+      console.log('🧹 [LOGIN] Clearing previous pending data from localStorage')
       localStorage.removeItem('pendingPhone')
-      localStorage.removeItem('phoneDigits')
+      localStorage.removeItem('pendingOtpId')
+      localStorage.removeItem('pendingUserId')
+      
+      console.log('📱 [LOGIN] LocalStorage after cleanup:', {
+        pendingPhone: localStorage.getItem('pendingPhone') || 'CLEARED',
+        pendingOtpId: localStorage.getItem('pendingOtpId') || 'CLEARED',
+        pendingUserId: localStorage.getItem('pendingUserId') || 'CLEARED'
+      })
     }
   }, [])
 
@@ -29,6 +45,13 @@ export default function SignInPage() {
     // Only allow digits, max 10 characters, must start with 6-9
     const digitsOnly = value.replace(/\D/g, '').slice(0, 10)
     
+    console.log('⌨️ [LOGIN] Phone input change:', {
+      rawValue: value ? value.substring(0, 3) + '***' : 'empty',
+      processedValue: digitsOnly ? digitsOnly.substring(0, 3) + '***' : 'empty',
+      length: digitsOnly.length,
+      isValid: digitsOnly.length === 10 && /^[6-9]/.test(digitsOnly)
+    })
+    
     if (digitsOnly === '' || /^[6-9]/.test(digitsOnly)) {
       setPhoneNumber(digitsOnly)
     }
@@ -36,38 +59,102 @@ export default function SignInPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('🚀 [LOGIN] Form submission started')
+    console.log('📊 [LOGIN] Form data:', {
+      phoneLength: phoneNumber.length,
+      phonePreview: phoneNumber ? phoneNumber.substring(0, 3) + '***' : 'empty',
+      isValid: phoneNumber.match(/^[6-9]\d{9}$/),
+      isLoading
+    })
     
     if (!phoneNumber.match(/^[6-9]\d{9}$/)) {
+      console.error('❌ [LOGIN] Invalid phone number format')
       toast.error('Please enter a valid 10-digit mobile number')
       return
     }
 
+    console.log('✅ [LOGIN] Phone validation passed, starting OTP request')
     setIsLoading(true)
     const fullPhone = `+91${phoneNumber}`
+    
+    console.log('📞 [LOGIN] Formatted phone number:', {
+      original: phoneNumber.substring(0, 3) + '***',
+      formatted: fullPhone.substring(0, 6) + '***'
+    })
 
     try {
-      const result = await sendOTP(fullPhone)
+      console.log('🌐 [LOGIN] Calling sellikoClient.getAuthOTP...')
+      const result = await sellikoClient.getAuthOTP(fullPhone)
+      
+      console.log('📥 [LOGIN] API Response received:', {
+        success: result.success,
+        hasOtp: !!result.otp,
+        hasOtpId: !!result.otp_id,
+        hasUserId: !!result.user_id,
+        otpIdValue: result.otp_id || 'MISSING',
+        userIdValue: result.user_id || 'MISSING',
+        errorMessage: result.error || 'NO_ERROR'
+      })
       
       if (result.success) {
+        console.log('🎉 [LOGIN] OTP sent successfully!')
         toast.success('OTP sent successfully!')
+        
+        console.log('💾 [LOGIN] Storing data in localStorage...')
+        console.log('💾 [LOGIN] Values to store:', {
+          pendingPhone: fullPhone.substring(0, 6) + '***',
+          pendingOtpId: result.otp_id || 'UNDEFINED',
+          pendingUserId: result.user_id || 'UNDEFINED'
+        })
+        
         localStorage.setItem('pendingPhone', fullPhone)
-        localStorage.setItem('pendingOtpId', result.otpId || '')
+        localStorage.setItem('pendingOtpId', result.otp_id || '')
+        localStorage.setItem('pendingUserId', result.user_id || '')
+        
+        console.log('📱 [LOGIN] LocalStorage after storing:', {
+          pendingPhone: localStorage.getItem('pendingPhone') || 'NOT_STORED',
+          pendingOtpId: localStorage.getItem('pendingOtpId') || 'NOT_STORED',
+          pendingUserId: localStorage.getItem('pendingUserId') || 'NOT_STORED'
+        })
+        
+        console.log('🔄 [LOGIN] Navigating to verify-otp page...')
         router.push('/verify-otp')
       } else {
+        console.error('❌ [LOGIN] OTP sending failed')
+        console.error('📋 [LOGIN] Error details:', {
+          error: result.error || 'NO_ERROR_MESSAGE',
+          success: result.success,
+          fullResponse: Object.keys(result)
+        })
         toast.error(result.error || 'Failed to send OTP')
       }
     } catch (error) {
-      console.error('Login error:', error)
+      console.error('💥 [LOGIN] Exception during OTP request:', error)
+      console.error('📋 [LOGIN] Error details:', {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      })
       toast.error('Something went wrong. Please try again.')
     } finally {
+      console.log('🏁 [LOGIN] Setting loading to false')
       setIsLoading(false)
     }
   }
 
   const isValid = phoneNumber.length === 10
 
+  // Component render logging
+  console.log('🎨 [LOGIN] Component rendering with state:', {
+    phoneLength: phoneNumber.length,
+    isValid,
+    isLoading,
+    isMounted
+  })
+
   // Prevent hydration mismatch by not rendering until mounted
   if (!isMounted) {
+    console.log('⏳ [LOGIN] Component not mounted yet, showing loading...')
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
@@ -88,127 +175,117 @@ export default function SignInPage() {
       </div>
 
       {/* Main Content */}
-      <div className="flex items-center justify-center px-4 pb-8">
+      <div className="flex items-center justify-center min-h-[calc(100vh-100px)] px-4">
         <div className="w-full max-w-md">
-          {/* Hero Section */}
+          {/* Logo and Branding */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-blue-600 to-blue-700 rounded-3xl mb-6 shadow-lg">
-              <Icons.smartphone className="w-10 h-10 text-white" />
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4">
+              <Icons.smartphone className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
-              Welcome to SELLIKO
-            </h1>
-            <p className="text-gray-600 text-lg">
-              Kerala's trusted mobile resale platform
-            </p>
+            <h1 className="text-3xl font-bold text-gray-900">Welcome to SELLIKO</h1>
+            <p className="text-gray-600 mt-2">Sign in to access your account</p>
           </div>
 
-          {/* Sign In Card */}
-          <div className="bg-white rounded-2xl shadow-xl border-0 overflow-hidden">
-            <div className="p-6 sm:p-8">
-              <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Sign In</h2>
-                <p className="text-gray-600">Enter your phone number to receive an OTP</p>
+          {/* Login Card */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8">
+            <div className="space-y-6">
+              <div className="text-center">
+                <h2 className="text-2xl font-semibold text-gray-900">Sign In</h2>
+                <p className="text-gray-600 mt-1">Enter your mobile number to continue</p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Phone Number Input */}
-                <div>
-                  <label htmlFor="mobile" className="block text-sm font-semibold text-gray-700 mb-3">
-                    Phone Number
+                <div className="space-y-2">
+                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+                    Mobile Number
                   </label>
-                  
                   <div className="relative">
-                    {/* Phone Icon */}
-                    <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-                      <Icons.phone className="w-5 h-5 text-gray-400" />
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <span className="text-gray-500 text-sm">+91</span>
                     </div>
-                    
-                    {/* Country Code */}
-                    <div className="absolute inset-y-0 left-11 flex items-center pl-3 pointer-events-none">
-                      <span className="text-gray-600 font-medium">+91</span>
-                    </div>
-                    
-                    {/* Input Field */}
                     <input
-                      id="mobile"
+                      id="phone"
                       type="tel"
-                      inputMode="numeric"
-                      pattern="[6-9][0-9]{9}"
                       placeholder="9876543210"
                       value={phoneNumber}
                       onChange={handlePhoneInput}
+                      className="block w-full pl-12 pr-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
                       maxLength={10}
                       required
-                      className="block w-full pl-24 pr-4 py-4 text-base border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 placeholder:text-gray-400"
                       autoComplete="tel"
+                      onFocus={() => console.log('🎯 [LOGIN] Phone input focused')}
+                      onBlur={() => console.log('👋 [LOGIN] Phone input blurred')}
                     />
                   </div>
-                  
-                  <div className="mt-3 flex items-center text-sm text-gray-500">
-                    <Icons.messageCircle className="w-4 h-4 mr-2" />
-                    We'll send you a 6-digit OTP via WhatsApp
+                  <p className="text-xs text-gray-500">
+                    We'll send you an OTP via WhatsApp to verify your number
+                  </p>
+                  {/* Debug info */}
+                  <div className="text-xs text-gray-400 text-center font-mono">
+                    Debug: {phoneNumber.length}/10 digits • Valid: {isValid ? '✓' : '✗'} • Loading: {isLoading ? '✓' : '✗'}
                   </div>
                 </div>
 
-                {/* Submit Button */}
                 <button
                   type="submit"
-                  disabled={!isValid || isLoading}
-                  className="w-full flex items-center justify-center px-6 py-4 text-base font-semibold text-white bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg"
+                  disabled={isLoading || !isValid}
+                  className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                  onClick={() => console.log('🖱️ [LOGIN] Submit button clicked')}
                 >
                   {isLoading ? (
                     <>
-                      <Icons.spinner className="animate-spin w-5 h-5 mr-3" />
+                      <Icons.spinner className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" />
                       Sending OTP...
                     </>
                   ) : (
                     <>
-                      <Icons.messageCircle className="w-5 h-5 mr-3" />
-                      Send OTP via WhatsApp
+                      <Icons.messageCircle className="mr-2 h-5 w-5" />
+                      Send OTP
                     </>
                   )}
                 </button>
               </form>
 
-              {/* Trust Indicators */}
-              <div className="mt-8 pt-6 border-t border-gray-100">
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div className="flex flex-col items-center">
-                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mb-2">
-                      <Icons.shield className="w-5 h-5 text-green-600" />
-                    </div>
-                    <span className="text-xs text-gray-600 font-medium">Secure</span>
-                  </div>
-                  <div className="flex flex-col items-center">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mb-2">
-                      <Icons.clock className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <span className="text-xs text-gray-600 font-medium">Quick Verification</span>
-                  </div>
-                  <div className="flex flex-col items-center">
-                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center mb-2">
-                      <Icons.users className="w-5 h-5 text-purple-600" />
-                    </div>
-                    <span className="text-xs text-gray-600 font-medium">Trusted by 1000+</span>
-                  </div>
-                </div>
+              {/* Terms and Privacy */}
+              <div className="text-center text-xs text-gray-500">
+                By continuing, you agree to our{' '}
+                <Link href="/terms" className="text-blue-600 hover:text-blue-800">
+                  Terms of Service
+                </Link>{' '}
+                and{' '}
+                <Link href="/privacy" className="text-blue-600 hover:text-blue-800">
+                  Privacy Policy
+                </Link>
               </div>
             </div>
           </div>
 
-          {/* Footer */}
+          {/* Features */}
           <div className="mt-8 text-center">
-            <p className="text-sm text-gray-500">
-              By continuing, you agree to our{' '}
-              <Link href="/terms" className="text-blue-600 hover:text-blue-700 font-medium">
-                Terms of Service
-              </Link>{' '}
-              and{' '}
-              <Link href="/privacy" className="text-blue-600 hover:text-blue-700 font-medium">
-                Privacy Policy
-              </Link>
-            </p>
+            <div className="flex items-center justify-center space-x-6 text-sm text-gray-600">
+              <div className="flex items-center space-x-1">
+                <Icons.shield className="w-4 h-4 text-green-500" />
+                <span>Secure</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <Icons.zap className="w-4 h-4 text-yellow-500" />
+                <span>Fast</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <Icons.smartphone className="w-4 h-4 text-blue-500" />
+                <span>Mobile First</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Debug Panel */}
+          <div className="mt-4 p-3 bg-gray-100 rounded-lg text-xs font-mono">
+            <div className="font-bold mb-2">Debug Info:</div>
+            <div>Phone: {phoneNumber ? `${phoneNumber.length}/10 digits` : 'empty'}</div>
+            <div>Valid: {isValid ? 'yes' : 'no'}</div>
+            <div>Loading: {isLoading ? 'yes' : 'no'}</div>
+            <div>Mounted: {isMounted ? 'yes' : 'no'}</div>
+            <div>Submit Ready: {isValid && !isLoading ? 'yes' : 'no'}</div>
           </div>
         </div>
       </div>

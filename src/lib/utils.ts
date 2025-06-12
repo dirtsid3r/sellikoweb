@@ -34,14 +34,14 @@ export function getOrCreateInstanceId(): string {
   }
   
   try {
-    const existingId = localStorage.getItem('instance-id')
+    const existingId = localStorage.getItem('selliko_instance_id')
     if (existingId) {
       return existingId
     }
     
     // Generate new instance ID
     const newInstanceId = generateUUID()
-    localStorage.setItem('instance-id', newInstanceId)
+    localStorage.setItem('selliko_instance_id', newInstanceId)
     return newInstanceId
   } catch (error) {
     console.warn('Failed to access localStorage for instance-id:', error)

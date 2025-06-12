@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
@@ -55,6 +55,7 @@ export default function MobileNavigation({}: MobileNavigationProps) {
   const [scrolled, setScrolled] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
   const pathname = usePathname()
+  const router = useRouter()
 
   // Handle scroll effect
   useEffect(() => {
@@ -73,8 +74,9 @@ export default function MobileNavigation({}: MobileNavigationProps) {
   const navItems = isAuthenticated ? [...publicNavItems, ...authNavItems] : publicNavItems
 
   const handleLogout = async () => {
-    await logout()
-    setIsOpen(false)
+    console.log('🔄 [MOBILE-NAV] Logout button clicked')
+    setIsOpen(false) // Close the mobile menu
+    router.push('/logout') // Navigate to the logout page
   }
 
   return (

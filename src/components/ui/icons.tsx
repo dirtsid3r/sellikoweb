@@ -41,6 +41,7 @@ import {
   Inbox,
   FileText,
   RefreshCw,
+  Zap,
 } from "lucide-react"
 
 export const Icons = {
@@ -86,4 +87,5 @@ export const Icons = {
   inbox: Inbox,
   fileText: FileText,
   refresh: RefreshCw,
+  zap: Zap,
 } 

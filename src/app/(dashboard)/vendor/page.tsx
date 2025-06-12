@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/auth'
+import { useInstanceId } from '@/contexts/instance-context'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Icons } from '@/components/ui/icons'
@@ -31,6 +32,7 @@ interface RecentActivity {
 
 export default function VendorDashboard() {
   const { user, logout } = useAuth()
+  const { instanceId } = useInstanceId()
   const router = useRouter()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -66,10 +68,10 @@ export default function VendorDashboard() {
     }
   ])
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
+    console.log('🔄 [VENDOR-DASH] Logout button clicked')
     setIsLoggingOut(true)
-    await logout()
-    router.push('/')
+    router.push('/logout')
   }
 
   return (

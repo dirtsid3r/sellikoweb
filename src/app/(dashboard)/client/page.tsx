@@ -28,10 +28,10 @@ export default function ClientDashboard() {
     )
   }
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
+    console.log('🔄 [CLIENT-DASH] Logout button clicked')
     setIsLoggingOut(true)
-    await logout()
-    router.push('/')
+    router.push('/logout')
   }
 
   // Current listings with real transaction status

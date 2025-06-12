@@ -19,7 +19,7 @@ export interface AuthContextType {
   isLoading: boolean
   isAuthenticated: boolean
   login: (phone: string, otp: string, otpId: string) => Promise<{ success: boolean; error?: string }>
-  logout: () => Promise<void>
+  logout: () => Promise<boolean>
   sendOTP: (phone: string) => Promise<{ success: boolean; otpId?: string; error?: string }>
   refreshToken: () => Promise<boolean>
   // Test accounts for development
@@ -125,9 +125,19 @@ class AuthAPI {
       console.error('Logout error:', error)
     } finally {
       if (typeof window !== 'undefined') {
-      localStorage.removeItem('selliko_access_token')
-      localStorage.removeItem('selliko_refresh_token')
-      localStorage.removeItem('selliko_user')
+        // Clear all auth-related localStorage items
+        localStorage.removeItem('selliko_access_token')
+        localStorage.removeItem('selliko_refresh_token')
+        localStorage.removeItem('selliko_user')
+        localStorage.removeItem('pendingPhone')
+        localStorage.removeItem('pendingOtpId')
+        localStorage.removeItem('pendingUserId')
+        localStorage.removeItem('selliko_instance_id')
+        
+        // Clear session storage flags
+        sessionStorage.removeItem('auth_redirect_complete')
+        
+        console.log('🧹 [AUTH] Cleared all auth-related storage items')
       }
     }
   }
@@ -139,6 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isMounted, setIsMounted] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   useEffect(() => {
     setIsMounted(true)
@@ -154,6 +165,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (storedUser && token) {
       try {
         setUser(JSON.parse(storedUser))
+        setIsAuthenticated(true)
       } catch (error) {
         console.error('Error parsing stored user:', error)
         localStorage.removeItem('selliko_user')
@@ -176,6 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (result.success && result.user) {
         setUser(result.user)
+        setIsAuthenticated(true)
         return { success: true }
       }
       
@@ -188,12 +201,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = async () => {
-    setIsLoading(true)
     try {
+      console.log('🔄 [AUTH] Starting logout process...')
       await authAPI.logout()
+      console.log('✅ [AUTH] Logout successful')
       setUser(null)
-    } finally {
-      setIsLoading(false)
+      setIsAuthenticated(false)
+      return true
+    } catch (error) {
+      console.error('❌ [AUTH] Logout error:', error)
+      return false
     }
   }
 
@@ -309,7 +326,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value: AuthContextType = {
     user,
     isLoading,
-    isAuthenticated: !!user,
+    isAuthenticated,
     login,
     logout,
     sendOTP,

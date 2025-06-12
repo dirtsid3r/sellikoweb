@@ -10,6 +10,8 @@ interface InstanceContextType {
 
 const InstanceContext = createContext<InstanceContextType | undefined>(undefined)
 
+const InstanceIdContext = createContext<string>('')
+
 export function InstanceProvider({ children }: { children: ReactNode }) {
   const [instanceId, setInstanceId] = useState<string>('')
   const [isLoaded, setIsLoaded] = useState<boolean>(false)
@@ -28,7 +30,9 @@ export function InstanceProvider({ children }: { children: ReactNode }) {
 
   return (
     <InstanceContext.Provider value={{ instanceId, isLoaded }}>
-      {children}
+      <InstanceIdContext.Provider value={instanceId}>
+        {children}
+      </InstanceIdContext.Provider>
     </InstanceContext.Provider>
   )
 }
@@ -52,4 +56,8 @@ export function useInstanceId(): InstanceContextType {
 export function useInstanceIdValue(): string {
   const { instanceId } = useInstanceId()
   return instanceId
+}
+
+export function useInstanceIdFromContext() {
+  return useContext(InstanceIdContext)
 } 
