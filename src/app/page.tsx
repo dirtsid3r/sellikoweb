@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { 
@@ -15,116 +15,48 @@ import {
 } from '@heroicons/react/24/outline'
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid'
 import { useAuth } from '@/lib/auth'
+import sellikoClient from '@/selliko-client'
 
-function TestLoginButton() {
-  const { loginAsTestVendor, loginAsTestClient, loginAsTestAgent, loginAsTestAdmin, logout, user } = useAuth()
-  const [mounted, setMounted] = React.useState(false)
-
-  React.useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  if (!mounted) {
-    return (
-      <div className="flex justify-center">
-        <div className="inline-flex items-center px-4 py-3 bg-gray-600 text-white rounded-xl opacity-50">
-          <span className="text-sm">Loading...</span>
-        </div>
-      </div>
-    )
-  }
-
-  if (user) {
-    return (
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-gray-400">
-          Logged in as: {user.name} ({user.role})
-        </span>
-        <button
-          onClick={logout}
-          className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
-        >
-          Logout
-        </button>
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex flex-wrap gap-3 justify-center">
-      <button
-        onClick={loginAsTestVendor}
-        className="inline-flex items-center px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium"
-      >
-        <span className="mr-2">📱</span>
-        <div className="text-left">
-          <div className="text-sm font-semibold">Vendor Login</div>
-          <div className="text-xs opacity-90">+91 98765 43210</div>
-        </div>
-      </button>
-      
-      <button
-        onClick={loginAsTestClient}
-        className="inline-flex items-center px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-medium"
-      >
-        <span className="mr-2">💚</span>
-        <div className="text-left">
-          <div className="text-sm font-semibold">Client Login</div>
-          <div className="text-xs opacity-90">+91 87654 32109</div>
-        </div>
-      </button>
-
-      <button
-        onClick={async () => {
-          try {
-            console.log('Agent button clicked')
-            await loginAsTestAgent()
-            console.log('Agent login completed')
-          } catch (error) {
-            console.error('Agent login error:', error)
-          }
-        }}
-        className="inline-flex items-center px-4 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors font-medium"
-      >
-        <span className="mr-2">🚗</span>
-        <div className="text-left">
-          <div className="text-sm font-semibold">Agent Login</div>
-          <div className="text-xs opacity-90">+91 98765 43212</div>
-        </div>
-      </button>
-
-      <button
-        onClick={async () => {
-          try {
-            console.log('Admin button clicked')
-            await loginAsTestAdmin()
-            console.log('Admin login completed')
-          } catch (error) {
-            console.error('Admin login error:', error)
-          }
-        }}
-        className="inline-flex items-center px-4 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors font-medium"
-      >
-        <span className="mr-2">👤</span>
-        <div className="text-left">
-          <div className="text-sm font-semibold">Admin Login</div>
-          <div className="text-xs opacity-90">+91 99888 77665</div>
-        </div>
-      </button>
-    </div>
-  )
+interface User {
+  id: string
+  user_role?: string
+  role?: string
+  name?: string
 }
 
 export default function HomePage() {
   const { isAuthenticated, isLoading } = useAuth()
   const [mounted, setMounted] = React.useState(false)
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
+  const [isAuthChecking, setIsAuthChecking] = useState(true)
 
-  React.useEffect(() => {
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const user = await sellikoClient.getCurrentUser()
+        console.log('👤 [HOME] Current user:', user ? {
+          id: user.id,
+          role: user.user_role,
+        } : 'No user found')
+        setCurrentUser(user)
+      } catch (error) {
+        console.error('💥 [HOME] Auth check error:', error)
+      } finally {
+        setIsAuthChecking(false)
+      }
+    }
+
+    if (mounted) {
+      checkAuth()
+    }
+  }, [mounted])
+
+  useEffect(() => {
     setMounted(true)
   }, [])
 
   // Avoid hydration issues by showing a loading state until both mounted and auth is loaded
-  if (!mounted || isLoading) {
+  if (!mounted || isLoading || isAuthChecking) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
         {/* Header */}
@@ -154,6 +86,8 @@ export default function HomePage() {
     )
   }
 
+  const userRole = currentUser?.user_role?.toLowerCase() || currentUser?.role?.toLowerCase()
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
       {/* Header */}
@@ -166,10 +100,15 @@ export default function HomePage() {
             <nav className="hidden md:flex items-center space-x-8">
               <Link href="/" className="text-gray-600 hover:text-gray-900 transition-colors">Home</Link>
               <Link href="/how-it-works" className="text-gray-600 hover:text-gray-900 transition-colors">How it works</Link>
-              {isAuthenticated ? (
+              {currentUser ? (
                 <>
-                  <Link href="/dashboard" className="text-gray-600 hover:text-gray-900 transition-colors">Dashboard</Link>
-                  <Link href="/list-device" className="btn-primary px-6 py-2 rounded-xl">Sell Phone</Link>
+                  <Link 
+                    href={`/${userRole}`} 
+                    className="btn-primary px-6 py-2 rounded-xl inline-flex items-center"
+                  >
+                    Go to Dashboard
+                    <ArrowRightIcon className="w-4 h-4 ml-2" />
+                  </Link>
                 </>
               ) : (
                 <Link href="/login" className="btn-primary px-6 py-2 rounded-xl">Login</Link>
@@ -212,7 +151,7 @@ export default function HomePage() {
             
             {/* CTA Button */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
-              {isAuthenticated ? (
+              {currentUser ? (
                 <Link href="/list-device" className="btn-primary text-lg px-8 py-4 rounded-xl font-semibold text-white bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-lg transition-mobile inline-flex items-center justify-center">
                   Sell Your Phone Now
                   <ArrowRightIcon className="w-5 h-5 ml-2" />
@@ -530,7 +469,7 @@ export default function HomePage() {
           <p className="text-xl mb-8 text-green-100">
             Join thousands of satisfied sellers across Kerala.
           </p>
-          {isAuthenticated ? (
+          {currentUser ? (
             <Link href="/list-device" className="inline-flex items-center px-8 py-4 bg-white text-green-600 font-semibold text-lg rounded-xl hover:bg-gray-50 transition-mobile shadow-lg active-scale-sm">
               Sell Your Phone Now
               <ArrowRightIcon className="w-5 h-5 ml-2" />
@@ -541,26 +480,6 @@ export default function HomePage() {
               <ArrowRightIcon className="w-5 h-5 ml-2" />
             </Link>
           )}
-        </div>
-      </section>
-
-      {/* Test Accounts Section */}
-      <section className="py-12 bg-gray-900 text-white">
-        <div className="max-w-4xl mx-auto px-4">
-          <div className="text-center mb-8">
-            <h3 className="text-xl font-semibold mb-2">📱 Quick Demo Access</h3>
-            <p className="text-gray-400 text-sm">One-click login to explore different user experiences</p>
-          </div>
-          
-          <div className="text-center">
-            <TestLoginButton />
-          </div>
-          
-          <div className="text-center mt-6">
-            <p className="text-xs text-gray-500">
-              * Demo accounts simulate WhatsApp OTP login experience
-            </p>
-          </div>
         </div>
       </section>
 
