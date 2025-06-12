@@ -13,6 +13,8 @@ import { useRouter } from 'next/navigation'
 import { MarketplaceTab } from '@/components/vendor/MarketplaceTab'
 import { MyBidsTab } from '@/components/vendor/MyBidsTab'
 import { NotificationsTab } from '@/components/vendor/NotificationsTab'
+import sellikoClient from '@/selliko-client'
+import { toast } from 'react-hot-toast'
 
 interface VendorStats {
   activeBids: number
@@ -31,7 +33,7 @@ interface RecentActivity {
 }
 
 export default function VendorDashboard() {
-  const { user, logout } = useAuth()
+  const { user, logout, isLoading } = useAuth()
   const { instanceId } = useInstanceId()
   const router = useRouter()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
@@ -43,6 +45,7 @@ export default function VendorDashboard() {
     winRate: 73,
     totalSpent: 485000
   })
+  const [isAuthChecking, setIsAuthChecking] = useState(true)
 
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([
     {
@@ -67,6 +70,59 @@ export default function VendorDashboard() {
       icon: 'package'
     }
   ])
+
+  useEffect(() => {
+    const checkAuthAndRole = async () => {
+      console.log('🔒 [VENDOR-DASH] Checking authentication and role...')
+      try {
+        const user = await sellikoClient.getCurrentUser()
+        console.log('👤 [VENDOR-DASH] Current user:', user ? {
+          id: user.id,
+          role: user.user_role,
+        } : 'No user found')
+        
+        if (!user) {
+          console.log('❌ [VENDOR-DASH] No user found, redirecting to login')
+          toast.error('Please login to continue')
+          router.replace('/login')
+          return
+        }
+
+        const userRole = (user.user_role || user.role || '').toLowerCase()
+        console.log('👑 [VENDOR-DASH] User role:', userRole)
+        
+        if (userRole !== 'vendor') {
+          console.log(`⚠️ [VENDOR-DASH] Invalid role access attempt: ${userRole}`)
+          toast.error('Access denied. Redirecting to your dashboard.')
+          router.replace(`/${userRole}`)
+          return
+        }
+
+        console.log('✅ [VENDOR-DASH] Role verification successful')
+        setIsAuthChecking(false)
+      } catch (error) {
+        console.error('💥 [VENDOR-DASH] Auth check error:', error)
+        toast.error('Authentication error')
+        router.replace('/login')
+      }
+    }
+
+    checkAuthAndRole()
+  }, [router])
+
+  if (isLoading || isAuthChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-50">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4">
+            <Icons.spinner className="w-8 h-8 text-white animate-spin" />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading Dashboard</h2>
+          <p className="text-gray-600">Preparing vendor panel...</p>
+        </div>
+      </div>
+    )
+  }
 
   const handleLogout = () => {
     console.log('🔄 [VENDOR-DASH] Logout button clicked')

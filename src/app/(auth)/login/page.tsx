@@ -22,10 +22,34 @@ export default function SignInPage() {
     isMounted
   })
 
-  // Prevent hydration mismatches
+  // Check authentication status and redirect if needed
   useEffect(() => {
-    console.log('⚡ [LOGIN] useEffect triggered - mounting component')
-    setIsMounted(true)
+    const checkAuth = async () => {
+      console.log('🔒 [LOGIN] Checking authentication status...')
+      try {
+        const user = await sellikoClient.getCurrentUser()
+        console.log('👤 [LOGIN] Current user:', user ? {
+          id: user.id,
+          role: user.user_role,
+        } : 'No user found')
+        
+        if (user) {
+          console.log('✅ [LOGIN] User is authenticated, redirecting...')
+          const userRole = (user.user_role || user.role || '').toLowerCase()
+          router.replace(`/${userRole}`)
+          return
+        }
+        
+        console.log('ℹ️ [LOGIN] No authenticated user, showing login page')
+      } catch (error) {
+        console.error('❌ [LOGIN] Error checking auth status:', error)
+      }
+      
+      setIsMounted(true)
+    }
+
+    checkAuth()
+    
     if (typeof window !== 'undefined') {
       console.log('🧹 [LOGIN] Clearing previous pending data from localStorage')
       localStorage.removeItem('pendingPhone')
@@ -38,7 +62,7 @@ export default function SignInPage() {
         pendingUserId: localStorage.getItem('pendingUserId') || 'CLEARED'
       })
     }
-  }, [])
+  }, [router])
 
   const handlePhoneInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value

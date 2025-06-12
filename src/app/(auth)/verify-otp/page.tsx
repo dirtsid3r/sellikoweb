@@ -21,6 +21,7 @@ export default function VerifyOTPPage() {
   const [countdown, setCountdown] = useState(60)
   const [canResend, setCanResend] = useState(false)
   const [criticalError, setCriticalError] = useState<string | null>(null)
+  const [isMounted, setIsMounted] = useState(false)
   const router = useRouter()
 
   console.log('🔧 [VERIFY-OTP] Initial state set:', {
@@ -33,70 +34,97 @@ export default function VerifyOTPPage() {
   })
 
   useEffect(() => {
-    console.log('⚡ [VERIFY-OTP] useEffect triggered - checking localStorage')
-    
-    // Check if we're in a redirect loop
-    const isRedirectComplete = sessionStorage.getItem('auth_redirect_complete')
-    if (isRedirectComplete) {
-      console.log('🔄 [VERIFY-OTP] Auth redirect already completed, clearing flag')
-      sessionStorage.removeItem('auth_redirect_complete')
-      setCriticalError('Session expired or invalid. Please start from the login page.')
-      return
-    }
-    
-    // Get phone and otpId from localStorage
-    const pendingPhone = localStorage.getItem('pendingPhone')
-    const pendingOtpId = localStorage.getItem('pendingOtpId')
-    const pendingUserId = localStorage.getItem('pendingUserId')
+    let timer: NodeJS.Timeout | undefined
 
-    console.log('📱 [VERIFY-OTP] LocalStorage data retrieved:', {
-      pendingPhone: pendingPhone || 'NOT_FOUND',
-      pendingOtpId: pendingOtpId || 'NOT_FOUND',
-      pendingUserId: pendingUserId || 'NOT_FOUND'
-    })
-
-    const missingFields = []
-    if (!pendingPhone) missingFields.push('pendingPhone')
-    if (!pendingOtpId) missingFields.push('pendingOtpId')
-    // pendingUserId is optional for now
-    if (missingFields.length > 0) {
-      const details = `Missing required field(s): ${missingFields.join(', ')}`
-      const troubleshooting = [
-        '• This can happen if you refresh the page, open it in a new tab, or your session expired.',
-        '• Please start the login process again.',
-        '• If the problem persists, clear your browser cache and cookies.'
-      ].join('\n')
-      setCriticalError(`${details}.\n\nTroubleshooting:\n${troubleshooting}`)
-      toast.error('Please start from login page')
-      return
-    }
-
-    console.log('✅ [VERIFY-OTP] Required data found, setting state')
-    setPhone(pendingPhone)
-    setOtpId(pendingOtpId)
-
-    console.log('⏰ [VERIFY-OTP] Starting countdown timer')
-    // Start countdown timer
-    const timer = setInterval(() => {
-      console.log('⏱️ [VERIFY-OTP] Timer tick')
-      setCountdown((prev) => {
-        const newCount = prev - 1
-        console.log(`⏱️ [VERIFY-OTP] Countdown: ${prev} -> ${newCount}`)
+    const checkAuthAndSetup = async () => {
+      console.log('🔒 [VERIFY-OTP] Checking authentication status...')
+      try {
+        const user = await sellikoClient.getCurrentUser()
+        console.log('👤 [VERIFY-OTP] Current user:', user ? {
+          id: user.id,
+          role: user.user_role,
+        } : 'No user found')
         
-        if (newCount <= 0) {
-          console.log('🔄 [VERIFY-OTP] Countdown finished, enabling resend')
-          setCanResend(true)
-          clearInterval(timer)
-          return 0
+        if (user) {
+          console.log('✅ [VERIFY-OTP] User is authenticated, redirecting...')
+          const userRole = (user.user_role || user.role || '').toLowerCase()
+          router.replace(`/${userRole}`)
+          return
         }
-        return newCount
-      })
-    }, 1000)
+        
+        console.log('ℹ️ [VERIFY-OTP] No authenticated user, proceeding with OTP verification')
+        
+        // Continue with the original setup logic
+        console.log('⚡ [VERIFY-OTP] Checking localStorage')
+        
+        // Check if we're in a redirect loop
+        const isRedirectComplete = sessionStorage.getItem('auth_redirect_complete')
+        if (isRedirectComplete) {
+          console.log('🔄 [VERIFY-OTP] Auth redirect already completed, clearing flag')
+          sessionStorage.removeItem('auth_redirect_complete')
+          setCriticalError('Session expired or invalid. Please start from the login page.')
+          setIsMounted(true)
+          return
+        }
+        
+        // Get phone and otpId from localStorage
+        const pendingPhone = localStorage.getItem('pendingPhone')
+        const pendingOtpId = localStorage.getItem('pendingOtpId')
+        const pendingUserId = localStorage.getItem('pendingUserId')
 
-    console.log('🧹 [VERIFY-OTP] Setting up cleanup function')
+        console.log('📱 [VERIFY-OTP] LocalStorage data retrieved:', {
+          pendingPhone: pendingPhone || 'NOT_FOUND',
+          pendingOtpId: pendingOtpId || 'NOT_FOUND',
+          pendingUserId: pendingUserId || 'NOT_FOUND'
+        })
+
+        const missingFields = []
+        if (!pendingPhone) missingFields.push('pendingPhone')
+        if (!pendingOtpId) missingFields.push('pendingOtpId')
+        
+        if (missingFields.length > 0) {
+          const details = `Missing required field(s): ${missingFields.join(', ')}`
+          const troubleshooting = [
+            '• This can happen if you refresh the page, open it in a new tab, or your session expired.',
+            '• Please start the login process again.',
+            '• If the problem persists, clear your browser cache and cookies.'
+          ].join('\n')
+          setCriticalError(`${details}.\n\nTroubleshooting:\n${troubleshooting}`)
+          toast.error('Please start from login page')
+          setIsMounted(true)
+          return
+        }
+
+        console.log('✅ [VERIFY-OTP] Required data found, setting state')
+        if (pendingPhone) setPhone(pendingPhone)
+        if (pendingOtpId) setOtpId(pendingOtpId)
+        setIsMounted(true)
+
+        console.log('⏰ [VERIFY-OTP] Starting countdown timer')
+        // Start countdown timer
+        timer = setInterval(() => {
+          setCountdown((prev) => {
+            const newCount = prev - 1
+            if (newCount <= 0) {
+              console.log('🔄 [VERIFY-OTP] Countdown finished, enabling resend')
+              setCanResend(true)
+              if (timer) clearInterval(timer)
+              return 0
+            }
+            return newCount
+          })
+        }, 1000)
+      } catch (error) {
+        console.error('❌ [VERIFY-OTP] Error during auth check:', error)
+        setIsMounted(true)
+      }
+    }
+
+    checkAuthAndSetup()
+
     return () => {
       console.log('🧹 [VERIFY-OTP] Cleaning up timer')
-      clearInterval(timer)
+      if (timer) clearInterval(timer)
     }
   }, [router])
 

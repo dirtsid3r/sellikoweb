@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -8,13 +8,55 @@ import { Icons } from '@/components/ui/icons'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import sellikoClient from '@/selliko-client'
+import { toast } from 'react-hot-toast'
 
 export default function ClientDashboard() {
   const { user, logout, isLoading } = useAuth()
   const router = useRouter()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [isAuthChecking, setIsAuthChecking] = useState(true)
 
-  if (isLoading) {
+  useEffect(() => {
+    const checkAuthAndRole = async () => {
+      console.log('🔒 [CLIENT-DASH] Checking authentication and role...')
+      try {
+        const user = await sellikoClient.getCurrentUser()
+        console.log('👤 [CLIENT-DASH] Current user:', user ? {
+          id: user.id,
+          role: user.user_role,
+        } : 'No user found')
+        
+        if (!user) {
+          console.log('❌ [CLIENT-DASH] No user found, redirecting to login')
+          toast.error('Please login to continue')
+          router.replace('/login')
+          return
+        }
+
+        const userRole = (user.user_role || user.role || '').toLowerCase()
+        console.log('👑 [CLIENT-DASH] User role:', userRole)
+        
+        if (userRole !== 'client') {
+          console.log(`⚠️ [CLIENT-DASH] Invalid role access attempt: ${userRole}`)
+          toast.error('Access denied. Redirecting to your dashboard.')
+          router.replace(`/${userRole}`)
+          return
+        }
+
+        console.log('✅ [CLIENT-DASH] Role verification successful')
+        setIsAuthChecking(false)
+      } catch (error) {
+        console.error('💥 [CLIENT-DASH] Auth check error:', error)
+        toast.error('Authentication error')
+        router.replace('/login')
+      }
+    }
+
+    checkAuthAndRole()
+  }, [router])
+
+  if (isLoading || isAuthChecking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-50">
         <div className="text-center">

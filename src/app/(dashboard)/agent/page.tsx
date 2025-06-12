@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useInstanceId } from '@/contexts/instance-context'
 import { 
@@ -16,6 +16,13 @@ import {
   PlayIcon
 } from '@heroicons/react/24/outline'
 import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid'
+import { useAuth } from '@/lib/auth'
+import { useRouter } from 'next/navigation'
+import sellikoClient from '@/selliko-client'
+import { toast } from 'react-hot-toast'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Icons } from '@/components/ui/icons'
 
 // Mock data - in real app this would come from API
 const verificationStats = {
@@ -115,6 +122,63 @@ const getStatusText = (status: string) => {
 
 export default function AgentDashboard() {
   const { instanceId } = useInstanceId()
+  const { user, logout, isLoading } = useAuth()
+  const router = useRouter()
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [isAuthChecking, setIsAuthChecking] = useState(true)
+
+  useEffect(() => {
+    const checkAuthAndRole = async () => {
+      console.log('🔒 [AGENT-DASH] Checking authentication and role...')
+      try {
+        const user = await sellikoClient.getCurrentUser()
+        console.log('👤 [AGENT-DASH] Current user:', user ? {
+          id: user.id,
+          role: user.user_role,
+        } : 'No user found')
+        
+        if (!user) {
+          console.log('❌ [AGENT-DASH] No user found, redirecting to login')
+          toast.error('Please login to continue')
+          router.replace('/login')
+          return
+        }
+
+        const userRole = (user.user_role || user.role || '').toLowerCase()
+        console.log('👑 [AGENT-DASH] User role:', userRole)
+        
+        if (userRole !== 'agent') {
+          console.log(`⚠️ [AGENT-DASH] Invalid role access attempt: ${userRole}`)
+          toast.error('Access denied. Redirecting to your dashboard.')
+          router.replace(`/${userRole}`)
+          return
+        }
+
+        console.log('✅ [AGENT-DASH] Role verification successful')
+        setIsAuthChecking(false)
+      } catch (error) {
+        console.error('💥 [AGENT-DASH] Auth check error:', error)
+        toast.error('Authentication error')
+        router.replace('/login')
+      }
+    }
+
+    checkAuthAndRole()
+  }, [router])
+
+  if (isLoading || isAuthChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-50">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4">
+            <Icons.spinner className="w-8 h-8 text-white animate-spin" />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading Dashboard</h2>
+          <p className="text-gray-600">Preparing agent panel...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
