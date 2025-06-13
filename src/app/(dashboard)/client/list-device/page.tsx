@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Icons } from '@/components/ui/icons'
 import { toast } from 'react-hot-toast'
+import React from 'react'
 
 interface DeviceImages {
   front?: File | null
@@ -171,7 +172,7 @@ export default function ListDevice() {
       case 2: // Device Details
         return data.brand && data.model && data.storage && data.condition
       case 3: // Warranty Info
-        return data.warrantyStatus !== ''
+        return data.warrantyStatus !== 'none'
       case 4: // Bill Details
         return data.hasBill !== undefined
       case 5: // Pricing
@@ -320,31 +321,54 @@ function DeviceImagesStep({ data, updateImages }: { data: DeviceData, updateImag
     }
   }
 
-  const ImageUploadBox = ({ type, label }: { type: keyof DeviceImages, label: string }) => (
-    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-green-500 transition-colors cursor-pointer"
-         onClick={() => fileInputRefs[type].current?.click()}>
-      <input
-        ref={fileInputRefs[type]}
-        type="file"
-        accept="image/*"
-        onChange={(e) => handleImageUpload(type, e)}
-        className="hidden"
-      />
-      {data.images[type] ? (
-        <div>
-          <Icons.check className="w-8 h-8 text-green-600 mx-auto mb-2" />
-          <p className="text-green-600 font-medium">{label} - Uploaded</p>
-          <p className="text-xs text-gray-500">{data.images[type]?.name}</p>
-        </div>
-      ) : (
-        <div>
-          <Icons.camera className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-          <p className="text-gray-600">{label}</p>
-          <p className="text-xs text-gray-500">Click to upload</p>
-        </div>
-      )}
-    </div>
-  )
+  const ImageUploadBox = ({ type, label }: { type: keyof DeviceImages, label: string }) => {
+    const [preview, setPreview] = useState<string | null>(null)
+
+    // Create preview URL when image is selected
+    React.useEffect(() => {
+      if (data.images[type]) {
+        const url = URL.createObjectURL(data.images[type]!)
+        setPreview(url)
+        return () => URL.revokeObjectURL(url)
+      } else {
+        setPreview(null)
+      }
+    }, [data.images[type]])
+
+    return (
+      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-green-500 transition-colors cursor-pointer"
+           onClick={() => fileInputRefs[type].current?.click()}>
+        <input
+          ref={fileInputRefs[type]}
+          type="file"
+          accept="image/*"
+          onChange={(e) => handleImageUpload(type, e)}
+          className="hidden"
+        />
+        {data.images[type] ? (
+          <div>
+            {preview && (
+              <img 
+                src={preview} 
+                alt={`${label} preview`}
+                className="w-20 h-20 object-cover rounded-lg mx-auto mb-2"
+              />
+            )}
+            <Icons.check className="w-6 h-6 text-green-600 mx-auto mb-2" />
+            <p className="text-green-600 font-medium">{label} - Uploaded</p>
+            <p className="text-xs text-gray-500">{data.images[type]?.name}</p>
+            <p className="text-xs text-blue-600 mt-1">Click to change</p>
+          </div>
+        ) : (
+          <div>
+            <Icons.camera className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+            <p className="text-gray-600">{label}</p>
+            <p className="text-xs text-gray-500">Click to upload</p>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -520,7 +544,7 @@ function DeviceDetailsStep({ data, updateData }: { data: DeviceData, updateData:
           id="description"
           placeholder="Describe any specific details, accessories included, or issues with the device..."
           value={data.description}
-          onChange={(e) => updateData('description', e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateData('description', e.target.value)}
           rows={3}
         />
       </div>
@@ -803,7 +827,7 @@ function AddressStep({ data, updateData }: { data: DeviceData, updateData: (fiel
           id="address"
           placeholder="Enter your complete address"
           value={data.address}
-          onChange={(e) => updateData('address', e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateData('address', e.target.value)}
           rows={2}
         />
       </div>
@@ -961,7 +985,7 @@ function PickupAddressStep({ data, updateData }: { data: DeviceData, updateData:
           id="pickupAddress"
           placeholder="Enter pickup address"
           value={data.pickupAddress}
-          onChange={(e) => updateData('pickupAddress', e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateData('pickupAddress', e.target.value)}
           rows={2}
         />
       </div>

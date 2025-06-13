@@ -42,6 +42,10 @@ import {
   FileText,
   RefreshCw,
   Zap,
+  Camera,
+  Info,
+  AlertTriangle,
+  Lightbulb,
 } from "lucide-react"
 
 export const Icons = {
@@ -88,4 +92,8 @@ export const Icons = {
   fileText: FileText,
   refresh: RefreshCw,
   zap: Zap,
+  camera: Camera,
+  info: Info,
+  exclamationTriangle: AlertTriangle,
+  lightBulb: Lightbulb,
 } 
