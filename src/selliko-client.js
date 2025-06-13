@@ -1186,6 +1186,369 @@ class SellikoClient {
       }
     }
   }
+
+  // 7. updateListing - update an existing listing with only modified values
+  /**
+   * Updates an existing device listing with only the modified values
+   * 
+   * VALIDATION REQUIREMENTS:
+   * - User role must be 'CLIENT'
+   * - Listing user_id must match caller's user_id
+   * - Listing status must be 'pending_approval'
+   * 
+   * @param {string} listingId - The ID of the listing to update
+   * @param {Object} originalData - The original listing data from API
+   * @param {Object} updatedData - The updated form data
+   * 
+   * @returns {Promise<Object>} Response with success status and updated listing
+   */
+  async updateListing(listingId, originalData, updatedData) {
+    console.log('🔄 [SELLIKO-CLIENT] updateListing called with:', {
+      listingId: listingId || 'MISSING',
+      hasOriginalData: !!originalData,
+      hasUpdatedData: !!updatedData
+    })
+
+    try {
+      // Validate inputs
+      if (!listingId) {
+        throw new Error('Listing ID is required')
+      }
+
+      if (!originalData || !updatedData) {
+        throw new Error('Both original and updated data are required')
+      }
+
+      // Get current user and validate permissions
+      const user = await this.getCurrentUser()
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+
+      console.log('👤 [SELLIKO-CLIENT] Current user validation:', {
+        userId: user.id,
+        userRole: user.user_role,
+        normalizedRole: (user.user_role || '').toUpperCase(),
+        isClient: (user.user_role || '').toUpperCase() === 'CLIENT'
+      })
+
+      // Validate user role (handle both uppercase and lowercase)
+      const userRole = (user.user_role || '').toUpperCase()
+      if (userRole !== 'CLIENT') {
+        throw new Error(`Only clients can update listings. Current role: ${user.user_role}`)
+      }
+
+      // Validate listing ownership
+      console.log('🔐 [SELLIKO-CLIENT] Ownership validation:', {
+        listingUserId: originalData.user_id,
+        currentUserId: user.id,
+        isOwner: originalData.user_id === user.id
+      })
+      if (originalData.user_id !== user.id) {
+        throw new Error('You can only update your own listings')
+      }
+
+      // Validate listing status (allow multiple statuses that can be updated)
+      console.log('📋 [SELLIKO-CLIENT] Status validation:', {
+        currentStatus: originalData.status,
+        allowedStatuses: ['pending', 'pending_approval', 'draft'],
+        isAllowed: ['pending', 'pending_approval', 'draft'].includes(originalData.status)
+      })
+      const allowedStatuses = ['pending', 'pending_approval', 'draft']
+      if (!allowedStatuses.includes(originalData.status)) {
+        throw new Error(`Only listings with status ${allowedStatuses.join(', ')} can be updated. Current status: ${originalData.status}`)
+      }
+
+      console.log('✅ [SELLIKO-CLIENT] Validation passed - proceeding with update')
+
+      // Process and upload new images if changed
+      console.log('🖼️ [SELLIKO-CLIENT] Processing image changes...')
+      const imageUrls = {}
+      let hasImageChanges = false
+
+      // Check each image position for changes
+      const imagePositions = ['front', 'back', 'top', 'bottom']
+      for (const position of imagePositions) {
+        const originalUrl = originalData.device_images?.[position] || ''
+        const updatedFile = updatedData.images?.[position]
+
+        if (updatedFile && typeof updatedFile === 'object' && updatedFile.name) {
+          // New file uploaded - process and upload it
+          console.log(`📸 [SELLIKO-CLIENT] New ${position} image detected:`, updatedFile.name)
+          hasImageChanges = true
+
+          try {
+            const fileName = `${this.generateUUID()}.webp`
+            const webpFile = await this.convertToWebP(updatedFile)
+            imageUrls[position] = await this.uploadFile(webpFile, fileName)
+            console.log(`✅ [SELLIKO-CLIENT] ${position} image uploaded:`, imageUrls[position])
+          } catch (uploadError) {
+            console.error(`💥 [SELLIKO-CLIENT] Failed to upload ${position} image:`, uploadError)
+            throw new Error(`Failed to upload ${position} image: ${uploadError.message}`)
+          }
+        } else if (updatedData.images?.[position] === '' && originalUrl) {
+          // Image was removed
+          console.log(`🗑️ [SELLIKO-CLIENT] ${position} image removed`)
+          hasImageChanges = true
+          imageUrls[position] = null
+        } else if (typeof updatedData.images?.[position] === 'string' && updatedData.images[position] !== originalUrl) {
+          // Image URL changed (unlikely but handle it)
+          console.log(`🔄 [SELLIKO-CLIENT] ${position} image URL changed`)
+          hasImageChanges = true
+          imageUrls[position] = updatedData.images[position]
+        }
+        // If no change, don't include in imageUrls (will be set to null in final data)
+      }
+
+      // Process warranty and bill images
+      if (updatedData.warrantyImage && typeof updatedData.warrantyImage === 'object') {
+        console.log('📄 [SELLIKO-CLIENT] Processing warranty image...')
+        try {
+          const fileName = `warranty_${this.generateUUID()}.webp`
+          const webpFile = await this.convertToWebP(updatedData.warrantyImage)
+          updatedData.warrantyImageUrl = await this.uploadFile(webpFile, fileName)
+        } catch (error) {
+          throw new Error(`Failed to upload warranty image: ${error.message}`)
+        }
+      }
+
+      if (updatedData.billImage && typeof updatedData.billImage === 'object') {
+        console.log('🧾 [SELLIKO-CLIENT] Processing bill image...')
+        try {
+          const fileName = `bill_${this.generateUUID()}.webp`
+          const webpFile = await this.convertToWebP(updatedData.billImage)
+          updatedData.billImageUrl = await this.uploadFile(webpFile, fileName)
+        } catch (error) {
+          throw new Error(`Failed to upload bill image: ${error.message}`)
+        }
+      }
+
+      // Compare original and updated data to find changes
+      console.log('🔍 [SELLIKO-CLIENT] Detecting changes...')
+      const changes = {}
+
+      // Helper function to compare values
+      const hasChanged = (original, updated, key) => {
+        const origVal = original?.[key]
+        const updatedVal = updated?.[key]
+        
+        // Handle null/undefined/empty string equivalence
+        const normalizeValue = (val) => {
+          if (val === null || val === undefined || val === '') return null
+          if (typeof val === 'string') return val.trim()
+          return val
+        }
+
+        const normalizedOrig = normalizeValue(origVal)
+        const normalizedUpdated = normalizeValue(updatedVal)
+        
+        return normalizedOrig !== normalizedUpdated
+      }
+
+      // Check device information changes
+      const deviceMappings = {
+        brand: 'brand',
+        model: 'model', 
+        storage: 'storage',
+        color: 'color',
+        condition: 'condition',
+        description: 'description'
+      }
+
+      for (const [apiKey, formKey] of Object.entries(deviceMappings)) {
+        if (hasChanged(originalData.devices?.[0], updatedData, formKey)) {
+          changes[apiKey] = updatedData[formKey] || null
+          console.log(`📝 [SELLIKO-CLIENT] ${apiKey} changed:`, {
+            from: originalData.devices?.[0]?.[apiKey],
+            to: updatedData[formKey]
+          })
+        }
+      }
+
+      // Check technical details
+      if (hasChanged(originalData.devices?.[0], updatedData, 'imei1')) {
+        changes.imei1 = updatedData.imei1 || null
+      }
+      if (hasChanged(originalData.devices?.[0], updatedData, 'imei2')) {
+        changes.imei2 = updatedData.imei2 || null
+      }
+      if (hasChanged(originalData.devices?.[0], { battery_health: updatedData.batteryHealth }, 'battery_health')) {
+        changes.battery_health = updatedData.batteryHealth ? parseInt(updatedData.batteryHealth) : null
+      }
+      if (hasChanged(originalData, { expected_price: updatedData.askingPrice }, 'expected_price') ||
+          hasChanged(originalData, { asking_price: updatedData.askingPrice }, 'asking_price')) {
+        changes.expected_price = updatedData.askingPrice ? parseInt(updatedData.askingPrice) : null
+        changes.asking_price = updatedData.askingPrice ? parseInt(updatedData.askingPrice) : null
+      }
+
+      // Check images (only include if changed)
+      if (hasImageChanges) {
+        changes.device_images = {}
+        for (const position of imagePositions) {
+          if (imageUrls.hasOwnProperty(position)) {
+            changes.device_images[position] = imageUrls[position]
+          } else {
+            changes.device_images[position] = null
+          }
+        }
+      }
+
+      // Check warranty information
+      if (hasChanged(originalData.devices?.[0], { warranty_status: updatedData.hasWarranty ? 'active' : 'none' }, 'warranty_status')) {
+        changes.warranty_status = updatedData.hasWarranty ? 'active' : 'none'
+      }
+      if (hasChanged(originalData.devices?.[0], updatedData, 'warrantyType')) {
+        changes.warranty_type = updatedData.warrantyType || null
+      }
+      if (hasChanged(originalData.devices?.[0], { warranty_expiry: updatedData.warrantyExpiry }, 'warranty_expiry')) {
+        changes.warranty_expiry = updatedData.warrantyExpiry || null
+      }
+      if (updatedData.warrantyImageUrl) {
+        changes.warranty_image_url = updatedData.warrantyImageUrl
+      }
+
+      // Check bill information
+      if (hasChanged(originalData.devices?.[0], updatedData, 'hasBill')) {
+        changes.has_bill = updatedData.hasBill || false
+      }
+      if (hasChanged(originalData.devices?.[0], { purchase_date: updatedData.purchaseDate }, 'purchase_date')) {
+        changes.purchase_date = updatedData.purchaseDate || null
+      }
+      if (hasChanged(originalData.devices?.[0], { purchase_price: updatedData.purchasePrice }, 'purchase_price')) {
+        changes.purchase_price = updatedData.purchasePrice ? parseInt(updatedData.purchasePrice) : null
+      }
+      if (updatedData.billImageUrl) {
+        changes.bill_image_url = updatedData.billImageUrl
+      }
+
+      // Check contact information
+      const clientAddress = originalData.addresses?.find(addr => addr.type === 'client') || {}
+      if (hasChanged(clientAddress, { contact_name: updatedData.contactName }, 'contact_name')) {
+        changes.contact_name = updatedData.contactName || null
+      }
+      if (hasChanged(clientAddress, { mobile_number: updatedData.mobile }, 'mobile_number')) {
+        changes.mobile_number = updatedData.mobile || null
+      }
+      if (hasChanged(clientAddress, updatedData, 'email')) {
+        changes.email = updatedData.email || null
+      }
+      if (hasChanged(clientAddress, updatedData, 'address')) {
+        changes.address = updatedData.address || null
+      }
+      if (hasChanged(clientAddress, updatedData, 'city')) {
+        changes.city = updatedData.city || null
+      }
+      if (hasChanged(clientAddress, updatedData, 'state')) {
+        changes.state = updatedData.state || null
+      }
+      if (hasChanged(clientAddress, updatedData, 'pincode')) {
+        changes.pincode = updatedData.pincode || null
+      }
+      if (hasChanged(clientAddress, updatedData, 'landmark')) {
+        changes.landmark = updatedData.landmark || null
+      }
+
+      // Check bank details
+      if (hasChanged(clientAddress, { account_holder_name: updatedData.accountHolderName }, 'account_holder_name')) {
+        changes.account_holder_name = updatedData.accountHolderName || null
+      }
+      if (hasChanged(clientAddress, { bank_name: updatedData.bankName }, 'bank_name')) {
+        changes.bank_name = updatedData.bankName || null
+      }
+      if (hasChanged(clientAddress, { account_number: updatedData.accountNumber }, 'account_number')) {
+        changes.account_number = updatedData.accountNumber || null
+      }
+      if (hasChanged(clientAddress, { ifsc_code: updatedData.ifscCode }, 'ifsc_code')) {
+        changes.ifsc_code = updatedData.ifscCode || null
+      }
+
+      // Check pickup information
+      const pickupAddress = originalData.addresses?.find(addr => addr.type === 'pickup') || {}
+      if (hasChanged(pickupAddress, { address: updatedData.pickupAddress }, 'address')) {
+        changes.pickup_address = updatedData.pickupAddress || null
+      }
+      if (hasChanged(pickupAddress, { city: updatedData.pickupCity }, 'city')) {
+        changes.pickup_city = updatedData.pickupCity || null
+      }
+      if (hasChanged(pickupAddress, { pincode: updatedData.pickupPincode }, 'pincode')) {
+        changes.pickup_pincode = updatedData.pickupPincode || null
+      }
+      if (hasChanged(pickupAddress, { pickup_time: updatedData.pickupTime }, 'pickup_time')) {
+        changes.pickup_time = updatedData.pickupTime || null
+      }
+
+      // Check if there are any changes
+      if (Object.keys(changes).length === 0) {
+        console.log('ℹ️ [SELLIKO-CLIENT] No changes detected')
+        return {
+          success: true,
+          message: 'No changes detected',
+          listing: originalData
+        }
+      }
+
+      console.log('📝 [SELLIKO-CLIENT] Changes detected:', {
+        changeCount: Object.keys(changes).length,
+        changedFields: Object.keys(changes),
+        hasImageChanges: hasImageChanges
+      })
+
+      // Prepare final update data with listing ID and only changed values
+      const finalUpdateData = {
+        listing_id: listingId,
+        ...changes,
+        updated_at: new Date().toISOString()
+      }
+
+      console.log('📤 [SELLIKO-CLIENT] Submitting update to API...')
+      console.log('🎯 [SELLIKO-CLIENT] Final update data:', finalUpdateData)
+
+      // Submit to API
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        throw new Error('No access token found')
+      }
+
+      const response = await fetch(`${this.apiBase}functions/v1/update-listing`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(finalUpdateData)
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Update response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      })
+
+      const result = await response.json()
+      
+      console.log('📥 [SELLIKO-CLIENT] Update result:', {
+        success: result.success,
+        hasUpdatedListing: !!result.listing,
+        message: result.message,
+        error: result.error
+      })
+
+      return result
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] updateListing error:', error)
+      console.error('📋 [SELLIKO-CLIENT] Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        listingId: listingId
+      })
+      return {
+        success: false,
+        error: error.message || 'Network error occurred'
+      }
+    }
+  }
 }
 
 // Export singleton instance
