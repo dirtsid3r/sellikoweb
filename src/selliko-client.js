@@ -1549,6 +1549,153 @@ class SellikoClient {
       }
     }
   }
+
+  // 8. approveListing - approve or reject a listing (admin/agent only)
+  /**
+   * Approves or rejects a device listing
+   * 
+   * AUTHORIZATION REQUIREMENTS:
+   * - User role must be 'ADMIN' or 'AGENT'
+   * - Valid JWT token required in Authorization header
+   * 
+   * @param {string|number} listingId - The ID of the listing to approve/reject
+   * @param {boolean} approve - true to approve, false to reject
+   * @param {string} reasonNote - Required when approve is false, reason for rejection
+   * 
+   * @returns {Promise<Object>} Response with success status and updated listing info
+   */
+  async approveListing(listingId, approve, reasonNote = null) {
+    console.log('✅ [SELLIKO-CLIENT] approveListing called with:', {
+      listingId: listingId || 'MISSING',
+      approve: approve,
+      hasReasonNote: !!reasonNote,
+      reasonLength: reasonNote ? reasonNote.length : 0
+    })
+
+    try {
+      // Validate inputs
+      if (!listingId) {
+        throw new Error('Listing ID is required')
+      }
+
+      if (typeof approve !== 'boolean') {
+        throw new Error('Approve parameter must be boolean (true/false)')
+      }
+
+      // If rejecting, reason note is required
+      if (!approve && (!reasonNote || reasonNote.trim().length === 0)) {
+        throw new Error('Reason note is required when rejecting a listing')
+      }
+
+      // Get current user and validate permissions
+      const user = await this.getCurrentUser()
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+
+      console.log('👤 [SELLIKO-CLIENT] Current user validation:', {
+        userId: user.id,
+        userRole: user.user_role,
+        normalizedRole: (user.user_role || '').toUpperCase()
+      })
+
+      // Validate user role (must be admin or agent)
+      const userRole = (user.user_role || '').toUpperCase()
+      const allowedRoles = ['ADMIN', 'AGENT']
+      if (!allowedRoles.includes(userRole)) {
+        throw new Error(`Only admins and agents can approve/reject listings. Current role: ${user.user_role}`)
+      }
+
+      console.log('✅ [SELLIKO-CLIENT] Role validation passed - proceeding with approval/rejection')
+
+      // Get access token
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        throw new Error('No access token found')
+      }
+
+      // Prepare request body based on approval status
+      const requestBody = {
+        listing_id: parseInt(listingId), // Ensure it's a number
+        approve: approve
+      }
+
+      // Add reason note if rejecting
+      if (!approve && reasonNote) {
+        requestBody.reason_note = reasonNote.trim()
+      }
+
+      console.log('📤 [SELLIKO-CLIENT] Submitting approval request:', {
+        url: `${this.apiBase}functions/v1/approve`,
+        method: 'PUT',
+        hasToken: !!token,
+        body: {
+          listing_id: requestBody.listing_id,
+          approve: requestBody.approve,
+          hasReasonNote: !!requestBody.reason_note,
+          reasonLength: requestBody.reason_note ? requestBody.reason_note.length : 0
+        }
+      })
+
+      // Make API request
+      const response = await fetch(`${this.apiBase}functions/v1/approve`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(requestBody)
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Approval response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
+      const result = await response.json()
+      
+      console.log('📥 [SELLIKO-CLIENT] Approval result:', {
+        success: result.success,
+        hasUpdatedListing: !!result.listing,
+        listingStatus: result.listing?.status,
+        message: result.message,
+        error: result.error,
+        approve: approve,
+        listingId: listingId
+      })
+
+      // Log action result
+      if (result.success) {
+        const action = approve ? 'approved' : 'rejected'
+        console.log(`✅ [SELLIKO-CLIENT] Listing ${listingId} ${action} successfully`)
+        if (!approve && reasonNote) {
+          console.log(`📝 [SELLIKO-CLIENT] Rejection reason: ${reasonNote}`)
+        }
+      } else {
+        console.error(`❌ [SELLIKO-CLIENT] Failed to ${approve ? 'approve' : 'reject'} listing ${listingId}:`, result.error)
+      }
+
+      return result
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] approveListing error:', error)
+      console.error('📋 [SELLIKO-CLIENT] Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        listingId: listingId,
+        approve: approve,
+        hasReasonNote: !!reasonNote
+      })
+      
+      return {
+        success: false,
+        error: error.message || 'Network error occurred'
+      }
+    }
+  }
 }
 
 // Export singleton instance

@@ -67,6 +67,9 @@ export default function ListingDetailPage() {
             storage: apiListing.devices?.[0]?.storage,
             color: apiListing.devices?.[0]?.color,
             created_at: apiListing.created_at,
+            // Rejection information
+            rejection_reason: apiListing.rejection_note || apiListing.rejection_reason || apiListing.reason_note,
+            rejected_at: apiListing.rejected_at || apiListing.updated_at,
             // Device specific details
             deviceDetails: {
               imei1: apiListing.devices?.[0]?.imei1,
@@ -151,6 +154,8 @@ export default function ListingDetailPage() {
       case 'completed':
       case 'sold':
         return 'sold'
+      case 'rejected':
+        return 'rejected'
       default:
         return apiStatus || 'unknown'
     }
@@ -269,6 +274,13 @@ export default function ListingDetailPage() {
           icon: Icons.check,
           description: 'Agent will contact you for pickup'
         }
+      case 'rejected':
+        return {
+          label: 'Rejected',
+          color: 'bg-red-100 text-red-800 border-red-200',
+          icon: Icons.x,
+          description: 'Listing was rejected during review'
+        }
       default:
         return {
           label: status,
@@ -322,6 +334,59 @@ export default function ListingDetailPage() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Rejection Notice - Show at top when listing is rejected */}
+        {listing.status === 'rejected' && (
+          <div className="mb-6">
+            <Card className="border-red-200 bg-red-50">
+              <CardContent className="p-6">
+                <div className="flex items-start space-x-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                      <Icons.x className="w-5 h-5 text-red-600" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-red-900 mb-2">
+                      Listing Rejected
+                    </h3>
+                    <p className="text-red-700 mb-3">
+                      Your listing was rejected during the review process. You can make the necessary changes and resubmit for approval.
+                    </p>
+                    {listing.rejection_reason && (
+                      <div className="bg-red-100 border border-red-200 rounded-lg p-3 mb-4">
+                        <p className="text-sm font-medium text-red-800 mb-1">Rejection Reason:</p>
+                        <p className="text-sm text-red-700">{listing.rejection_reason}</p>
+                      </div>
+                    )}
+                    {listing.rejected_at && (
+                      <p className="text-xs text-red-600 mb-4">
+                        Rejected on {formatDate(listing.rejected_at)}
+                      </p>
+                    )}
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <Button
+                        onClick={handleEditListing}
+                        className="bg-red-600 hover:bg-red-700 text-white"
+                      >
+                        <Icons.edit className="w-4 h-4 mr-2" />
+                        Edit & Resubmit Listing
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => router.push('/client/listings')}
+                        className="border-red-300 text-red-700 hover:bg-red-50"
+                      >
+                        <Icons.list className="w-4 h-4 mr-2" />
+                        View All Listings
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - Images & Details */}
           <div className="lg:col-span-2 space-y-6">

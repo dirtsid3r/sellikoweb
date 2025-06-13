@@ -376,12 +376,12 @@ export default function EditListingPage() {
               {isSubmitting ? (
                 <>
                   <Icons.spinner className="w-4 h-4 mr-2 animate-spin" />
-                  Updating...
+                  {originalData?.status === 'rejected' ? 'Resubmitting...' : 'Updating...'}
                 </>
               ) : (
                 <>
                   <Icons.check className="w-4 h-4 mr-2" />
-                  Update Listing
+                  {originalData?.status === 'rejected' ? 'Resubmit Listing' : 'Update Listing'}
                 </>
               )}
             </Button>
@@ -1084,12 +1084,12 @@ export default function EditListingPage() {
               {isSubmitting ? (
                 <>
                   <Icons.spinner className="w-4 h-4 mr-2 animate-spin" />
-                  Updating Listing...
+                  {originalData?.status === 'rejected' ? 'Resubmitting Listing...' : 'Updating Listing...'}
                 </>
               ) : (
                 <>
                   <Icons.check className="w-4 h-4 mr-2" />
-                  Update Listing
+                  {originalData?.status === 'rejected' ? 'Resubmit Listing' : 'Update Listing'}
                 </>
               )}
             </Button>
