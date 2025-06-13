@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react'
 import { useAuth } from '@/lib/auth'
 import { ChevronLeftIcon, ChevronRightIcon, CheckIcon } from '@heroicons/react/24/outline'
+import sellikoClient from '@/selliko-client'
 
 // Types from integrationguide.md
 interface DeviceListing {
@@ -36,7 +37,7 @@ interface DeviceListing {
     pincode: string
     landmark?: string
   }
-  pickupTime: 'morning' | 'afternoon' | 'evening'
+  pickupTime: 'morning' | 'afternoon' | 'evening' | 'night' | 'anytime'
 }
 
 const DEVICE_BRANDS = ['Apple', 'Samsung', 'OnePlus', 'Xiaomi', 'Realme', 'Oppo', 'Vivo', 'Google', 'Nothing', 'Other']
@@ -58,16 +59,36 @@ export default function DeviceListingWizard() {
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState<Partial<DeviceListing>>({
-    contactName: user?.name || '',
+    // Test data for easier testing
+    brand: 'Apple',
+    model: 'iPhone 14 Pro',
+    storage: '256GB',
+    color: 'Space Black',
+    condition: 'Excellent',
+    imei1: '123456789012345',
+    imei2: '987654321098765',
+    batteryHealth: 95,
+    askingPrice: 85000,
+    description: 'Excellent condition iPhone, barely used, no scratches or damage. Comes with original box and charger.',
+    contactName: user?.name || 'John Doe',
     pickupAddress: {
-      streetAddress: '',
-      city: '',
+      streetAddress: '123 Main Street, Apartment 4B, Near City Mall',
+      city: 'Kochi',
       state: 'Kerala',
-      pincode: '',
-      landmark: ''
+      pincode: '682001',
+      landmark: 'Near City Mall'
     },
+    pickupTime: 'morning',
     devicePhotos: [],
-    hasWarranty: false
+    hasWarranty: true,
+    warrantyType: 'Manufacturer',
+    warrantyExpiry: new Date('2025-12-31')
+  })
+
+  console.log('📝 [DEVICE-WIZARD] Component loaded with test data:', {
+    brand: formData.brand,
+    model: formData.model,
+    hasTestData: !!formData.imei1
   })
 
   const updateFormData = (data: Partial<DeviceListing>) => {
@@ -85,72 +106,98 @@ export default function DeviceListingWizard() {
   const handleSubmit = async () => {
     setIsSubmitting(true)
     try {
-      // Create FormData for file upload (matches integrationguide.md)
-      const submitData = new FormData()
+      console.log('📝 [DEVICE-WIZARD] Starting submission...')
       
-      // Step 1 fields
-      submitData.append('brand', formData.brand || '')
-      submitData.append('model', formData.model || '')
-      submitData.append('storage', formData.storage || '')
-      submitData.append('color', formData.color || '')
-      submitData.append('condition', formData.condition || '')
-      
-      // Step 2 fields
-      submitData.append('imei1', formData.imei1 || '')
-      if (formData.imei2) submitData.append('imei2', formData.imei2)
-      submitData.append('batteryHealth', formData.batteryHealth?.toString() || '100')
-      submitData.append('askingPrice', formData.askingPrice?.toString() || '0')
-      submitData.append('description', formData.description || '')
-      
-      // Step 3 files
-      formData.devicePhotos?.forEach((file, index) => {
-        submitData.append(`devicePhoto${index}`, file)
-      })
-      if (formData.billPhoto) {
-        submitData.append('billPhoto', formData.billPhoto)
-      }
-      submitData.append('hasWarranty', formData.hasWarranty?.toString() || 'false')
-      if (formData.warrantyType) submitData.append('warrantyType', formData.warrantyType)
-      if (formData.warrantyExpiry) submitData.append('warrantyExpiry', formData.warrantyExpiry.toISOString())
-      
-      // Step 4 fields
-      submitData.append('contactName', formData.contactName || '')
-      submitData.append('streetAddress', formData.pickupAddress?.streetAddress || '')
-      submitData.append('city', formData.pickupAddress?.city || '')
-      submitData.append('state', formData.pickupAddress?.state || 'Kerala')
-      submitData.append('pincode', formData.pickupAddress?.pincode || '')
-      if (formData.pickupAddress?.landmark) {
-        submitData.append('landmark', formData.pickupAddress.landmark)
-      }
-      submitData.append('pickupTime', formData.pickupTime || 'morning')
-
-      // Submit to API (matches integrationguide.md endpoint)
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/listings`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('selliko_access_token')}`
+      // Prepare data structure for selliko-client
+      const listingData = {
+        // Device Information - map from DeviceListingWizard to selliko-client format
+        brand: formData.brand || '',
+        model: formData.model || '',
+        storage: formData.storage || '',
+        color: formData.color || '',
+        condition: formData.condition || '',
+        description: formData.description || '',
+        
+        // Technical Details
+        imei1: formData.imei1 || '',
+        imei2: formData.imei2 || '',
+        batteryHealth: formData.batteryHealth || 100,
+        expectedPrice: formData.askingPrice?.toString() || '0',
+        
+        // Images - convert devicePhotos array to images object
+        images: {
+          front: formData.devicePhotos?.[0] || null,
+          back: formData.devicePhotos?.[1] || null,
+          top: formData.devicePhotos?.[2] || null,
+          bottom: formData.devicePhotos?.[3] || null,
         },
-        body: submitData
-      })
+        billImage: formData.billPhoto || null,
+        
+        // Warranty Information
+        warrantyStatus: formData.hasWarranty ? 'active' : 'none',
+        warrantyType: formData.warrantyType || null,
+        warrantyExpiry: formData.warrantyExpiry?.toISOString().split('T')[0] || null,
+        warrantyImage: null, // DeviceListingWizard doesn't have warranty image upload
+        
+        // Bill Information
+        hasBill: !!formData.billPhoto,
+        purchaseDate: null, // DeviceListingWizard doesn't have purchase date
+        purchasePrice: null, // DeviceListingWizard doesn't have purchase price
+        
+        // Personal Details - map contactName to name, and create mobile from user data
+        name: formData.contactName || '',
+        mobile: (user as any)?.phone || (user as any)?.mobile_number || '', // Use phone from user if available
+        email: (user as any)?.email || '', // Use email from user
+        
+        // Address Information - map from pickupAddress
+        address: formData.pickupAddress?.streetAddress || '',
+        city: formData.pickupAddress?.city || '',
+        pincode: formData.pickupAddress?.pincode || '',
+        state: formData.pickupAddress?.state || 'Kerala',
+        landmark: formData.pickupAddress?.landmark || null,
+        
+        // Bank Details - DeviceListingWizard doesn't collect these, so use placeholders
+        accountNumber: '', // TODO: Add bank details step to wizard
+        ifscCode: '',
+        accountHolderName: formData.contactName || '',
+        bankName: '',
+        
+        // Pickup Details - same as address for DeviceListingWizard
+        pickupAddress: formData.pickupAddress?.streetAddress || '',
+        pickupCity: formData.pickupAddress?.city || '',
+        pickupPincode: formData.pickupAddress?.pincode || '',
+        preferredTime: formData.pickupTime || 'morning',
+        
+        // Terms Agreement - DeviceListingWizard doesn't have explicit terms, so default to true
+        termsAccepted: true,
+        privacyAccepted: true,
+        whatsappConsent: true
+      }
 
-      const result = await response.json()
+      console.log('📋 [DEVICE-WIZARD] Mapped data:', listingData)
+
+      // Display JSON as alert (for debugging)
+      alert('JSON Request Data:\n\n' + JSON.stringify(listingData, null, 2))
+
+      // Use sellikoClient to create the listing
+      const result = await sellikoClient.createDeviceListing(listingData)
       
       if (result.success) {
         alert('Device listed successfully! It will be reviewed by our team within 24 hours.')
-        // Reset form or redirect
-        setFormData({
-          contactName: user?.name || '',
-          pickupAddress: {
-            streetAddress: '',
-            city: '',
-            state: 'Kerala',
-            pincode: '',
-            landmark: ''
-          },
-          devicePhotos: [],
-          hasWarranty: false
-        })
-        setCurrentStep(1)
+        // DISABLED: Reset form or redirect - keeping user on current step
+        // setFormData({
+        //   contactName: user?.name || '',
+        //   pickupAddress: {
+        //     streetAddress: '',
+        //     city: '',
+        //     state: 'Kerala',
+        //     pincode: '',
+        //     landmark: ''
+        //   },
+        //   devicePhotos: [],
+        //   hasWarranty: false
+        // })
+        // setCurrentStep(1)
       } else {
         alert('Error submitting listing: ' + (result.error || 'Unknown error'))
       }
@@ -820,7 +867,9 @@ function Step4PickupDetails({ formData, updateFormData }: {
           {[
             { value: 'morning', label: 'Morning (9 AM - 12 PM)' },
             { value: 'afternoon', label: 'Afternoon (12 PM - 5 PM)' },
-            { value: 'evening', label: 'Evening (5 PM - 8 PM)' }
+            { value: 'evening', label: 'Evening (5 PM - 8 PM)' },
+            { value: 'night', label: 'Night (8 PM - 10 PM)' },
+            { value: 'anytime', label: 'Anytime (Flexible)' }
           ].map(time => (
             <label key={time.value} className="flex items-center">
               <input

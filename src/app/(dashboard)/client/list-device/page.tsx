@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,6 +11,8 @@ import { Badge } from '@/components/ui/badge'
 import { Icons } from '@/components/ui/icons'
 import { toast } from 'react-hot-toast'
 import React from 'react'
+import { useAuth } from '@/lib/auth'
+import sellikoClient from '@/selliko-client'
 
 interface DeviceImages {
   front?: File | null
@@ -70,38 +72,38 @@ interface DeviceData {
 
 const initialData: DeviceData = {
   images: {},
-  imei1: '',
-  imei2: '',
-  brand: '',
-  model: '',
-  storage: '',
-  color: '',
-  condition: '',
-  description: '',
-  warrantyStatus: 'none',
-  warrantyExpiry: '',
-  hasBill: false,
-  purchaseDate: '',
-  purchasePrice: '',
-  expectedPrice: '',
-  name: '',
-  mobile: '',
-  email: '',
-  address: '',
-  city: '',
-  pincode: '',
+  imei1: '123456789012345', // Test IMEI 1
+  imei2: '987654321098765', // Test IMEI 2
+  brand: 'Apple',
+  model: 'iPhone 14 Pro',
+  storage: '256GB',
+  color: 'Space Black',
+  condition: 'Excellent',
+  description: 'Excellent condition iPhone, barely used, no scratches or damage. Comes with original box and charger.',
+  warrantyStatus: 'active',
+  warrantyExpiry: '2025-12-31',
+  hasBill: true,
+  purchaseDate: '2023-01-15',
+  purchasePrice: '120000',
+  expectedPrice: '85000',
+  name: 'John Doe',
+  mobile: '9876543210',
+  email: 'john.doe@example.com',
+  address: '123 Main Street, Apartment 4B, Near City Mall',
+  city: 'Kochi',
+  pincode: '682001',
   state: 'Kerala',
-  accountNumber: '',
-  ifscCode: '',
-  accountHolderName: '',
-  bankName: '',
-  pickupAddress: '',
-  pickupCity: '',
-  pickupPincode: '',
-  preferredTime: '',
-  termsAccepted: false,
-  privacyAccepted: false,
-  whatsappConsent: false
+  accountNumber: '1234567890123456',
+  ifscCode: 'SBIN0001234',
+  accountHolderName: 'John Doe',
+  bankName: 'State Bank of India',
+  pickupAddress: '123 Main Street, Apartment 4B, Near City Mall',
+  pickupCity: 'Kochi',
+  pickupPincode: '682001',
+  preferredTime: 'morning',
+  termsAccepted: true,
+  privacyAccepted: true,
+  whatsappConsent: true
 }
 
 const steps = [
@@ -119,10 +121,53 @@ const steps = [
 ]
 
 export default function ListDevice() {
+  const { user, logout, isLoading } = useAuth()
   const [currentStep, setCurrentStep] = useState(0)
   const [data, setData] = useState<DeviceData>(initialData)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const router = useRouter()
+
+  // Authentication and role check
+  useEffect(() => {
+    const checkAuth = async () => {
+      console.log('🔒 [LIST-DEVICE] Checking authentication and role...')
+      try {
+        const user = await sellikoClient.getCurrentUser()
+        console.log('👤 [LIST-DEVICE] Current user:', user ? {
+          id: user.id,
+          role: user.user_role,
+        } : 'No user')
+
+        if (!user) {
+          console.log('❌ [LIST-DEVICE] No user found, redirecting to login')
+          toast.error('Please login to continue')
+          router.replace('/login')
+          return
+        }
+
+        const userRole = (user.user_role || user.role || '').toLowerCase()
+        console.log('👑 [LIST-DEVICE] User role:', userRole)
+
+        if (userRole !== 'client') {
+          console.log(`⚠️ [LIST-DEVICE] Invalid role access attempt: ${userRole}`)
+          toast.error('Access denied. Redirecting to your dashboard.')
+          // Redirect based on role
+          router.replace(`/${userRole}`)
+          return
+        }
+
+        console.log('✅ [LIST-DEVICE] Role verification successful')
+      } catch (error) {
+        console.error('💥 [LIST-DEVICE] Auth check error:', error)
+        toast.error('Authentication error. Please login again.')
+        router.replace('/login')
+      }
+    }
+
+    if (!isLoading) {
+      checkAuth()
+    }
+  }, [isLoading, router])
 
   const updateData = (field: keyof DeviceData, value: any) => {
     setData(prev => ({ ...prev, [field]: value }))
@@ -151,13 +196,25 @@ export default function ListDevice() {
     setIsSubmitting(true)
     
     try {
-      // Mock API call - replace with actual backend integration
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      console.log('📝 [LIST-DEVICE] Starting submission process...')
       
-      toast.success('Device listing submitted successfully! Admin will review and approve within 24 hours.')
-      router.push('/client/my-listings')
+      // Call the selliko client function
+      const result = await sellikoClient.createDeviceListing(data)
+      
+      if (result.success) {
+        toast.success('Device listing submitted successfully! Admin will review and approve within 24 hours.')
+        console.log('✅ [LIST-DEVICE] Listing created successfully:', result)
+        
+        // Redirect to my-listings page on successful submission
+        console.log('🔄 [LIST-DEVICE] Redirecting to my-listings...')
+        router.push('/client/my-listings')
+      } else {
+        toast.error(result.error || 'Failed to submit listing. Please try again.')
+        console.error('❌ [LIST-DEVICE] Listing submission failed:', result)
+      }
     } catch (error) {
-      toast.error('Failed to submit listing. Please try again.')
+      console.error('💥 [LIST-DEVICE] Submission error:', error)
+      toast.error('Network error. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
@@ -219,6 +276,18 @@ export default function ListDevice() {
       default:
         return null
     }
+  }
+
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <Icons.spinner className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -1024,10 +1093,11 @@ function PickupAddressStep({ data, updateData }: { data: DeviceData, updateData:
           className="w-full p-2 border border-gray-300 rounded-md"
         >
           <option value="">Select preferred time</option>
-          <option value="9AM-12PM">Morning (9AM - 12PM)</option>
-          <option value="12PM-3PM">Afternoon (12PM - 3PM)</option>
-          <option value="3PM-6PM">Evening (3PM - 6PM)</option>
-          <option value="6PM-9PM">Night (6PM - 9PM)</option>
+          <option value="morning">Morning (9AM - 12PM)</option>
+          <option value="afternoon">Afternoon (12PM - 3PM)</option>
+          <option value="evening">Evening (3PM - 6PM)</option>
+          <option value="night">Night (6PM - 9PM)</option>
+          <option value="anytime">Anytime</option>
         </select>
       </div>
     </div>
