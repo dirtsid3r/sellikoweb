@@ -854,6 +854,188 @@ class SellikoClient {
       return null
     }
   }
+
+  // 4. getListings - fetch listings with optional filters and pagination
+  /**
+   * Fetches device listings with optional filtering and pagination
+   * 
+   * @param {Object} options - Query options
+   * @param {string} options.user_id - Filter by user ID (optional)
+   * @param {string} options.status - Filter by listing status (optional)
+   * @param {string} options.brand - Filter by device brand (optional)
+   * @param {string} options.model - Filter by device model (optional)
+   * @param {number} options.min_price - Minimum price filter (optional)
+   * @param {number} options.max_price - Maximum price filter (optional)
+   * @param {string} options.condition - Filter by device condition (optional)
+   * @param {string} options.search - Search term for brand/model (optional)
+   * @param {string} options.sort_by - Sort field: 'created_at', 'expected_price', 'updated_at' (default: 'created_at')
+   * @param {string} options.sort_order - Sort order: 'asc' or 'desc' (default: 'desc')
+   * @param {number} options.page - Page number for pagination (default: 1)
+   * @param {number} options.limit - Number of items per page (default: 10)
+   * @param {boolean} options.include_images - Whether to include device images (default: true)
+   * @param {boolean} options.my_listings_only - Get only current user's listings (default: false)
+   * 
+   * @returns {Promise<Object>} Response with listings array and pagination info
+   */
+  async getListings(options = {}) {
+    console.log('📋 [SELLIKO-CLIENT] getListings called with options:', {
+      user_id: options.user_id || 'ALL',
+      status: options.status || 'ALL',
+      brand: options.brand || 'ALL',
+      model: options.model || 'ALL',
+      search: options.search || 'NONE',
+      sort_by: options.sort_by || 'created_at',
+      sort_order: options.sort_order || 'desc',
+      page: options.page || 1,
+      limit: options.limit || 10,
+      my_listings_only: options.my_listings_only || false,
+      include_images: options.include_images !== false
+    })
+
+    try {
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        console.error('❌ [SELLIKO-CLIENT] No access token found')
+        return {
+          success: false,
+          error: 'Authentication required',
+          listings: [],
+          pagination: null
+        }
+      }
+
+      // Build request body with all parameters
+      const requestBody = {
+        // Add filters if provided
+        user_id: options.user_id || null,
+        status: options.status || null,
+        brand: options.brand || null,
+        model: options.model || null,
+        condition: options.condition || null,
+        search: options.search || null,
+        min_price: options.min_price || null,
+        max_price: options.max_price || null,
+        
+        // Add sorting and pagination
+        sort_by: options.sort_by || 'created_at',
+        sort_order: options.sort_order || 'desc',
+        page: options.page || 1,
+        limit: options.limit || 10,
+        include_images: options.include_images !== false,
+        my_listings_only: options.my_listings_only || false
+      }
+
+      const url = `${this.apiBase}functions/v1/get-listings`
+      
+      console.log('🌐 [SELLIKO-CLIENT] Making listings request:', {
+        url: url,
+        method: 'POST',
+        hasToken: !!token,
+        bodyParameters: {
+          ...requestBody,
+          user_id: requestBody.user_id ? 'SET' : 'NULL',
+          status: requestBody.status || 'ALL',
+          brand: requestBody.brand || 'ALL',
+          search: requestBody.search || 'NONE'
+        }
+      })
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Listings response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      })
+
+      const data = await response.json()
+      
+      console.log('📥 [SELLIKO-CLIENT] Listings data received:', {
+        success: data.success,
+        listingsCount: data.listings ? data.listings.length : 0,
+        hasListings: !!data.listings,
+        hasPagination: !!data.pagination,
+        totalCount: data.pagination ? data.pagination.total : 'unknown',
+        currentPage: data.pagination ? data.pagination.page : 'unknown',
+        error: data.error
+      })
+
+      // Log first listing for debugging (safely)
+      if (data.listings && data.listings.length > 0) {
+        const firstListing = data.listings[0]
+        console.log('📋 [SELLIKO-CLIENT] Sample listing structure:', {
+          id: firstListing.id,
+          brand: firstListing.brand,
+          model: firstListing.model,
+          status: firstListing.status,
+          hasImages: !!firstListing.device_images,
+          expectedPrice: firstListing.expected_price,
+          createdAt: firstListing.created_at
+        })
+      }
+
+      return data
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] getListings error:', error)
+      console.error('📋 [SELLIKO-CLIENT] Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      })
+      
+      return {
+        success: false,
+        error: error.message || 'Network error occurred',
+        listings: [],
+        pagination: null
+      }
+    }
+  }
+
+  // 5. getMyListings - convenience method to get current user's listings
+  async getMyListings(options = {}) {
+    console.log('👤 [SELLIKO-CLIENT] getMyListings called')
+    
+    try {
+      // Get current user to ensure we have user context
+      const user = await this.getCurrentUser()
+      if (!user) {
+        console.error('❌ [SELLIKO-CLIENT] No authenticated user found')
+        return {
+          success: false,
+          error: 'User not authenticated',
+          listings: [],
+          pagination: null
+        }
+      }
+
+      console.log('👤 [SELLIKO-CLIENT] Getting listings for user:', user.id)
+      
+      // Call getListings with my_listings_only flag and user_id
+      return await this.getListings({
+        ...options,
+        my_listings_only: true,
+        user_id: user.id
+      })
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] getMyListings error:', error)
+      return {
+        success: false,
+        error: error.message || 'Failed to get user listings',
+        listings: [],
+        pagination: null
+      }
+    }
+  }
 }
 
 // Export singleton instance

@@ -16,6 +16,8 @@ export default function ClientDashboard() {
   const router = useRouter()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [isAuthChecking, setIsAuthChecking] = useState(true)
+  const [currentListings, setCurrentListings] = useState<any[]>([])
+  const [isLoadingListings, setIsLoadingListings] = useState(true)
 
   useEffect(() => {
     const checkAuthAndRole = async () => {
@@ -56,6 +58,123 @@ export default function ClientDashboard() {
     checkAuthAndRole()
   }, [router])
 
+  const handleLogout = () => {
+    console.log('🔄 [CLIENT-DASH] Logout button clicked')
+    setIsLoggingOut(true)
+    router.push('/logout')
+  }
+
+  // Transform API listing data to match card format
+  const transformListingData = (apiListing: any) => {
+    const device = apiListing.devices?.[0] || {}
+    
+    // Create full device title: Brand Model Storage Color
+    const brand = device.brand || 'Unknown'
+    const model = device.model || 'Device'
+    const storage = device.storage || ''
+    const color = device.color || ''
+    
+    const deviceName = [brand, model, storage, color].filter(Boolean).join(' ')
+    
+    // Get ALL available images (device images + bill/warranty as fallbacks)
+    const availableImages = [
+      // Device images (priority)
+      device.front_image_url,
+      device.back_image_url, 
+      device.top_image_url,
+      device.bottom_image_url,
+      // Bill and warranty images as fallbacks
+      device.bill_image_url,
+      device.warranty_image_url
+    ].filter(Boolean) // Remove null/undefined values
+    
+    // Use a solid color placeholder if no images available
+    const image = availableImages.length > 0 ? availableImages[0] : 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDMwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xMjUgMTAwSDE3NVYxMjVIMTc1VjE3NUgxMjVWMTAwWiIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4K'
+    
+    console.log('🖼️ [CLIENT-DASH] Image analysis for listing', apiListing.id, ':', {
+      deviceImages: {
+        front: device.front_image_url ? 'Available' : 'NULL',
+        back: device.back_image_url ? 'Available' : 'NULL',
+        top: device.top_image_url ? 'Available' : 'NULL',
+        bottom: device.bottom_image_url ? 'Available' : 'NULL'
+      },
+      fallbackImages: {
+        bill: device.bill_image_url ? 'Available' : 'NULL',
+        warranty: device.warranty_image_url ? 'Available' : 'NULL'
+      },
+      selectedImage: image,
+      totalAvailable: availableImages.length,
+      actualUrls: availableImages
+    })
+
+    return {
+      id: apiListing.id,
+      device: deviceName,
+      status: apiListing.status === 'pending' ? 'pending_approval' : apiListing.status,
+      currentBid: apiListing.highest_bid || 0,
+      askingPrice: apiListing.asking_price || apiListing.expected_price || 0,
+      bidsCount: apiListing.bids || 0,
+      timeLeft: apiListing.status === 'pending' ? 'Under review' : '24h left',
+      image: image,
+      storage: device.storage,
+      condition: device.condition,
+      color: device.color,
+      created_at: apiListing.created_at,
+      // Include all available images for potential use
+      allImages: {
+        front: device.front_image_url,
+        back: device.back_image_url,
+        top: device.top_image_url,
+        bottom: device.bottom_image_url,
+        bill: device.bill_image_url,
+        warranty: device.warranty_image_url
+      }
+    }
+  }
+
+  // Load user listings when authentication is complete
+  useEffect(() => {
+    const loadListings = async () => {
+      if (isAuthChecking || isLoading) {
+        console.log('⏳ [CLIENT-DASH] Waiting for auth check to complete...')
+        return
+      }
+
+      console.log('📋 [CLIENT-DASH] Loading user listings...')
+      setIsLoadingListings(true)
+      
+      try {
+        // Get current user's listings
+        console.log('👤 [CLIENT-DASH] Calling getMyListings()...')
+        const myListingsResult = await sellikoClient.getMyListings({
+          limit: 10,
+          sort_by: 'created_at',
+          sort_order: 'desc'
+        } as any)
+        
+        console.log('📊 [CLIENT-DASH] My listings result:', myListingsResult)
+        
+        if ((myListingsResult as any).success && (myListingsResult as any).listings) {
+          // Transform API data to match card format
+          const transformedListings = (myListingsResult as any).listings.map(transformListingData)
+          console.log('🔄 [CLIENT-DASH] Transformed listings:', transformedListings)
+          setCurrentListings(transformedListings)
+        } else {
+          console.warn('⚠️ [CLIENT-DASH] Failed to load listings or no listings found')
+          setCurrentListings([])
+        }
+        
+      } catch (error) {
+        console.error('💥 [CLIENT-DASH] Error loading listings:', error)
+        setCurrentListings([])
+      } finally {
+        setIsLoadingListings(false)
+      }
+    }
+
+    loadListings()
+  }, [isAuthChecking, isLoading])
+
   if (isLoading || isAuthChecking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-50">
@@ -70,37 +189,6 @@ export default function ClientDashboard() {
     )
   }
 
-  const handleLogout = () => {
-    console.log('🔄 [CLIENT-DASH] Logout button clicked')
-    setIsLoggingOut(true)
-    router.push('/logout')
-  }
-
-  // Current listings with real transaction status
-  const currentListings = [
-    {
-      id: 'listing-1',
-      device: 'iPhone 14 Pro',
-      status: 'receiving_bids',
-      currentBid: 65000,
-      askingPrice: 70000,
-      bidsCount: 8,
-      timeLeft: '18h 30m',
-      image: '/api/placeholder/120/120',
-      highestBidder: 'TechWorld Kochi'
-    },
-    {
-      id: 'listing-2',
-      device: 'Samsung Galaxy S23',
-      status: 'pending_approval',
-      currentBid: 0,
-      askingPrice: 45000,
-      bidsCount: 0,
-      timeLeft: 'Under review',
-      image: '/api/placeholder/120/120'
-    }
-  ]
-
   const getStatusInfo = (status: string) => {
     switch (status) {
       case 'receiving_bids':
@@ -111,11 +199,19 @@ export default function ClientDashboard() {
           description: 'Your device is live and getting bids!'
         }
       case 'pending_approval':
+      case 'pending':
         return {
           label: 'Under Review',
           color: 'bg-blue-100 text-blue-800 border-blue-200',
           icon: Icons.clock,
           description: 'Our team is reviewing your listing'
+        }
+      case 'approved':
+        return {
+          label: 'Approved',
+          color: 'bg-green-100 text-green-800 border-green-200',
+          icon: Icons.check,
+          description: 'Your listing is approved and live'
         }
       case 'bid_accepted':
         return {
@@ -131,12 +227,33 @@ export default function ClientDashboard() {
           icon: Icons.calendar,
           description: 'Your device pickup is confirmed'
         }
+      case 'completed':
+        return {
+          label: 'Completed',
+          color: 'bg-green-100 text-green-800 border-green-200',
+          icon: Icons.check,
+          description: 'Transaction completed successfully'
+        }
+      case 'rejected':
+        return {
+          label: 'Rejected',
+          color: 'bg-red-100 text-red-800 border-red-200',
+          icon: Icons.x,
+          description: 'Listing was rejected - please review requirements'
+        }
+      case 'cancelled':
+        return {
+          label: 'Cancelled',
+          color: 'bg-gray-100 text-gray-800 border-gray-200',
+          icon: Icons.x,
+          description: 'Listing was cancelled'
+        }
       default:
         return {
-          label: status,
+          label: status.charAt(0).toUpperCase() + status.slice(1),
           color: 'bg-gray-100 text-gray-800 border-gray-200',
           icon: Icons.smartphone,
-          description: ''
+          description: `Status: ${status}`
         }
     }
   }
@@ -192,7 +309,7 @@ export default function ClientDashboard() {
               <p className="text-blue-100 mb-4 sm:mb-6 text-base sm:text-lg">
                 Get competitive bids from verified buyers within 24 hours
               </p>
-              <Link href="/list-device">
+              <Link href="/client/list-device">
                 <Button size="lg" className="bg-white text-blue-600 hover:bg-gray-50 font-semibold w-full sm:w-auto">
                   <Icons.plus className="w-5 h-5 mr-2" />
                   List Your Device
@@ -206,7 +323,27 @@ export default function ClientDashboard() {
         </div>
 
         {/* Current Listings - Airbnb Style Cards */}
-        {currentListings.length > 0 && (
+        {isLoadingListings ? (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-gray-900">Your Active Listings</h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              {[1, 2, 3].map((i) => (
+                <Card key={i} className="border-0 shadow-lg bg-white rounded-2xl">
+                  <CardContent className="p-0">
+                    <div className="aspect-square bg-gray-200 animate-pulse"></div>
+                    <div className="p-6">
+                      <div className="h-6 bg-gray-200 rounded animate-pulse mb-2"></div>
+                      <div className="h-4 bg-gray-200 rounded animate-pulse mb-4 w-3/4"></div>
+                      <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        ) : currentListings.length > 0 ? (
           <div className="mb-8">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-bold text-gray-900">Your Active Listings</h3>
@@ -232,6 +369,34 @@ export default function ClientDashboard() {
                           src={listing.image} 
                           alt={listing.device}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          onError={(e) => {
+                            console.warn('🖼️ [CLIENT-DASH] Image failed to load:', listing.image, 'for listing:', listing.id)
+                            // Try alternative images if available
+                            const target = e.target as HTMLImageElement
+                            if (listing.allImages && !target.dataset.retried) {
+                              const alternatives = [
+                                listing.allImages.front,
+                                listing.allImages.back,
+                                listing.allImages.top,
+                                listing.allImages.bottom,
+                                listing.allImages.bill,
+                                listing.allImages.warranty
+                              ].filter(Boolean).filter(url => url !== listing.image)
+                              
+                              if (alternatives.length > 0) {
+                                target.dataset.retried = 'true'
+                                target.src = alternatives[0]
+                                console.log('🔄 [CLIENT-DASH] Trying alternative image:', alternatives[0])
+                                return
+                              }
+                            }
+                            // Final fallback - solid SVG placeholder
+                            target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDMwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xMjUgMTAwSDE3NVYxMjVIMTc1VjE3NUgxMjVWMTAwWiIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4K'
+                            console.log('📷 [CLIENT-DASH] Using SVG placeholder for listing:', listing.id)
+                          }}
+                          onLoad={() => {
+                            console.log('✅ [CLIENT-DASH] Image loaded successfully:', listing.image, 'for listing:', listing.id)
+                          }}
                         />
                         {/* Subtle overlay for better badge contrast */}
                         <div className="absolute inset-0 bg-black/5"></div>
@@ -286,10 +451,10 @@ export default function ClientDashboard() {
               })}
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* How It Works - For New Users */}
-        {currentListings.length === 0 && (
+        {!isLoadingListings && currentListings.length === 0 && (
           <div className="mb-6 sm:mb-8">
             <Card className="border-0 shadow-sm bg-white/70 backdrop-blur-sm">
               <CardHeader>
@@ -323,7 +488,7 @@ export default function ClientDashboard() {
                 </div>
                 
                 <div className="mt-6 sm:mt-8 text-center">
-                  <Link href="/list-device">
+                  <Link href="/client/list-device">
                     <Button size="lg" className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 w-full sm:w-auto">
                       <Icons.plus className="w-5 h-5 mr-2" />
                       List Your First Device
@@ -343,7 +508,7 @@ export default function ClientDashboard() {
               <CardTitle className="text-lg font-semibold text-gray-900">Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Link href="/list-device" className="block">
+              <Link href="/client/list-device" className="block">
                 <div className="flex items-center p-3 rounded-lg hover:bg-gray-50 transition-colors">
                   <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
                     <Icons.plus className="w-5 h-5 text-blue-600" />
