@@ -1036,6 +1036,156 @@ class SellikoClient {
       }
     }
   }
+
+  // 6. getListingById - fetch a specific listing by ID
+  /**
+   * Fetches a specific device listing by its ID
+   * 
+   * @param {string} listingId - The ID of the listing to fetch
+   * @param {Object} options - Additional options
+   * @param {boolean} options.include_images - Whether to include device images (default: true)
+   * @param {boolean} options.include_bids - Whether to include bid information (default: true)
+   * @param {boolean} options.include_user_details - Whether to include user contact details (default: false)
+   * 
+   * @returns {Promise<Object>} Response with listing data
+   */
+  async getListingById(listingId, options = {}) {
+    console.log('🔍 [SELLIKO-CLIENT] getListingById called with:', {
+      listingId: listingId || 'MISSING',
+      include_images: options.include_images !== false,
+      include_bids: options.include_bids !== false,
+      include_user_details: options.include_user_details || false
+    })
+
+    try {
+      // Validate listingId
+      if (!listingId) {
+        console.error('❌ [SELLIKO-CLIENT] No listing ID provided')
+        return {
+          success: false,
+          error: 'Listing ID is required',
+          listing: null
+        }
+      }
+
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        console.error('❌ [SELLIKO-CLIENT] No access token found')
+        return {
+          success: false,
+          error: 'Authentication required',
+          listing: null
+        }
+      }
+
+      // Build query parameters
+      const queryParams = new URLSearchParams({
+        id: listingId,
+        include_images: (options.include_images !== false).toString(),
+        include_bids: (options.include_bids !== false).toString(),
+        include_user_details: (options.include_user_details || false).toString()
+      })
+
+      const url = `${this.apiBase}functions/v1/listing?${queryParams.toString()}`
+      
+      console.log('🌐 [SELLIKO-CLIENT] Making listing request:', {
+        url: url,
+        method: 'GET',
+        listingId: listingId,
+        hasToken: !!token,
+        queryParams: Object.fromEntries(queryParams)
+      })
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Listing response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
+      const data = await response.json()
+      
+      console.log('📥 [SELLIKO-CLIENT] Listing data received:', {
+        success: data.success,
+        hasListing: !!data.listing,
+        listingId: data.listing?.id,
+        listingStatus: data.listing?.status,
+        listingBrand: data.listing?.brand,
+        listingModel: data.listing?.model,
+        hasImages: !!data.listing?.device_images,
+        hasBids: !!data.listing?.bids,
+        bidCount: data.listing?.bids?.length || 0,
+        error: data.error,
+        message: data.message
+      })
+
+      // Echo the full returned value as requested
+      console.log('🔊 [SELLIKO-CLIENT] FULL RESPONSE ECHO:', JSON.stringify(data, null, 2))
+
+      // Log listing details if available
+      if (data.listing) {
+        console.log('📋 [SELLIKO-CLIENT] Listing details:', {
+          id: data.listing.id,
+          brand: data.listing.brand,
+          model: data.listing.model,
+          storage: data.listing.storage,
+          condition: data.listing.condition,
+          status: data.listing.status,
+          expected_price: data.listing.expected_price,
+          asking_price: data.listing.asking_price,
+          highest_bid: data.listing.highest_bid,
+          created_at: data.listing.created_at,
+          contact_name: data.listing.contact_name,
+          mobile_number: data.listing.mobile_number ? `${data.listing.mobile_number.substring(0, 5)}***` : 'NOT_SET',
+          city: data.listing.city,
+          pickup_city: data.listing.pickup_city,
+          device_images: data.listing.device_images ? Object.keys(data.listing.device_images) : [],
+          image_count: data.listing.device_images ? Object.values(data.listing.device_images).filter(Boolean).length : 0
+        })
+
+        // Log bid information if available
+        if (data.listing.bids && data.listing.bids.length > 0) {
+          console.log('💰 [SELLIKO-CLIENT] Bid information:', {
+            total_bids: data.listing.bids.length,
+            highest_bid_amount: Math.max(...data.listing.bids.map(bid => bid.amount || 0)),
+            latest_bid: data.listing.bids[0],
+            bid_timeline: data.listing.bids.map(bid => ({
+              id: bid.id,
+              amount: bid.amount,
+              vendor_name: bid.vendor_name,
+              created_at: bid.created_at,
+              status: bid.status
+            }))
+          })
+        }
+      }
+
+      return data
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] getListingById error:', error)
+      console.error('📋 [SELLIKO-CLIENT] Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        listingId: listingId
+      })
+      
+      return {
+        success: false,
+        error: error.message || 'Network error occurred',
+        listing: null
+      }
+    }
+  }
 }
 
 // Export singleton instance

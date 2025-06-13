@@ -182,6 +182,24 @@ export default function MyListings() {
           const transformedListings = (myListingsResult as any).listings.map(transformListingData)
           console.log('🔄 [MY-LISTINGS] Transformed listings:', transformedListings)
           setListings(transformedListings)
+
+          // Demonstrate getListingById function with the first listing
+          if (transformedListings.length > 0) {
+            const firstListingId = transformedListings[0].id
+            console.log('🔍 [MY-LISTINGS] Demonstrating getListingById with first listing:', firstListingId)
+            
+            try {
+              const listingDetails = await sellikoClient.getListingById(firstListingId, {
+                include_images: true,
+                include_bids: true,
+                include_user_details: false
+              })
+              
+              console.log('✨ [MY-LISTINGS] DEMONSTRATION - getListingById result for first listing:', listingDetails)
+            } catch (detailError) {
+              console.error('❌ [MY-LISTINGS] Failed to fetch first listing details:', detailError)
+            }
+          }
         } else {
           console.warn('⚠️ [MY-LISTINGS] Failed to load listings or no listings found')
           setListings([])
@@ -198,6 +216,34 @@ export default function MyListings() {
 
     loadListings()
   }, [isAuthChecking, isLoading])
+
+  // Function to handle listing card click and fetch detailed information
+  const handleListingClick = async (listingId: string, listingTitle: string) => {
+    console.log('🖱️ [MY-LISTINGS] Listing card clicked:', { listingId, listingTitle })
+    
+    try {
+      // Call getListingById to fetch detailed information
+      const listingDetails = await sellikoClient.getListingById(listingId, {
+        include_images: true,
+        include_bids: true,
+        include_user_details: true // Include user details for this detailed view
+      })
+      
+      console.log('📋 [MY-LISTINGS] Fetched listing details for clicked listing:', listingDetails)
+      
+      if ((listingDetails as any).success && (listingDetails as any).listing) {
+        toast.success(`Loaded details for ${listingTitle}`)
+        // Here you could navigate to a detail page or open a modal
+        // For now, we're just logging the details as requested
+        console.log('✅ [MY-LISTINGS] Successfully loaded listing details - check console for full response')
+      } else {
+        toast.error(`Failed to load details: ${(listingDetails as any).error}`)
+      }
+    } catch (error) {
+      console.error('💥 [MY-LISTINGS] Error fetching listing details:', error)
+      toast.error('Failed to load listing details')
+    }
+  }
 
   // Real-time updates simulation
   useEffect(() => {
@@ -445,7 +491,11 @@ export default function MyListings() {
           /* Listings Grid */
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {filteredListings.map((listing) => (
-              <Card key={listing.id} className="hover:shadow-lg transition-all duration-200">
+              <Card 
+                key={listing.id} 
+                className="hover:shadow-lg transition-all duration-200 cursor-pointer"
+                onClick={() => handleListingClick(listing.id, `${listing.device.brand} ${listing.device.model}`)}
+              >
                 <CardContent className="p-0">
                   {/* Image and Status */}
                   <div className="relative">
