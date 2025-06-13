@@ -7,6 +7,9 @@ import { Badge } from '@/components/ui/badge'
 import { Icons } from '@/components/ui/icons'
 import { toast } from 'react-hot-toast'
 import Link from 'next/link'
+import { useAuth } from '@/lib/auth'
+import { useRouter } from 'next/navigation'
+import sellikoClient from '@/selliko-client'
 
 interface DeviceListing {
   id: string
@@ -37,113 +40,164 @@ interface DeviceListing {
   location: string
 }
 
-const mockListings: DeviceListing[] = [
-  {
-    id: 'listing-1',
-    device: {
-      brand: 'Apple',
-      model: 'iPhone 14 Pro Max',
-      storage: '256GB',
-      color: 'Deep Purple',
-      condition: 'Excellent'
-    },
-    images: ['/api/placeholder/300/300'],
-    askingPrice: 85000,
-    currentBid: 82000,
-    totalBids: 8,
-    timeLeft: '2h 45m',
-    timeLeftMinutes: 165,
-    status: 'active',
-    submittedAt: '2024-01-15T10:30:00Z',
-    bids: [
-      {
-        id: 'bid-1',
-        vendorName: 'TechBuy Solutions',
-        amount: 82000,
-        timestamp: '5 minutes ago',
-        status: 'active'
-      },
-      {
-        id: 'bid-2',
-        vendorName: 'Mobile World Kerala',
-        amount: 80000,
-        timestamp: '1 hour ago',
-        status: 'active'
-      },
-      {
-        id: 'bid-3',
-        vendorName: 'Digital Hub Kochi',
-        amount: 78000,
-        timestamp: '3 hours ago',
-        status: 'active'
-      }
-    ],
-    description: 'Like new condition, barely used for 3 months. All accessories included.',
-    location: 'Kochi'
-  },
-  {
-    id: 'listing-2',
-    device: {
-      brand: 'Samsung',
-      model: 'Galaxy S23',
-      storage: '128GB',
-      color: 'Phantom Black',
-      condition: 'Good'
-    },
-    images: ['/api/placeholder/300/300'],
-    askingPrice: 45000,
-    currentBid: 43500,
-    totalBids: 5,
-    timeLeft: '1d 12h',
-    timeLeftMinutes: 2160,
-    status: 'active',
-    submittedAt: '2024-01-14T15:45:00Z',
-    bids: [
-      {
-        id: 'bid-4',
-        vendorName: 'Smart Gadgets Co',
-        amount: 43500,
-        timestamp: '30 minutes ago',
-        status: 'active'
-      },
-      {
-        id: 'bid-5',
-        vendorName: 'Phone Paradise',
-        amount: 42000,
-        timestamp: '2 hours ago',
-        status: 'active'
-      }
-    ],
-    description: 'Minor scratches on back, screen is perfect. Charger included.',
-    location: 'Thrissur'
-  },
-  {
-    id: 'listing-3',
-    device: {
-      brand: 'OnePlus',
-      model: '11',
-      storage: '256GB',
-      color: 'Titan Black',
-      condition: 'Excellent'
-    },
-    images: ['/api/placeholder/300/300'],
-    askingPrice: 52000,
-    totalBids: 0,
-    timeLeft: 'Pending approval',
-    timeLeftMinutes: 0,
-    status: 'pending',
-    submittedAt: '2024-01-16T09:15:00Z',
-    bids: [],
-    description: 'Purchased 6 months ago, excellent condition with box and all accessories.',
-    location: 'Calicut'
-  }
-]
-
 export default function MyListings() {
-  const [listings, setListings] = useState<DeviceListing[]>(mockListings)
+  const { user, isLoading } = useAuth()
+  const router = useRouter()
+  const [listings, setListings] = useState<DeviceListing[]>([])
+  const [isLoadingListings, setIsLoadingListings] = useState(true)
+  const [isAuthChecking, setIsAuthChecking] = useState(true)
   const [selectedTab, setSelectedTab] = useState<'all' | 'active' | 'pending' | 'sold'>('all')
   const [selectedListing, setSelectedListing] = useState<DeviceListing | null>(null)
   const [bidDetailsOpen, setBidDetailsOpen] = useState(false)
+
+  // Authentication and role check
+  useEffect(() => {
+    const checkAuthAndRole = async () => {
+      console.log('🔒 [MY-LISTINGS] Checking authentication and role...')
+      try {
+        const user = await sellikoClient.getCurrentUser()
+        console.log('👤 [MY-LISTINGS] Current user:', user ? {
+          id: user.id,
+          role: user.user_role,
+        } : 'No user found')
+        
+        if (!user) {
+          console.log('❌ [MY-LISTINGS] No user found, redirecting to login')
+          toast.error('Please login to continue')
+          router.replace('/login')
+          return
+        }
+
+        const userRole = (user.user_role || user.role || '').toLowerCase()
+        console.log('👑 [MY-LISTINGS] User role:', userRole)
+        
+        if (userRole !== 'client') {
+          console.log(`⚠️ [MY-LISTINGS] Invalid role access attempt: ${userRole}`)
+          toast.error('Access denied. Redirecting to your dashboard.')
+          router.replace(`/${userRole}`)
+          return
+        }
+
+        console.log('✅ [MY-LISTINGS] Role verification successful')
+        setIsAuthChecking(false)
+      } catch (error) {
+        console.error('💥 [MY-LISTINGS] Auth check error:', error)
+        toast.error('Authentication error')
+        router.replace('/login')
+      }
+    }
+
+    checkAuthAndRole()
+  }, [router])
+
+  // Transform API listing data to match card format
+  const transformListingData = (apiListing: any): DeviceListing => {
+    const device = apiListing.devices?.[0] || {}
+    
+    // Create full device info
+    const brand = device.brand || 'Unknown Brand'
+    const model = device.model || 'Unknown Model'
+    const storage = device.storage || ''
+    const color = device.color || ''
+    const condition = device.condition || 'Unknown'
+    
+    // Get available images
+    const availableImages = [
+      device.front_image_url,
+      device.back_image_url, 
+      device.top_image_url,
+      device.bottom_image_url,
+      device.bill_image_url,
+      device.warranty_image_url
+    ].filter(Boolean)
+    
+    // Use placeholder if no images
+    const images = availableImages.length > 0 ? availableImages : ['/api/placeholder/300/300']
+    
+    // Determine status
+    let status: 'pending' | 'active' | 'sold' | 'rejected' = 'pending'
+    if (apiListing.status === 'receiving_bids' || apiListing.status === 'approved') {
+      status = 'active'
+    } else if (apiListing.status === 'completed' || apiListing.status === 'sold') {
+      status = 'sold'
+    } else if (apiListing.status === 'rejected') {
+      status = 'rejected'
+    }
+
+    // Calculate time left based on status
+    let timeLeft = 'Under review'
+    let timeLeftMinutes = 0
+    if (status === 'active') {
+      timeLeft = '24h left' // Default for active listings
+      timeLeftMinutes = 1440 // 24 hours in minutes
+    }
+
+    return {
+      id: apiListing.id,
+      device: {
+        brand,
+        model,
+        storage,
+        color,
+        condition
+      },
+      images,
+      askingPrice: apiListing.asking_price || apiListing.expected_price || 0,
+      currentBid: apiListing.highest_bid || undefined,
+      totalBids: apiListing.bids || 0,
+      timeLeft,
+      timeLeftMinutes,
+      status,
+      submittedAt: apiListing.created_at || new Date().toISOString(),
+      bids: [], // TODO: Implement bid details if needed
+      description: device.description || 'No description available',
+      location: apiListing.pickup_city || 'Unknown location'
+    }
+  }
+
+  // Load user listings when authentication is complete
+  useEffect(() => {
+    const loadListings = async () => {
+      if (isAuthChecking || isLoading) {
+        console.log('⏳ [MY-LISTINGS] Waiting for auth check to complete...')
+        return
+      }
+
+      console.log('📋 [MY-LISTINGS] Loading user listings...')
+      setIsLoadingListings(true)
+      
+      try {
+        // Get current user's listings
+        console.log('👤 [MY-LISTINGS] Calling getMyListings()...')
+        const myListingsResult = await sellikoClient.getMyListings({
+          limit: 50, // Get more listings for the listings page
+          sort_by: 'created_at',
+          sort_order: 'desc'
+        } as any)
+        
+        console.log('📊 [MY-LISTINGS] My listings result:', myListingsResult)
+        
+        if ((myListingsResult as any).success && (myListingsResult as any).listings) {
+          // Transform API data to match card format
+          const transformedListings = (myListingsResult as any).listings.map(transformListingData)
+          console.log('🔄 [MY-LISTINGS] Transformed listings:', transformedListings)
+          setListings(transformedListings)
+        } else {
+          console.warn('⚠️ [MY-LISTINGS] Failed to load listings or no listings found')
+          setListings([])
+        }
+        
+      } catch (error) {
+        console.error('💥 [MY-LISTINGS] Error loading listings:', error)
+        setListings([])
+        toast.error('Failed to load listings. Please try again.')
+      } finally {
+        setIsLoadingListings(false)
+      }
+    }
+
+    loadListings()
+  }, [isAuthChecking, isLoading])
 
   // Real-time updates simulation
   useEffect(() => {
@@ -266,6 +320,21 @@ export default function MyListings() {
     { key: 'sold', label: 'Sold', count: listings.filter(l => l.status === 'sold').length }
   ]
 
+  // Loading state
+  if (isLoading || isAuthChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-green-50">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-green-600 rounded-2xl mb-4">
+            <Icons.spinner className="w-8 h-8 text-white animate-spin" />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading Your Listings</h2>
+          <p className="text-gray-600">Getting your device listings ready...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-green-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -310,7 +379,7 @@ export default function MyListings() {
           <Card>
             <CardContent className="p-4 text-center">
               <div className="text-2xl font-bold text-purple-600">
-                ₹{Math.max(...listings.map(l => l.currentBid || 0)).toLocaleString()}
+                ₹{listings.length > 0 ? Math.max(...listings.map(l => l.currentBid || 0)).toLocaleString() : '0'}
               </div>
               <div className="text-sm text-gray-600">Highest Bid</div>
             </CardContent>
@@ -334,146 +403,24 @@ export default function MyListings() {
           ))}
         </div>
 
-        {/* Listings Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {filteredListings.map((listing) => (
-            <Card key={listing.id} className="hover:shadow-lg transition-all duration-200">
-              <CardContent className="p-0">
-                {/* Image and Status */}
-                <div className="relative">
-                  <img 
-                    src={listing.images[0]} 
-                    alt={listing.device.model}
-                    className="w-full h-48 object-cover rounded-t-lg"
-                  />
-                  <Badge className={`absolute top-2 left-2 ${getStatusColor(listing.status)}`}>
-                    {listing.status.charAt(0).toUpperCase() + listing.status.slice(1)}
-                  </Badge>
-                  {listing.status === 'active' && (
-                    <Badge className={`absolute top-2 right-2 bg-white/90 ${getTimeColor(listing.timeLeftMinutes)}`}>
-                      ⏱️ {listing.timeLeft}
-                    </Badge>
-                  )}
-                </div>
-
-                <div className="p-4">
-                  {/* Device Info */}
-                  <div className="mb-3">
-                    <h3 className="font-semibold text-lg text-gray-900 mb-1">
-                      {listing.device.brand} {listing.device.model}
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      {listing.device.storage} • {listing.device.color} • {listing.device.condition}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Listed on {formatDate(listing.submittedAt)}
-                    </p>
+        {/* Loading State for Listings */}
+        {isLoadingListings ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <Card key={i} className="animate-pulse">
+                <CardContent className="p-0">
+                  <div className="h-48 bg-gray-200 rounded-t-lg"></div>
+                  <div className="p-4">
+                    <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                    <div className="h-3 bg-gray-200 rounded w-2/3 mb-4"></div>
+                    <div className="h-6 bg-gray-200 rounded mb-2"></div>
+                    <div className="h-4 bg-gray-200 rounded w-1/2"></div>
                   </div>
-
-                  {/* Pricing Info */}
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-600">Your Asking Price</p>
-                        <p className="text-lg font-bold text-green-600">{formatCurrency(listing.askingPrice)}</p>
-                      </div>
-                      {listing.currentBid && (
-                        <div className="text-right">
-                          <p className="text-sm text-gray-600">Highest Bid</p>
-                          <p className="text-lg font-semibold text-blue-600">{formatCurrency(listing.currentBid)}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Bidding Status */}
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className={`font-medium ${listing.totalBids > 0 ? 'text-green-600' : 'text-gray-600'}`}>
-                        {listing.totalBids === 0 ? 'No bids yet' : `${listing.totalBids} bid${listing.totalBids > 1 ? 's' : ''} received`}
-                      </span>
-                      {listing.status === 'active' && listing.totalBids > 0 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleViewBidDetails(listing)}
-                          className="text-blue-600 hover:text-blue-700"
-                        >
-                          View Bids
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Latest Bid Alert */}
-                  {listing.status === 'active' && listing.bids.length > 0 && (
-                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-blue-900">Latest Bid</p>
-                          <p className="text-xs text-blue-700">
-                            {formatCurrency(listing.bids[0].amount)} by {listing.bids[0].vendorName}
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            className="bg-green-600 hover:bg-green-700"
-                            onClick={() => handleAcceptBid(listing.id, listing.bids[0].id)}
-                          >
-                            Accept
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-xs"
-                            onClick={() => handleDeclineBid(listing.id, listing.bids[0].id)}
-                          >
-                            Decline
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Status-specific content */}
-                  {listing.status === 'pending' && (
-                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm">
-                      <div className="flex items-center gap-2">
-                        <Icons.clock className="w-4 h-4 text-yellow-600" />
-                        <span className="text-yellow-800">Awaiting admin approval</span>
-                      </div>
-                      <p className="text-yellow-700 text-xs mt-1">Your listing will be live once approved</p>
-                    </div>
-                  )}
-
-                  {listing.status === 'rejected' && listing.rejectionReason && (
-                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Icons.x className="w-4 h-4 text-red-600" />
-                        <span className="text-red-800 font-medium">Listing Rejected</span>
-                      </div>
-                      <p className="text-red-700 text-xs">{listing.rejectionReason}</p>
-                    </div>
-                  )}
-
-                  {listing.status === 'sold' && (
-                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm">
-                      <div className="flex items-center gap-2">
-                        <Icons.check className="w-4 h-4 text-green-600" />
-                        <span className="text-green-800 font-medium">Successfully Sold!</span>
-                      </div>
-                      <p className="text-green-700 text-xs mt-1">Order tracking has been initiated</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Empty State */}
-        {filteredListings.length === 0 && (
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : filteredListings.length === 0 ? (
           <div className="text-center py-12">
             <Icons.smartphone className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -493,6 +440,144 @@ export default function MyListings() {
                 </Button>
               </Link>
             )}
+          </div>
+        ) : (
+          /* Listings Grid */
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            {filteredListings.map((listing) => (
+              <Card key={listing.id} className="hover:shadow-lg transition-all duration-200">
+                <CardContent className="p-0">
+                  {/* Image and Status */}
+                  <div className="relative">
+                    <img 
+                      src={listing.images[0]} 
+                      alt={listing.device.model}
+                      className="w-full h-48 object-cover rounded-t-lg"
+                    />
+                    <Badge className={`absolute top-2 left-2 ${getStatusColor(listing.status)}`}>
+                      {listing.status.charAt(0).toUpperCase() + listing.status.slice(1)}
+                    </Badge>
+                    {listing.status === 'active' && (
+                      <Badge className={`absolute top-2 right-2 bg-white/90 ${getTimeColor(listing.timeLeftMinutes)}`}>
+                        ⏱️ {listing.timeLeft}
+                      </Badge>
+                    )}
+                  </div>
+
+                  <div className="p-4">
+                    {/* Device Info */}
+                    <div className="mb-3">
+                      <h3 className="font-semibold text-lg text-gray-900 mb-1">
+                        {listing.device.brand} {listing.device.model}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        {listing.device.storage} • {listing.device.color} • {listing.device.condition}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Listed on {formatDate(listing.submittedAt)}
+                      </p>
+                    </div>
+
+                    {/* Pricing Info */}
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-600">Your Asking Price</p>
+                          <p className="text-lg font-bold text-green-600">{formatCurrency(listing.askingPrice)}</p>
+                        </div>
+                        {listing.currentBid && (
+                          <div className="text-right">
+                            <p className="text-sm text-gray-600">Highest Bid</p>
+                            <p className="text-lg font-semibold text-blue-600">{formatCurrency(listing.currentBid)}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Bidding Status */}
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className={`font-medium ${listing.totalBids > 0 ? 'text-green-600' : 'text-gray-600'}`}>
+                          {listing.totalBids === 0 ? 'No bids yet' : `${listing.totalBids} bid${listing.totalBids > 1 ? 's' : ''} received`}
+                        </span>
+                        {listing.status === 'active' && listing.totalBids > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewBidDetails(listing)}
+                            className="text-blue-600 hover:text-blue-700"
+                          >
+                            View Bids
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Latest Bid Alert */}
+                    {listing.status === 'active' && listing.bids.length > 0 && (
+                      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-blue-900">Latest Bid</p>
+                            <p className="text-xs text-blue-700">
+                              {formatCurrency(listing.bids[0].amount)} by {listing.bids[0].vendorName}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700"
+                              onClick={() => handleAcceptBid(listing.id, listing.bids[0].id)}
+                            >
+                              Accept
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-xs"
+                              onClick={() => handleDeclineBid(listing.id, listing.bids[0].id)}
+                            >
+                              Decline
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Status-specific content */}
+                    {listing.status === 'pending' && (
+                      <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm">
+                        <div className="flex items-center gap-2">
+                          <Icons.clock className="w-4 h-4 text-yellow-600" />
+                          <span className="text-yellow-800">Awaiting admin approval</span>
+                        </div>
+                        <p className="text-yellow-700 text-xs mt-1">Your listing will be live once approved</p>
+                      </div>
+                    )}
+
+                    {listing.status === 'rejected' && listing.rejectionReason && (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Icons.x className="w-4 h-4 text-red-600" />
+                          <span className="text-red-800 font-medium">Listing Rejected</span>
+                        </div>
+                        <p className="text-red-700 text-xs">{listing.rejectionReason}</p>
+                      </div>
+                    )}
+
+                    {listing.status === 'sold' && (
+                      <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm">
+                        <div className="flex items-center gap-2">
+                          <Icons.check className="w-4 h-4 text-green-600" />
+                          <span className="text-green-800 font-medium">Successfully Sold!</span>
+                        </div>
+                        <p className="text-green-700 text-xs mt-1">Order tracking has been initiated</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         )}
 
