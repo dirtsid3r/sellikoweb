@@ -2212,6 +2212,142 @@ class SellikoClient {
       }
     }
   }
+
+  // 13. placeBid - place a bid on a listing (vendor only)
+  /**
+   * Places a bid on a device listing
+   * 
+   * AUTHORIZATION REQUIREMENTS:
+   * - User role must be 'VENDOR'
+   * - Valid JWT token required in Authorization header
+   * 
+   * @param {number|string} listingId - The ID of the listing to bid on
+   * @param {number} bidAmount - The bid amount in currency units
+   * 
+   * @returns {Promise<Object>} Response with success status and bid information
+   */
+  async placeBid(listingId, bidAmount) {
+    console.log('💰 [SELLIKO-CLIENT] placeBid called with:', {
+      listingId: listingId,
+      bidAmount: bidAmount,
+      formattedAmount: `₹${bidAmount?.toLocaleString()}`
+    })
+
+    try {
+      // Validate inputs
+      if (!listingId) {
+        throw new Error('Listing ID is required')
+      }
+
+      if (!bidAmount || bidAmount <= 0) {
+        throw new Error('Valid bid amount is required')
+      }
+
+      // Get current user and validate permissions
+      const user = await this.getCurrentUser()
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+
+      console.log('👤 [SELLIKO-CLIENT] Current user validation:', {
+        userId: user.id,
+        userRole: user.user_role,
+        normalizedRole: (user.user_role || '').toUpperCase()
+      })
+
+      // Validate user role (must be vendor)
+      const userRole = (user.user_role || '').toUpperCase()
+      if (userRole !== 'VENDOR') {
+        throw new Error(`Only vendors can place bids. Current role: ${user.user_role}`)
+      }
+
+      console.log('✅ [SELLIKO-CLIENT] Role validation passed - proceeding with bid placement')
+
+      // Get access token
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        throw new Error('No access token found')
+      }
+
+      // Prepare request body
+      const requestBody = {
+        listing_id: parseInt(listingId), // Ensure it's a number
+        bid_amount: parseInt(bidAmount)  // Ensure it's a number
+      }
+
+      console.log('📤 [SELLIKO-CLIENT] Submitting bid request:', {
+        url: `${this.apiBase}functions/v1/place-bid`,
+        method: 'POST',
+        hasToken: !!token,
+        body: {
+          listing_id: requestBody.listing_id,
+          bid_amount: requestBody.bid_amount,
+          formattedAmount: `₹${requestBody.bid_amount.toLocaleString()}`
+        }
+      })
+
+      // Make API request
+      const response = await fetch(`${this.apiBase}functions/v1/place-bid`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(requestBody)
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Bid response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
+      const result = await response.json()
+      
+      console.log('📥 [SELLIKO-CLIENT] Bid result:', {
+        success: result.success,
+        hasBid: !!result.bid,
+        bidId: result.bid?.id,
+        bidAmount: result.bid?.amount,
+        bidStatus: result.bid?.status,
+        isInstantWin: result.instant_win,
+        message: result.message,
+        error: result.error,
+        listingId: listingId
+      })
+
+      // Log action result
+      if (result.success) {
+        const bidType = result.instant_win ? 'instant win' : 'regular'
+        console.log(`✅ [SELLIKO-CLIENT] ${bidType} bid placed successfully:`, {
+          listingId: listingId,
+          bidAmount: `₹${bidAmount.toLocaleString()}`,
+          bidId: result.bid?.id,
+          instantWin: result.instant_win
+        })
+      } else {
+        console.error(`❌ [SELLIKO-CLIENT] Failed to place bid on listing ${listingId}:`, result.error)
+      }
+
+      return result
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] placeBid error:', error)
+      console.error('📋 [SELLIKO-CLIENT] Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        listingId: listingId,
+        bidAmount: bidAmount
+      })
+      
+      return {
+        success: false,
+        error: error.message || 'Network error occurred'
+      }
+    }
+  }
 }
 
 // Export singleton instance
