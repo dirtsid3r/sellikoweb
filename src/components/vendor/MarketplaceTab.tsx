@@ -7,6 +7,19 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Icons } from '@/components/ui/icons'
 import { BidModal } from './BidModal'
+import sellikoClient from '@/selliko-client'
+import { toast } from 'react-hot-toast'
+
+// API Response types
+interface MarketplaceAPIResponse {
+  success: boolean
+  listings?: any[]
+  total?: number
+  page?: number
+  limit?: number
+  error?: string
+  message?: string
+}
 
 interface MarketplaceListing {
   id: string
@@ -23,12 +36,15 @@ interface MarketplaceListing {
   location: string
   image: string
   isInstantWin: boolean
+  isBiddable: boolean
   photos: string[]
   description: string
   seller: {
     name: string
     location: string
   }
+  images: string[]
+  isHot: boolean
 }
 
 export function MarketplaceTab() {
@@ -38,94 +54,94 @@ export function MarketplaceTab() {
   const [loading, setLoading] = useState(true)
   const [selectedListing, setSelectedListing] = useState<MarketplaceListing | null>(null)
   const [bidModalOpen, setBidModalOpen] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [totalListings, setTotalListings] = useState(0)
 
-  // Mock data for demonstration - should come from API
-  const mockListings: MarketplaceListing[] = [
-    {
-      id: 'listing-1',
-      device: 'iPhone 14 Pro Max',
-      brand: 'Apple',
-      model: 'iPhone 14 Pro Max',
-      storage: '256GB',
-      color: 'Space Black',
-      condition: 'Excellent',
-      currentBid: 52000,
-      askingPrice: 55000,
-      totalBids: 5,
-      timeLeft: '18h 24m',
-      location: 'Kochi',
-      image: '/api/placeholder/300/200',
-      isInstantWin: false,
-      photos: ['/api/placeholder/300/200'],
-      description: 'Excellent condition iPhone with all accessories',
-      seller: { name: 'Pradeep Kumar', location: 'Kochi' }
-    },
-    {
-      id: 'listing-2',
-      device: 'Samsung Galaxy S21',
-      brand: 'Samsung',
-      model: 'Galaxy S21',
-      storage: '128GB',
-      color: 'Phantom Silver',
-      condition: 'Good',
-      currentBid: 33000,
-      askingPrice: 35000,
-      totalBids: 2,
-      timeLeft: '6h 15m',
-      location: 'Thrissur',
-      image: '/api/placeholder/300/200',
-      isInstantWin: true,
-      photos: ['/api/placeholder/300/200'],
-      description: 'Good condition Samsung with original box',
-      seller: { name: 'Rahul Menon', location: 'Thrissur' }
-    },
-    {
-      id: 'listing-3',
-      device: 'OnePlus 9',
-      brand: 'OnePlus',
-      model: 'OnePlus 9',
-      storage: '256GB',
-      color: 'Arctic Sky',
-      condition: 'Excellent',
-      currentBid: null,
-      askingPrice: 28000,
-      totalBids: 0,
-      timeLeft: '12h 8m',
-      location: 'Calicut',
-      image: '/api/placeholder/300/200',
-      isInstantWin: false,
-      photos: ['/api/placeholder/300/200'],
-      description: 'Like new OnePlus 9 with all accessories',
-      seller: { name: 'Arjun Nair', location: 'Calicut' }
-    },
-    {
-      id: 'listing-4',
-      device: 'iPhone 13',
-      brand: 'Apple',
-      model: 'iPhone 13',
-      storage: '128GB',
-      color: 'Pink',
-      condition: 'Good',
-      currentBid: 45000,
-      askingPrice: 48000,
-      totalBids: 3,
-      timeLeft: '4h 33m',
-      location: 'Kochi',
-      image: '/api/placeholder/300/200',
-      isInstantWin: false,
-      photos: ['/api/placeholder/300/200'],
-      description: 'Good condition iPhone 13',
-      seller: { name: 'Sneha Das', location: 'Kochi' }
-    }
-  ]
+  // Fetch marketplace listings from API
+  const fetchMarketplaceListings = async (search?: string) => {
+    console.log('🔄 [MARKETPLACE-TAB] Fetching marketplace listings...', { search })
+    setLoading(true)
+    setError(null)
+    
+    try {
+      const response = await sellikoClient.getMarketplaceListings({
+        search: search || '',
+        status: 'receiving_bids',
+        page: 1,
+        limit: 100 // As requested
+      }) as MarketplaceAPIResponse
 
-  useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setListings(mockListings)
+      console.log('📥 [MARKETPLACE-TAB] API response:', {
+        success: response.success,
+        listingsCount: response.listings?.length || 0,
+        total: response.total,
+        error: response.error
+      })
+
+      if (response.success && response.listings) {
+        // Transform API response to match our interface
+        const transformedListings: MarketplaceListing[] = response.listings.map((item: any) => ({
+          id: item.id,
+          device: item.device,
+          brand: item.brand,
+          model: item.device, // Use device as model fallback
+          storage: item.storage,
+          color: item.color,
+          condition: item.condition,
+          currentBid: item.currentBid || null,
+          askingPrice: item.askingPrice,
+          totalBids: item.totalBids || 0,
+          timeLeft: item.timeLeft || 'N/A',
+          location: item.location,
+          image: item.images && item.images.length > 0 ? item.images[0] : '/api/placeholder/300/200',
+          isInstantWin: item.isInstantWin || false,
+          isBiddable: item.isBiddable !== false, // Default to true if not specified
+          photos: item.images || [],
+          description: `${item.condition} condition ${item.device}`,
+          seller: {
+            name: item.seller?.name || 'Unknown Seller',
+            location: item.location
+          },
+          images: item.images || [],
+          isHot: item.isHot || false
+        }))
+
+        setListings(transformedListings)
+        setTotalListings(response.total || 0)
+        console.log('✅ [MARKETPLACE-TAB] Listings loaded successfully:', transformedListings.length)
+      } else {
+        console.error('❌ [MARKETPLACE-TAB] API error:', response.error)
+        setError(response.error || 'Failed to load marketplace listings')
+        setListings([])
+        setTotalListings(0)
+      }
+    } catch (error) {
+      console.error('💥 [MARKETPLACE-TAB] Fetch error:', error)
+      setError('Network error occurred while loading listings')
+      setListings([])
+      setTotalListings(0)
+    } finally {
       setLoading(false)
-    }, 1000)
+    }
+  }
+
+  // Load listings on component mount
+  useEffect(() => {
+    fetchMarketplaceListings()
   }, [])
+
+  // Handle search with debouncing
+  useEffect(() => {
+    const delayedSearch = setTimeout(() => {
+      if (searchQuery.trim()) {
+        fetchMarketplaceListings(searchQuery.trim())
+      } else {
+        fetchMarketplaceListings()
+      }
+    }, 500) // 500ms debounce
+
+    return () => clearTimeout(delayedSearch)
+  }, [searchQuery])
 
   const filteredListings = listings.filter(listing => {
     const matchesSearch = listing.device.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -134,8 +150,8 @@ export function MarketplaceTab() {
     if (selectedFilter === 'all') return matchesSearch
     if (selectedFilter === 'instant-win') return matchesSearch && listing.isInstantWin
     if (selectedFilter === 'ending-soon') return matchesSearch && listing.timeLeft.includes('h') && parseInt(listing.timeLeft) <= 6
-    if (selectedFilter === 'apple') return matchesSearch && listing.brand === 'Apple'
-    if (selectedFilter === 'samsung') return matchesSearch && listing.brand === 'Samsung'
+    if (selectedFilter === 'apple') return matchesSearch && listing.brand.toLowerCase() === 'apple'
+    if (selectedFilter === 'samsung') return matchesSearch && listing.brand.toLowerCase() === 'samsung'
     
     return matchesSearch
   })
@@ -155,22 +171,81 @@ export function MarketplaceTab() {
   }
 
   const handlePlaceBid = (listing: MarketplaceListing) => {
-    setSelectedListing(listing)
+    // Transform to match BidModal interface
+    const bidModalListing = {
+      ...listing,
+      timeLeftMinutes: parseInt(listing.timeLeft) * 60 || 60, // Convert hours to minutes, default to 60
+      listingDate: new Date().toISOString().split('T')[0], // Use today's date as fallback
+      features: [], // Empty array as fallback
+      warranty: 'N/A', // Default warranty status
+      seller: {
+        ...listing.seller,
+        rating: 5, // Default rating
+        isVerified: true // Default verification status
+      }
+    }
+    setSelectedListing(bidModalListing as any)
     setBidModalOpen(true)
   }
 
   const handleInstantWin = (listing: MarketplaceListing) => {
     // Implement instant win logic
-    alert(`Instant win: ${listing.device} for ₹${listing.askingPrice.toLocaleString()}`)
+    toast.success(`Instant win: ${listing.device} for ₹${listing.askingPrice.toLocaleString()}`)
+  }
+
+  const handleRefresh = () => {
+    const searchTerm = searchQuery.trim() || undefined
+    fetchMarketplaceListings(searchTerm)
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">📱 Device Marketplace</h2>
-        <p className="text-gray-600">Browse and bid on verified devices from trusted sellers across Kerala.</p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">📱 Device Marketplace</h2>
+          <p className="text-gray-600">Browse and bid on verified devices from trusted sellers across Kerala.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500">
+            {loading ? 'Loading...' : `${totalListings} listings available`}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={loading}
+          >
+            {loading ? (
+              <Icons.spinner className="w-4 h-4 animate-spin" />
+            ) : (
+              <Icons.refresh className="w-4 h-4" />
+            )}
+            Refresh
+          </Button>
+        </div>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-red-800">
+              <Icons.alertCircle className="w-5 h-5" />
+              <span className="font-medium">Error loading marketplace:</span>
+              <span>{error}</span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              className="mt-2"
+            >
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Search and Filters */}
       <Card>
@@ -213,12 +288,13 @@ export function MarketplaceTab() {
       {/* Listings Grid */}
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3].map((i) => (
+          {[1, 2, 3, 4, 5, 6].map((i) => (
             <Card key={i} className="animate-pulse">
               <div className="bg-gray-200 h-48 rounded-t-lg"></div>
               <CardContent className="p-4">
                 <div className="h-4 bg-gray-200 rounded mb-2"></div>
                 <div className="h-4 bg-gray-200 rounded w-2/3 mb-4"></div>
+                <div className="h-8 bg-gray-200 rounded mb-2"></div>
                 <div className="h-8 bg-gray-200 rounded"></div>
               </CardContent>
             </Card>
@@ -233,10 +309,24 @@ export function MarketplaceTab() {
                   src={listing.image} 
                   alt={listing.device}
                   className="w-full h-48 object-cover"
+                  onError={(e) => {
+                    // Fallback to placeholder if image fails to load
+                    e.currentTarget.src = '/api/placeholder/300/200'
+                  }}
                 />
                 {listing.isInstantWin && (
                   <Badge className="absolute top-2 right-2 bg-orange-100 text-orange-800 border-orange-200">
                     ⚡ Instant Win
+                  </Badge>
+                )}
+                {listing.isHot && (
+                  <Badge className="absolute top-2 left-2 bg-red-500 text-white">
+                    🔥 HOT
+                  </Badge>
+                )}
+                {!listing.isBiddable && (
+                  <Badge className="absolute top-2 left-2 bg-gray-500 text-white">
+                    🚫 Bidding Closed
                   </Badge>
                 )}
                 <div className={`absolute bottom-2 left-2 px-2 py-1 rounded text-sm font-medium ${getTimeLeftColor(listing.timeLeft)}`}>
@@ -283,10 +373,11 @@ export function MarketplaceTab() {
                     variant="outline" 
                     className="flex-1"
                     onClick={() => handlePlaceBid(listing)}
+                    disabled={!listing.isBiddable}
                   >
-                    Place Bid
+                    {listing.isBiddable ? 'Place Bid' : 'Bidding Closed'}
                   </Button>
-                  {listing.isInstantWin && (
+                  {listing.isInstantWin && listing.isBiddable && (
                     <Button 
                       size="sm" 
                       className="flex-1 bg-orange-600 hover:bg-orange-700"
@@ -295,6 +386,11 @@ export function MarketplaceTab() {
                       Buy Now
                     </Button>
                   )}
+                  {!listing.isBiddable && (
+                    <div className="flex-1 text-center text-sm text-gray-500 py-2">
+                      Bidding not available
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -302,12 +398,32 @@ export function MarketplaceTab() {
         </div>
       )}
 
-      {!loading && filteredListings.length === 0 && (
+      {!loading && !error && filteredListings.length === 0 && (
         <Card>
           <CardContent className="p-12 text-center">
             <Icons.search className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No devices found</h3>
-            <p className="text-gray-600">Try adjusting your search or filters to find more devices.</p>
+            <p className="text-gray-600 mb-4">
+              {searchQuery ? 
+                `No devices found matching "${searchQuery}". Try adjusting your search terms.` :
+                'No marketplace listings are currently available.'
+              }
+            </p>
+            <div className="flex gap-2 justify-center">
+              <Button
+                variant="outline"
+                onClick={() => setSearchQuery('')}
+                disabled={!searchQuery}
+              >
+                Clear Search
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleRefresh}
+              >
+                Refresh Listings
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}

@@ -2103,6 +2103,115 @@ class SellikoClient {
       }
     }
   }
+
+  // 12. getMarketplaceListings - fetch marketplace listings for vendors
+  /**
+   * Fetches marketplace listings for vendor bidding
+   * 
+   * @param {Object} options - Query options
+   * @param {string} options.search - Search term for device/brand filtering (optional)
+   * @param {string} options.status - Filter by listing status (optional, default: 'receiving_bids')
+   * @param {number} options.page - Page number for pagination (optional, default: 1)
+   * @param {number} options.limit - Number of items per page (optional, default: 20, max: 100)
+   * 
+   * @returns {Promise<Object>} Response with marketplace listings and pagination info
+   */
+  async getMarketplaceListings(options = {}) {
+    console.log('🏪 [SELLIKO-CLIENT] getMarketplaceListings called with options:', {
+      search: options.search || 'ALL',
+      status: options.status || 'receiving_bids',
+      page: options.page || 1,
+      limit: options.limit || 20
+    })
+
+    try {
+      // Build query parameters
+      const queryParams = new URLSearchParams()
+      
+      // Add search if provided
+      if (options.search && options.search.trim()) {
+        queryParams.append('search', options.search.trim())
+      }
+      
+      // Add status filter (default to receiving_bids for marketplace)
+      queryParams.append('status', options.status || 'receiving_bids')
+      
+      // Add pagination
+      queryParams.append('page', (options.page || 1).toString())
+      queryParams.append('limit', Math.min(options.limit || 20, 100).toString()) // Cap at 100
+      
+      const url = `${this.apiBase}functions/v1/marketplace?${queryParams.toString()}`
+      
+      console.log('🌐 [SELLIKO-CLIENT] Making marketplace request:', {
+        url: url,
+        method: 'GET',
+        queryParams: Object.fromEntries(queryParams)
+      })
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Marketplace response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      })
+
+      const data = await response.json()
+      
+      console.log('📥 [SELLIKO-CLIENT] Marketplace data received:', {
+        success: data.success,
+        listingsCount: data.listings ? data.listings.length : 0,
+        hasListings: !!data.listings,
+        totalCount: data.total || 0,
+        currentPage: data.page || 1,
+        limit: data.limit || 20,
+        error: data.error
+      })
+
+      // Log first listing for debugging (safely)
+      if (data.listings && data.listings.length > 0) {
+        const firstListing = data.listings[0]
+        console.log('📋 [SELLIKO-CLIENT] Sample marketplace listing:', {
+          id: firstListing.id,
+          device: firstListing.device,
+          brand: firstListing.brand,
+          askingPrice: firstListing.askingPrice,
+          currentBid: firstListing.currentBid,
+          totalBids: firstListing.totalBids,
+          timeLeft: firstListing.timeLeft,
+          location: firstListing.location,
+          hasImages: !!firstListing.images && firstListing.images.length > 0,
+          imageCount: firstListing.images ? firstListing.images.length : 0,
+          isHot: firstListing.isHot,
+          isInstantWin: firstListing.isInstantWin
+        })
+      }
+
+      return data
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] getMarketplaceListings error:', error)
+      console.error('📋 [SELLIKO-CLIENT] Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      })
+      
+      return {
+        success: false,
+        error: error.message || 'Network error occurred',
+        listings: [],
+        total: 0,
+        page: 1,
+        limit: 20
+      }
+    }
+  }
 }
 
 // Export singleton instance
