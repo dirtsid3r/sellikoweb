@@ -89,11 +89,28 @@ export default function AdminDashboard() {
           // Transform API data to match the existing UI structure
           const transformedListings = response.listings.map((listing: any) => {
             const device = listing.devices?.[0] || {}
+            const clientAddress = listing.addresses?.find((addr: any) => addr.type === 'client') || {}
+            
+            // Extract seller name from multiple sources
+            const sellerName = listing.contact_name || 
+                              clientAddress.contact_name || 
+                              clientAddress.name || 
+                              'Unknown Seller'
+            
+            // Format submission date properly
+            const submittedAt = new Date(listing.created_at).toLocaleDateString('en-IN', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })
+            
             return {
               id: listing.id,
               device: `${device.brand || 'Unknown'} ${device.model || 'Model'}`,
-              seller: listing.contact_name || 'Unknown Seller',
-              submittedAt: new Date(listing.created_at).toLocaleDateString('en-IN'),
+              seller: sellerName,
+              submittedAt: submittedAt,
               askingPrice: listing.expected_price || listing.asking_price || 0,
               status: listing.status
             }

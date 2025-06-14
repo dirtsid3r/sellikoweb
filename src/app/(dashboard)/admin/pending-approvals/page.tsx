@@ -133,30 +133,62 @@ export default function PendingApprovals() {
               }
             })
             
+            // Extract seller information with fallbacks
+            const sellerName = listing.contact_name || 
+                              clientAddress.contact_name || 
+                              clientAddress.name || 
+                              'Unknown Seller'
+            
+            const sellerPhone = listing.mobile_number || 
+                               clientAddress.mobile_number || 
+                               'N/A'
+            
+            const sellerEmail = clientAddress.email || 
+                               listing.email || 
+                               'N/A'
+            
+            // Debug logging for seller information
+            console.log(`👤 [PENDING-APPROVALS] Seller info for listing ${listing.id}:`, {
+              sellerName,
+              sellerPhone,
+              sellerEmail,
+              rawListing: {
+                contact_name: listing.contact_name,
+                mobile_number: listing.mobile_number,
+                email: listing.email
+              },
+              clientAddress: {
+                contact_name: clientAddress.contact_name,
+                mobile_number: clientAddress.mobile_number,
+                email: clientAddress.email,
+                name: clientAddress.name
+              }
+            })
+            
             return {
               id: listing.id,
-              device: {
+      device: {
                 brand: device.brand || 'Unknown',
                 model: device.model || 'Model',
                 storage: device.storage || 'Unknown',
                 color: device.color || 'Unknown',
                 condition: device.condition || 'Unknown'
-              },
-              seller: {
-                name: listing.contact_name || clientAddress.contact_name || 'Unknown Seller',
-                phone: listing.mobile_number || clientAddress.mobile_number || 'N/A',
-                email: clientAddress.email || 'N/A',
+      },
+      seller: {
+                name: sellerName,
+                phone: sellerPhone,
+                email: sellerEmail,
                 location: `${clientAddress.city || 'Unknown'}, ${clientAddress.state || 'Kerala'}`,
                 fullAddress: clientAddress.address || 'Address not provided',
                 pincode: clientAddress.pincode || 'N/A',
                 landmark: clientAddress.landmark || null
-              },
-              pricing: {
+      },
+      pricing: {
                 askingPrice: listing.expected_price || listing.asking_price || 0,
                 estimatedValue: listing.expected_price || listing.asking_price || 0
-              },
+      },
               images: deviceImages,
-              documentation: {
+      documentation: {
                 hasWarranty: device.warranty_status === 'active',
                 hasBill: device.has_bill || false,
                 warrantyMonths: device.warranty_expiry ? Math.ceil((new Date(device.warranty_expiry).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24 * 30)) : undefined,
@@ -235,7 +267,7 @@ export default function PendingApprovals() {
       console.error('💥 [PENDING-APPROVALS] Approval error:', error)
       toast.error('Network error occurred while approving listing')
     } finally {
-      setProcessingId(null)
+    setProcessingId(null)
     }
   }
 
@@ -408,10 +440,10 @@ export default function PendingApprovals() {
                         {listing.images.length > 0 ? (
                           listing.images.slice(0, 4).map((image: string, index: number) => (
                             <div key={index} className="aspect-square rounded-lg overflow-hidden bg-gray-100">
-                              <img 
-                                src={image} 
+                            <img 
+                              src={image} 
                                 alt={`${listing.device.brand} ${listing.device.model} - View ${index + 1}`}
-                                className="w-full h-full object-cover"
+                              className="w-full h-full object-cover"
                                 onError={(e) => {
                                   (e.target as HTMLImageElement).src = '/api/placeholder/200/200'
                                 }}
@@ -563,7 +595,7 @@ export default function PendingApprovals() {
                               <span className="text-gray-600">City:</span>
                               <p className="text-gray-900">{listing.pickup.city}, {listing.pickup.state}</p>
                             </div>
-                            <div>
+                        <div>
                               <span className="text-gray-600">Pincode:</span>
                               <p className="text-gray-900">{listing.pickup.pincode}</p>
                             </div>
@@ -581,7 +613,7 @@ export default function PendingApprovals() {
                               <Icons.shield className="w-4 h-4 mr-2" />
                               Bank Details (Admin Only)
                             </h4>
-                            <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="grid grid-cols-2 gap-4 text-sm">
                               {listing.bankDetails.accountHolderName && (
                                 <div>
                                   <span className="text-gray-600">Account Holder:</span>
@@ -595,20 +627,20 @@ export default function PendingApprovals() {
                                 </div>
                               )}
                               {listing.bankDetails.accountNumber && (
-                                <div>
+                          <div>
                                   <span className="text-gray-600">Account Number:</span>
                                   <p className="text-gray-900 font-mono">****{listing.bankDetails.accountNumber.slice(-4)}</p>
-                                </div>
+                          </div>
                               )}
                               {listing.bankDetails.ifscCode && (
-                                <div>
+                            <div>
                                   <span className="text-gray-600">IFSC Code:</span>
                                   <p className="text-gray-900 font-mono">{listing.bankDetails.ifscCode}</p>
                                 </div>
                               )}
                             </div>
-                          </div>
-                        )}
+                            </div>
+                          )}
 
                         {/* Description */}
                         <div>
@@ -672,14 +704,14 @@ export default function PendingApprovals() {
                             </button>
                           ) : (
                             // Show reject button when not in rejection mode
-                            <button
+                          <button
                               onClick={() => handleRejectClick(listing.id)}
-                              disabled={processingId === listing.id}
-                              className="w-full btn-secondary px-4 py-3 rounded-xl font-medium text-red-600 border border-red-200 hover:bg-red-50 disabled:opacity-50 flex items-center justify-center space-x-2 active-scale-sm transition-mobile"
-                            >
-                              <Icons.x className="w-5 h-5" />
-                              <span>Reject</span>
-                            </button>
+                            disabled={processingId === listing.id}
+                            className="w-full btn-secondary px-4 py-3 rounded-xl font-medium text-red-600 border border-red-200 hover:bg-red-50 disabled:opacity-50 flex items-center justify-center space-x-2 active-scale-sm transition-mobile"
+                          >
+                            <Icons.x className="w-5 h-5" />
+                            <span>Reject</span>
+                          </button>
                           )}
                         </div>
                       </div>

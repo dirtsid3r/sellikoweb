@@ -1696,6 +1696,413 @@ class SellikoClient {
       }
     }
   }
+
+  // 9. addUser - create a new user account (admin only)
+  /**
+   * Creates a new user account with specified role
+   * 
+   * AUTHORIZATION REQUIREMENTS:
+   * - User role must be 'ADMIN'
+   * - Valid JWT token required in Authorization header
+   * 
+   * @param {string} mobile_number - User's mobile phone number
+   * @param {string} user_role - Role assignment: "client", "agent", or "admin"
+   * 
+   * @returns {Promise<Object>} Response with success status and created user info
+   */
+  async addUser(mobile_number, user_role) {
+    console.log('👥 [SELLIKO-CLIENT] addUser called with:', {
+      mobile_number: mobile_number ? mobile_number.substring(0, 5) + '***' : 'MISSING',
+      user_role: user_role || 'MISSING'
+    })
+
+    try {
+      // Validate inputs
+      if (!mobile_number || mobile_number.trim().length === 0) {
+        throw new Error('Mobile number is required')
+      }
+
+      if (!user_role || user_role.trim().length === 0) {
+        throw new Error('User role is required')
+      }
+
+      // Validate user role
+      const validRoles = ['anon', 'client', 'vendor', 'agent', 'admin']
+      if (!validRoles.includes(user_role.toLowerCase())) {
+        throw new Error(`Invalid user role. Must be one of: ${validRoles.join(', ')}`)
+      }
+
+      // Get current user and validate permissions
+      const user = await this.getCurrentUser()
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+
+      console.log('👤 [SELLIKO-CLIENT] Current user validation:', {
+        userId: user.id,
+        userRole: user.user_role,
+        normalizedRole: (user.user_role || '').toUpperCase()
+      })
+
+      // Validate user role (must be admin)
+      const userRole = (user.user_role || '').toUpperCase()
+      if (userRole !== 'ADMIN') {
+        throw new Error(`Only admins can create new users. Current role: ${user.user_role}`)
+      }
+
+      console.log('✅ [SELLIKO-CLIENT] Role validation passed - proceeding with user creation')
+
+      // Get access token
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        throw new Error('No access token found')
+      }
+
+      // Prepare request body
+      const requestBody = {
+        mobile_number: mobile_number.trim(),
+        user_role: user_role.toLowerCase()
+      }
+
+      console.log('📤 [SELLIKO-CLIENT] Submitting add user request:', {
+        url: `${this.apiBase}functions/v1/add-user`,
+        method: 'POST',
+        hasToken: !!token,
+        body: {
+          mobile_number: mobile_number ? mobile_number.substring(0, 5) + '***' : 'MISSING',
+          user_role: user_role
+        }
+      })
+
+      // Make API request
+      const response = await fetch(`${this.apiBase}functions/v1/add-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(requestBody)
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Add user response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
+      const result = await response.json()
+      
+      console.log('📥 [SELLIKO-CLIENT] Add user result:', {
+        success: result.success,
+        hasUser: !!result.user,
+        userId: result.user?.id,
+        userRole: result.user?.user_role,
+        message: result.message,
+        error: result.error
+      })
+
+      // Log action result
+      if (result.success) {
+        console.log(`✅ [SELLIKO-CLIENT] User created successfully:`, {
+          id: result.user?.id,
+          mobile_number: mobile_number ? mobile_number.substring(0, 5) + '***' : 'MISSING',
+          role: result.user?.user_role
+        })
+      } else {
+        console.error(`❌ [SELLIKO-CLIENT] Failed to create user:`, result.error)
+      }
+
+      return result
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] addUser error:', error)
+      console.error('📋 [SELLIKO-CLIENT] Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        mobile_number: mobile_number ? mobile_number.substring(0, 5) + '***' : 'MISSING',
+        user_role: user_role
+      })
+      
+      return {
+        success: false,
+        error: error.message || 'Network error occurred'
+      }
+    }
+  }
+
+  // 10. checkUserBanStatus - get user information and ban status (admin only)
+  /**
+   * Retrieves user information and current ban status for administrative review
+   * 
+   * AUTHORIZATION REQUIREMENTS:
+   * - User role must be 'ADMIN'
+   * - Valid JWT token required in Authorization header
+   * 
+   * @param {string} mobile_number - User's mobile phone number to check
+   * 
+   * @returns {Promise<Object>} Response with success status and user information
+   */
+  async checkUserBanStatus(mobile_number) {
+    console.log('🔍 [SELLIKO-CLIENT] checkUserBanStatus called with:', {
+      mobile_number: mobile_number ? mobile_number.substring(0, 5) + '***' : 'MISSING'
+    })
+
+    try {
+      // Validate inputs
+      if (!mobile_number || mobile_number.trim().length === 0) {
+        throw new Error('Mobile number is required')
+      }
+
+      // Get current user and validate permissions
+      const user = await this.getCurrentUser()
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+
+      console.log('👤 [SELLIKO-CLIENT] Current user validation:', {
+        userId: user.id,
+        userRole: user.user_role,
+        normalizedRole: (user.user_role || '').toUpperCase()
+      })
+
+      // Validate user role (must be admin)
+      const userRole = (user.user_role || '').toUpperCase()
+      if (userRole !== 'ADMIN') {
+        throw new Error(`Only admins can check user ban status. Current role: ${user.user_role}`)
+      }
+
+      console.log('✅ [SELLIKO-CLIENT] Role validation passed - proceeding with ban status check')
+
+      // Get access token
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        throw new Error('No access token found')
+      }
+
+      // Build query parameters
+      const queryParams = new URLSearchParams({
+        mobile_number: mobile_number.trim()
+      })
+
+      const url = `${this.apiBase}functions/v1/check-user-ban?${queryParams.toString()}`
+
+      console.log('📤 [SELLIKO-CLIENT] Submitting check ban status request:', {
+        url: url,
+        method: 'GET',
+        hasToken: !!token,
+        mobile_number: mobile_number ? mobile_number.substring(0, 5) + '***' : 'MISSING'
+      })
+
+      // Make API request
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Check ban status response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
+      const result = await response.json()
+      
+      console.log('📥 [SELLIKO-CLIENT] Check ban status result:', {
+        success: result.success,
+        hasUser: !!result.user,
+        userId: result.user?.id,
+        userRole: result.user?.user_role,
+        isBanned: result.user?.is_banned,
+        banReason: result.user?.ban_reason,
+        error: result.error
+      })
+
+      // Log action result
+      if (result.success && result.user) {
+        console.log(`✅ [SELLIKO-CLIENT] User ban status retrieved:`, {
+          id: result.user.id,
+          mobile_number: mobile_number ? mobile_number.substring(0, 5) + '***' : 'MISSING',
+          name: result.user.name,
+          role: result.user.user_role,
+          is_banned: result.user.is_banned,
+          banned_at: result.user.banned_at,
+          ban_reason: result.user.ban_reason
+        })
+      } else {
+        console.error(`❌ [SELLIKO-CLIENT] Failed to get user ban status:`, result.error)
+      }
+
+      return result
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] checkUserBanStatus error:', error)
+      console.error('📋 [SELLIKO-CLIENT] Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        mobile_number: mobile_number ? mobile_number.substring(0, 5) + '***' : 'MISSING'
+      })
+      
+      return {
+        success: false,
+        error: error.message || 'Network error occurred'
+      }
+    }
+  }
+
+  // 11. banUser - ban or unban a user account (admin only)
+  /**
+   * Bans or unbans a user account, controlling their access to the platform
+   * 
+   * AUTHORIZATION REQUIREMENTS:
+   * - User role must be 'ADMIN'
+   * - Valid JWT token required in Authorization header
+   * 
+   * @param {string} mobile_number - User's mobile phone number
+   * @param {boolean} ban - true to ban user, false to unban user
+   * @param {string} reason - Reason for banning (optional but recommended when banning)
+   * 
+   * @returns {Promise<Object>} Response with success status and updated user info
+   */
+  async banUser(mobile_number, ban, reason = null) {
+    console.log('🚫 [SELLIKO-CLIENT] banUser called with:', {
+      mobile_number: mobile_number ? mobile_number.substring(0, 5) + '***' : 'MISSING',
+      ban: ban,
+      hasReason: !!reason,
+      reasonLength: reason ? reason.length : 0
+    })
+
+    try {
+      // Validate inputs
+      if (!mobile_number || mobile_number.trim().length === 0) {
+        throw new Error('Mobile number is required')
+      }
+
+      if (typeof ban !== 'boolean') {
+        throw new Error('Ban parameter must be boolean (true/false)')
+      }
+
+      // Get current user and validate permissions
+      const user = await this.getCurrentUser()
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+
+      console.log('👤 [SELLIKO-CLIENT] Current user validation:', {
+        userId: user.id,
+        userRole: user.user_role,
+        normalizedRole: (user.user_role || '').toUpperCase()
+      })
+
+      // Validate user role (must be admin)
+      const userRole = (user.user_role || '').toUpperCase()
+      if (userRole !== 'ADMIN') {
+        throw new Error(`Only admins can ban/unban users. Current role: ${user.user_role}`)
+      }
+
+      console.log('✅ [SELLIKO-CLIENT] Role validation passed - proceeding with ban/unban')
+
+      // Get access token
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        throw new Error('No access token found')
+      }
+
+      // Prepare request body
+      const requestBody = {
+        mobile_number: mobile_number.trim(),
+        ban: ban
+      }
+
+      // Add reason if provided
+      if (reason && reason.trim().length > 0) {
+        requestBody.reason = reason.trim()
+      }
+
+      console.log('📤 [SELLIKO-CLIENT] Submitting ban/unban request:', {
+        url: `${this.apiBase}functions/v1/ban-user`,
+        method: 'PUT',
+        hasToken: !!token,
+        body: {
+          mobile_number: mobile_number ? mobile_number.substring(0, 5) + '***' : 'MISSING',
+          ban: ban,
+          hasReason: !!requestBody.reason,
+          reasonLength: requestBody.reason ? requestBody.reason.length : 0
+        }
+      })
+
+      // Make API request
+      const response = await fetch(`${this.apiBase}functions/v1/ban-user`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(requestBody)
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Ban/unban response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
+      const result = await response.json()
+      
+      console.log('📥 [SELLIKO-CLIENT] Ban/unban result:', {
+        success: result.success,
+        hasUser: !!result.user,
+        userId: result.user?.id,
+        isBanned: result.user?.is_banned,
+        bannedAt: result.user?.banned_at,
+        banReason: result.user?.ban_reason,
+        message: result.message,
+        error: result.error,
+        action: ban ? 'ban' : 'unban'
+      })
+
+      // Log action result
+      if (result.success) {
+        const action = ban ? 'banned' : 'unbanned'
+        console.log(`✅ [SELLIKO-CLIENT] User ${action} successfully:`, {
+          mobile_number: mobile_number ? mobile_number.substring(0, 5) + '***' : 'MISSING',
+          is_banned: result.user?.is_banned,
+          banned_at: result.user?.banned_at,
+          ban_reason: result.user?.ban_reason
+        })
+        if (ban && reason) {
+          console.log(`📝 [SELLIKO-CLIENT] Ban reason: ${reason}`)
+        }
+      } else {
+        console.error(`❌ [SELLIKO-CLIENT] Failed to ${ban ? 'ban' : 'unban'} user:`, result.error)
+      }
+
+      return result
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] banUser error:', error)
+      console.error('📋 [SELLIKO-CLIENT] Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        mobile_number: mobile_number ? mobile_number.substring(0, 5) + '***' : 'MISSING',
+        ban: ban,
+        hasReason: !!reason
+      })
+      
+      return {
+        success: false,
+        error: error.message || 'Network error occurred'
+      }
+    }
+  }
 }
 
 // Export singleton instance
