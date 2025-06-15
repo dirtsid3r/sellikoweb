@@ -11,6 +11,57 @@ import { useRouter, useParams } from 'next/navigation'
 import sellikoClient from '@/selliko-client'
 import { toast } from 'react-hot-toast'
 
+// Helper function to calculate time remaining based on approval time
+const calculateTimeRemaining = (timeApproved: string | null): string => {
+  if (!timeApproved) {
+    return 'Pending approval'
+  }
+
+  try {
+    const approvedTime = new Date(timeApproved)
+    const endTime = new Date(approvedTime.getTime() + (24 * 60 * 60 * 1000)) // Add 24 hours
+    const now = new Date()
+    const timeLeft = endTime.getTime() - now.getTime()
+
+    if (timeLeft <= 0) {
+      return 'Auction ended'
+    }
+
+    const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60))
+    const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60))
+
+    if (hoursLeft > 0) {
+      return `${hoursLeft}h ${minutesLeft}m left`
+    } else if (minutesLeft > 0) {
+      return `${minutesLeft}m left`
+    } else {
+      return 'Less than 1m left'
+    }
+  } catch (error) {
+    console.error('Error calculating time remaining:', error)
+    return 'Time unavailable'
+  }
+}
+
+// Helper function to get time remaining status color
+const getTimeRemainingColor = (timeRemaining: string): string => {
+  if (timeRemaining.includes('ended') || timeRemaining.includes('unavailable')) {
+    return 'text-red-600'
+  }
+  
+  // Extract hours if present
+  const hoursMatch = timeRemaining.match(/(\d+)h/)
+  const hours = hoursMatch ? parseInt(hoursMatch[1]) : 0
+  
+  if (hours < 1) {
+    return 'text-red-600' // Less than 1 hour - red
+  } else if (hours < 6) {
+    return 'text-orange-600' // Less than 6 hours - orange
+  } else {
+    return 'text-green-600' // More than 6 hours - green
+  }
+}
+
 export default function ListingDetailPage() {
   const { user } = useAuth()
   const router = useRouter()
@@ -22,6 +73,13 @@ export default function ListingDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [timeRemaining, setTimeRemaining] = useState<string>('')
+
+  // Modal states
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [isAcceptingBid, setIsAcceptingBid] = useState(false)
+  const [acceptedBidDetails, setAcceptedBidDetails] = useState<any>(null)
 
   // Load listing data when page loads
   useEffect(() => {
@@ -59,17 +117,22 @@ export default function ListingDetailPage() {
             description: apiListing.devices?.[0]?.description || 'No description available',
             images: getListingImages(apiListing),
             status: transformStatus(apiListing.status),
-            timeLeft: '24h left', // Default value
-            totalBids: apiListing.bids?.length || 0,
+            timeLeft: calculateTimeRemaining(apiListing.time_approved),
+            totalBids: Array.isArray(apiListing.bids) ? apiListing.bids.length : 0,
             bids: transformBids(apiListing.bids || []),
+            highestBid: apiListing.highest_bid || 0,
+            instantWin: apiListing.instant_win || false,
             // Additional data from API
             brand: apiListing.devices?.[0]?.brand,
             storage: apiListing.devices?.[0]?.storage,
             color: apiListing.devices?.[0]?.color,
             created_at: apiListing.created_at,
+            updated_at: apiListing.updated_at,
             // Rejection information
             rejection_reason: apiListing.rejection_note || apiListing.rejection_reason || apiListing.reason_note,
             rejected_at: apiListing.rejected_at || apiListing.updated_at,
+            // Time approved
+            time_approved: apiListing.time_approved,
             // Device specific details
             deviceDetails: {
               imei1: apiListing.devices?.[0]?.imei1,
@@ -110,6 +173,24 @@ export default function ListingDetailPage() {
 
     loadListingData()
   }, [listingId])
+
+  // Update time remaining every minute for active auctions
+  useEffect(() => {
+    if (!listing || !listing.time_approved) return
+
+    const updateTimeRemaining = () => {
+      const newTimeRemaining = calculateTimeRemaining(listing.time_approved)
+      setTimeRemaining(newTimeRemaining)
+    }
+
+    // Update immediately
+    updateTimeRemaining()
+
+    // Set up interval to update every minute
+    const interval = setInterval(updateTimeRemaining, 60000)
+
+    return () => clearInterval(interval)
+  }, [listing?.time_approved])
 
   // Helper function to get listing images
   const getListingImages = (apiListing: any) => {
@@ -163,17 +244,40 @@ export default function ListingDetailPage() {
 
   // Helper function to transform API bids to component format
   const transformBids = (apiBids: any[]) => {
-    return apiBids.map((bid: any, index: number) => ({
-      id: bid.id || `bid-${index}`,
-      vendorId: bid.vendor_id || `vendor-${index}`,
-      vendorName: bid.vendor_name || 'Anonymous Vendor',
-      vendorRating: bid.vendor_rating || 4.5,
-      amount: bid.amount || 0,
-      timestamp: bid.created_at || new Date().toISOString(),
-      message: bid.message || 'Interested in this device.',
-      isHighest: index === 0, // Assume first bid is highest (API should sort)
-      isNew: false // Could be calculated based on timestamp
-    }))
+    if (!Array.isArray(apiBids)) return []
+    
+    return apiBids
+      .filter((bid: any) => bid && typeof bid === 'object') // Filter out invalid bids
+      .map((bid: any, index: number) => {
+        // Handle vendor identification
+        let vendorName = 'Anonymous Vendor'
+        let vendorId = bid.vendor_id || `vendor-${index}`
+        
+        if (bid.vendor_profile && bid.vendor_profile.name) {
+          vendorName = bid.vendor_profile.name
+        } else if (bid.vendor_id) {
+          // Create vendor name from vendor_id
+          vendorName = `Vendor ${bid.vendor_id.substring(0, 8)}...`
+        } else {
+          // Use index-based naming for null vendor_id
+          vendorName = `Vendor ${index + 1}`
+        }
+
+        return {
+          id: bid.id || `bid-${index}`,
+          vendorId: vendorId,
+          vendorName: vendorName,
+          vendorRating: bid.vendor_profile?.rating || 4.5,
+          amount: bid.bid_amount || 0,
+          timestamp: bid.created_at || new Date().toISOString(),
+          message: bid.message || 'Interested in this device.',
+          isHighest: index === 0, // Assume first bid is highest (API should sort)
+          isNew: false, // Could be calculated based on timestamp
+          status: bid.status || 'active',
+          instantWin: bid.instant_win || false
+        }
+      })
+      .filter((bid: any) => bid.amount > 0) // Only include bids with valid amounts
   }
 
   // Helper function to format price in Indian format
@@ -249,7 +353,9 @@ export default function ListingDetailPage() {
     )
   }
 
-  const highestBid = listing.bids.find((bid: any) => bid.isHighest)
+  const highestBid = listing.bids.find((bid: any) => bid.isHighest) || 
+                    (listing.bids.length > 0 ? listing.bids[0] : null)
+  const highestBidAmount = listing.highestBid || highestBid?.amount || 0
 
   const getStatusInfo = (status: string) => {
     switch (status) {
@@ -274,6 +380,13 @@ export default function ListingDetailPage() {
           icon: Icons.check,
           description: 'Agent will contact you for pickup'
         }
+      case 'bidding_ended':
+        return {
+          label: 'Bidding Ended',
+          color: 'bg-orange-100 text-orange-800 border-orange-200',
+          icon: Icons.clock,
+          description: 'Bidding period has ended'
+        }
       case 'rejected':
         return {
           label: 'Rejected',
@@ -295,8 +408,55 @@ export default function ListingDetailPage() {
   const StatusIcon = statusInfo.icon
 
   const handleAcceptBid = (bidId: string) => {
-    // Handle bid acceptance
-    console.log('Accepting bid:', bidId)
+    // Show confirmation modal
+    setShowConfirmModal(true)
+  }
+
+  const handleConfirmAcceptBid = async () => {
+    setShowConfirmModal(false)
+    setIsAcceptingBid(true)
+
+    try {
+      console.log('🎯 [LISTING-DETAIL] Accepting highest bid for listing:', listingId)
+      
+      // Call the acceptBid API
+      const result = await sellikoClient.acceptBid(listingId)
+      
+      console.log('📊 [LISTING-DETAIL] Accept bid result:', result)
+
+      if ((result as any).success) {
+        // Store the accepted bid details for success modal
+        const winningBid = (result as any).listing?.bids?.find((bid: any) => bid.status === 'won')
+        setAcceptedBidDetails({
+          bidAmount: (result as any).listing?.highest_bid || 0,
+          vendorName: winningBid?.vendor_profile?.name || 'Vendor',
+          vendorLocation: winningBid?.vendor_profile ? 
+            `${winningBid.vendor_profile.city}, ${winningBid.vendor_profile.state}` : 
+            'Location not available',
+          listingStatus: (result as any).listing?.status || 'bid_accepted'
+        })
+        
+        // Show success modal
+        setShowSuccessModal(true)
+        toast.success('Bid accepted successfully!')
+      } else {
+        const errorMsg = (result as any).error || 'Failed to accept bid'
+        toast.error(errorMsg)
+        console.error('❌ [LISTING-DETAIL] Failed to accept bid:', errorMsg)
+      }
+    } catch (error) {
+      console.error('💥 [LISTING-DETAIL] Error accepting bid:', error)
+      toast.error('Network error while accepting bid')
+    } finally {
+      setIsAcceptingBid(false)
+    }
+  }
+
+  const handleSuccessModalClose = () => {
+    setShowSuccessModal(false)
+    setAcceptedBidDetails(null)
+    // Refresh the page to show updated listing data
+    window.location.reload()
   }
 
   const handleEditListing = () => {
@@ -489,16 +649,29 @@ export default function ListingDetailPage() {
                     <p className="text-sm text-gray-600">Total Bids</p>
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-green-600">₹{highestBid?.amount.toLocaleString()}</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {highestBidAmount > 0 ? `₹${highestBidAmount.toLocaleString()}` : 'No bids yet'}
+                    </p>
                     <p className="text-sm text-gray-600">Highest Bid</p>
                   </div>
                   <div>
                     <p className="text-2xl font-bold text-orange-600">
-                      {highestBid ? Math.round(((highestBid.amount - listing.askingPrice) / listing.askingPrice) * 100) : 0}%
+                      {highestBidAmount > 0 ? Math.round(((highestBidAmount - listing.askingPrice) / listing.askingPrice) * 100) : 0}%
                     </p>
                     <p className="text-sm text-gray-600">vs Asking Price</p>
                   </div>
                 </div>
+                {listing.instantWin && (
+                  <div className="mt-4 bg-orange-100 border border-orange-200 rounded-lg p-3">
+                    <div className="flex items-center space-x-2">
+                      <Icons.star className="w-4 h-4 text-orange-600" />
+                      <p className="text-sm font-medium text-orange-800">Instant Win Available</p>
+                    </div>
+                    <p className="text-xs text-orange-700 mt-1">
+                      Bids at asking price will immediately close the auction
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -717,12 +890,14 @@ export default function ListingDetailPage() {
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-gray-900">{statusInfo.description}</h3>
-                    <p className="text-gray-600">Time left: {listing.timeLeft}</p>
+                    <p className={`text-lg font-semibold ${getTimeRemainingColor(timeRemaining || listing.timeLeft)}`}>
+                      {timeRemaining || listing.timeLeft}
+                    </p>
                   </div>
                   {highestBid && (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                       <p className="text-sm font-medium text-green-800">Highest Bid</p>
-                      <p className="text-2xl font-bold text-green-900">₹{highestBid.amount.toLocaleString()}</p>
+                      <p className="text-2xl font-bold text-green-900">₹{highestBidAmount.toLocaleString()}</p>
                       <p className="text-sm text-green-700">Selliko Bid #{generateVendorCode(highestBid.vendorId)}</p>
                       {highestBid.isNew && (
                         <Badge className="bg-orange-100 text-orange-800 text-xs mt-2">New!</Badge>
@@ -739,7 +914,8 @@ export default function ListingDetailPage() {
                 <CardTitle>Quick Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {highestBid && (
+                {/* Accept Highest Bid Button - Show only for receiving_bids or bidding_ended status */}
+                {highestBid && (listing.status === 'receiving_bids' || listing.status === 'bidding_ended') && (
                   <Button 
                     onClick={() => handleAcceptBid(highestBid.id)}
                     className="w-full bg-green-600 hover:bg-green-700"
@@ -749,15 +925,27 @@ export default function ListingDetailPage() {
                     Accept Highest Bid
                   </Button>
                 )}
-                <Button 
-                  onClick={handleEditListing}
-                  variant="outline" 
-                  className="w-full"
-                  size="lg"
-                >
-                  <Icons.edit className="w-4 h-4 mr-2" />
-                  Edit Listing
-                </Button>
+                
+                {/* Edit Listing Button - Show only for pending_approval or rejected status */}
+                {(listing.status === 'pending_approval' || listing.status === 'rejected') && (
+                  <Button 
+                    onClick={handleEditListing}
+                    variant="outline" 
+                    className="w-full"
+                    size="lg"
+                  >
+                    <Icons.edit className="w-4 h-4 mr-2" />
+                    Edit Listing
+                  </Button>
+                )}
+                
+                {/* Show message when no actions are available */}
+                {!(highestBid && (listing.status === 'receiving_bids' || listing.status === 'bidding_ended')) && 
+                 !(listing.status === 'pending_approval' || listing.status === 'rejected') && (
+                  <div className="text-center py-4">
+                    <p className="text-sm text-gray-500">No actions available at this time</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -766,83 +954,103 @@ export default function ListingDetailPage() {
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <span>Bid History ({listing.totalBids} total)</span>
-                  <Icons.trendingUp className="w-5 h-5 text-green-600" />
+                  {listing.totalBids > 0 && <Icons.trendingUp className="w-5 h-5 text-green-600" />}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {listing.bids.map((bid: any, index: number) => (
-                  <div 
-                    key={bid.id} 
-                    className={`relative border rounded-lg p-4 transition-all ${
-                      bid.isHighest 
-                        ? 'bg-green-50 border-green-200 shadow-sm' 
-                        : 'bg-gray-50 border-gray-200'
-                    } ${bid.isNew ? 'ring-2 ring-blue-200' : ''}`}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                          bid.isHighest ? 'bg-green-600 text-white' : 'bg-gray-400 text-white'
-                        }`}>
-                          #{index + 1}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-900">
-                            Selliko Bid #{generateVendorCode(bid.vendorId)}
-                          </p>
-                          <div className="flex items-center space-x-1">
-                            <Icons.star className="w-3 h-3 text-yellow-400 fill-current" />
-                            <span className="text-xs text-gray-600">{bid.vendorRating} rating</span>
+                {listing.bids && listing.bids.length > 0 ? (
+                  <>
+                    {listing.bids.map((bid: any, index: number) => (
+                      <div 
+                        key={bid.id} 
+                        className={`relative border rounded-lg p-4 transition-all ${
+                          bid.isHighest 
+                            ? 'bg-green-50 border-green-200 shadow-sm' 
+                            : 'bg-gray-50 border-gray-200'
+                        } ${bid.isNew ? 'ring-2 ring-blue-200' : ''}`}
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center space-x-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                              bid.isHighest ? 'bg-green-600 text-white' : 'bg-gray-400 text-white'
+                            }`}>
+                              #{index + 1}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-gray-900">
+                                {bid.vendorName}
+                              </p>
+                              <div className="flex items-center space-x-1">
+                                <Icons.star className="w-3 h-3 text-yellow-400 fill-current" />
+                                <span className="text-xs text-gray-600">{bid.vendorRating} rating</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className={`text-lg font-bold ${bid.isHighest ? 'text-green-700' : 'text-gray-700'}`}>
+                              ₹{bid.amount.toLocaleString()}
+                            </p>
+                            <div className="flex items-center space-x-1 mt-1">
+                              {bid.isHighest && (
+                                <Badge className="bg-green-100 text-green-800 text-xs">Highest</Badge>
+                              )}
+                              {bid.isNew && (
+                                <Badge className="bg-blue-100 text-blue-800 text-xs">New</Badge>
+                              )}
+                              {bid.instantWin && (
+                                <Badge className="bg-orange-100 text-orange-800 text-xs">Instant Win</Badge>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <div className="text-right">
-                        <p className={`text-lg font-bold ${bid.isHighest ? 'text-green-700' : 'text-gray-700'}`}>
-                          ₹{bid.amount.toLocaleString()}
-                        </p>
-                        <div className="flex items-center space-x-1 mt-1">
-                          {bid.isHighest && (
-                            <Badge className="bg-green-100 text-green-800 text-xs">Highest</Badge>
-                          )}
-                          {bid.isNew && (
-                            <Badge className="bg-blue-100 text-blue-800 text-xs">New</Badge>
-                          )}
+                        
+                        {bid.message && (
+                          <div className="bg-white/70 border border-gray-200 rounded p-3 mb-3">
+                            <p className="text-sm text-gray-700 italic">"{bid.message}"</p>
+                          </div>
+                        )}
+                        
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                          <span>{new Date(bid.timestamp).toLocaleString('en-IN', {
+                            day: '2-digit',
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}</span>
+                          <span className="flex items-center">
+                            <Icons.clock className="w-3 h-3 mr-1" />
+                            {Math.round((Date.now() - new Date(bid.timestamp).getTime()) / (1000 * 60))}m ago
+                          </span>
                         </div>
+                        
+                        {/* Timeline connector */}
+                        {index < listing.bids.length - 1 && (
+                          <div className="absolute left-6 top-16 w-px h-4 bg-gray-300"></div>
+                        )}
                       </div>
-                    </div>
+                    ))}
                     
-                    {bid.message && (
-                      <div className="bg-white/70 border border-gray-200 rounded p-3 mb-3">
-                        <p className="text-sm text-gray-700 italic">"{bid.message}"</p>
+                    {listing.totalBids > listing.bids.length && (
+                      <div className="text-center py-4">
+                        <Button variant="outline" size="sm" className="text-xs">
+                          <Icons.chevronDown className="w-3 h-3 mr-1" />
+                          View {listing.totalBids - listing.bids.length} more bids
+                        </Button>
                       </div>
                     )}
-                    
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <span>{new Date(bid.timestamp).toLocaleString('en-IN', {
-                        day: '2-digit',
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}</span>
-                      <span className="flex items-center">
-                        <Icons.clock className="w-3 h-3 mr-1" />
-                        {Math.round((Date.now() - new Date(bid.timestamp).getTime()) / (1000 * 60))}m ago
-                      </span>
+                  </>
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Icons.clock className="w-8 h-8 text-gray-400" />
                     </div>
-                    
-                    {/* Timeline connector */}
-                    {index < listing.bids.length - 1 && (
-                      <div className="absolute left-6 top-16 w-px h-4 bg-gray-300"></div>
-                    )}
-                  </div>
-                ))}
-                
-                {listing.totalBids > listing.bids.length && (
-                  <div className="text-center py-4">
-                    <Button variant="outline" size="sm" className="text-xs">
-                      <Icons.chevronDown className="w-3 h-3 mr-1" />
-                      View {listing.totalBids - listing.bids.length} more bids
-                    </Button>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-2">No Bids Yet</h4>
+                    <p className="text-gray-600 mb-4">
+                      Your listing is live and waiting for vendors to place bids.
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Competitive bidding usually starts within 24 hours of listing approval.
+                    </p>
                   </div>
                 )}
               </CardContent>
@@ -850,6 +1058,123 @@ export default function ListingDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+            
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="sm:flex sm:items-start">
+                  <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100 sm:mx-0 sm:h-10 sm:w-10">
+                    <Icons.exclamationTriangle className="h-6 w-6 text-yellow-600" />
+                  </div>
+                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900">
+                      Accept Highest Bid
+                    </h3>
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500">
+                        Are you sure you want to accept the highest bid of <strong>₹{highestBidAmount.toLocaleString()}</strong>? 
+                        This action cannot be undone and will close the auction immediately.
+                      </p>
+                      {highestBid && (
+                        <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                          <p className="text-sm font-medium text-gray-900">Winning Bid Details:</p>
+                          <p className="text-sm text-gray-700">Amount: ₹{highestBidAmount.toLocaleString()}</p>
+                          <p className="text-sm text-gray-700">Vendor: {highestBid.vendorName}</p>
+                          <p className="text-sm text-gray-700">Rating: {highestBid.vendorRating} stars</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <Button
+                  onClick={handleConfirmAcceptBid}
+                  disabled={isAcceptingBid}
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  {isAcceptingBid ? (
+                    <>
+                      <Icons.spinner className="animate-spin -ml-1 mr-2 h-4 w-4" />
+                      Accepting...
+                    </>
+                  ) : (
+                    'Accept Bid'
+                  )}
+                </Button>
+                <Button
+                  onClick={() => setShowConfirmModal(false)}
+                  disabled={isAcceptingBid}
+                  variant="outline"
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal */}
+      {showSuccessModal && acceptedBidDetails && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+            
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="sm:flex sm:items-start">
+                  <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-green-100 sm:mx-0 sm:h-10 sm:w-10">
+                    <Icons.check className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900">
+                      Bid Accepted Successfully!
+                    </h3>
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500 mb-3">
+                        Congratulations! You have successfully accepted the highest bid for your device.
+                      </p>
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <h4 className="font-medium text-green-900 mb-2">Transaction Details:</h4>
+                        <div className="space-y-1 text-sm text-green-700">
+                          <p><strong>Final Amount:</strong> ₹{acceptedBidDetails.bidAmount.toLocaleString()}</p>
+                          <p><strong>Winning Vendor:</strong> {acceptedBidDetails.vendorName}</p>
+                          <p><strong>Location:</strong> {acceptedBidDetails.vendorLocation}</p>
+                          <p><strong>Status:</strong> <span className="capitalize">{acceptedBidDetails.listingStatus.replace('_', ' ')}</span></p>
+                        </div>
+                      </div>
+                      <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-sm text-blue-800">
+                          <strong>Next Steps:</strong> Our team will contact you within 24 hours to coordinate the device pickup and payment process.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <Button
+                  onClick={handleSuccessModalClose}
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  Continue
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 } 

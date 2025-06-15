@@ -2348,6 +2348,146 @@ class SellikoClient {
       }
     }
   }
+
+  // 14. acceptBid - accept the highest bid on a listing (client only)
+  /**
+   * Accepts the highest bid on a device listing
+   * 
+   * AUTHORIZATION REQUIREMENTS:
+   * - User role must be 'CLIENT'
+   * - User must be the owner of the listing
+   * - Listing must have at least one bid
+   * - Valid JWT token required in Authorization header
+   * 
+   * @param {number|string} listingId - The ID of the listing to accept bid for
+   * 
+   * @returns {Promise<Object>} Response with success status and updated listing information
+   */
+  async acceptBid(listingId) {
+    console.log('✅ [SELLIKO-CLIENT] acceptBid called with:', {
+      listingId: listingId
+    })
+
+    try {
+      // Validate inputs
+      if (!listingId) {
+        throw new Error('Listing ID is required')
+      }
+
+      // Get current user and validate permissions
+      const user = await this.getCurrentUser()
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+
+      console.log('👤 [SELLIKO-CLIENT] Current user validation:', {
+        userId: user.id,
+        userRole: user.user_role,
+        normalizedRole: (user.user_role || '').toUpperCase()
+      })
+
+      // Validate user role (must be client)
+      const userRole = (user.user_role || '').toUpperCase()
+      if (userRole !== 'CLIENT') {
+        throw new Error(`Only clients can accept bids on their listings. Current role: ${user.user_role}`)
+      }
+
+      console.log('✅ [SELLIKO-CLIENT] Role validation passed - proceeding with bid acceptance')
+
+      // Get access token
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        throw new Error('No access token found')
+      }
+
+      // Prepare request body
+      const requestBody = {
+        listing_id: listingId.toString() // Convert to string as per API sample
+      }
+
+      console.log('📤 [SELLIKO-CLIENT] Submitting accept bid request:', {
+        url: `${this.apiBase}functions/v1/accept-bid`,
+        method: 'POST',
+        hasToken: !!token,
+        body: {
+          listing_id: requestBody.listing_id
+        }
+      })
+
+      // Make API request
+      const response = await fetch(`${this.apiBase}functions/v1/accept-bid`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(requestBody)
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Accept bid response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
+      const result = await response.json()
+      
+      console.log('📥 [SELLIKO-CLIENT] Accept bid result:', {
+        success: result.success,
+        hasListing: !!result.listing,
+        listingStatus: result.listing?.status,
+        highestBid: result.listing?.highest_bid,
+        winningVendor: result.listing?.vendor_id,
+        message: result.message,
+        error: result.error,
+        listingId: listingId
+      })
+
+      // Log action result
+      if (result.success) {
+        console.log(`✅ [SELLIKO-CLIENT] Bid accepted successfully for listing ${listingId}:`, {
+          listingId: listingId,
+          finalStatus: result.listing?.status,
+          acceptedBidAmount: result.listing?.highest_bid ? `₹${result.listing.highest_bid.toLocaleString()}` : 'Unknown',
+          winningVendor: result.listing?.vendor_id,
+          totalBids: result.listing?.bids
+        })
+
+        // Log vendor information if available
+        if (result.listing?.bids && Array.isArray(result.listing.bids)) {
+          const winningBid = result.listing.bids.find(bid => bid.status === 'won')
+          if (winningBid && winningBid.vendor_profile) {
+            console.log(`🏆 [SELLIKO-CLIENT] Winning vendor details:`, {
+              vendorId: winningBid.vendor_id,
+              vendorName: winningBid.vendor_profile.name,
+              vendorEmail: winningBid.vendor_profile.email,
+              vendorLocation: `${winningBid.vendor_profile.city}, ${winningBid.vendor_profile.state}`,
+              bidAmount: `₹${winningBid.bid_amount.toLocaleString()}`
+            })
+          }
+        }
+      } else {
+        console.error(`❌ [SELLIKO-CLIENT] Failed to accept bid for listing ${listingId}:`, result.error)
+      }
+
+      return result
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] acceptBid error:', error)
+      console.error('📋 [SELLIKO-CLIENT] Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        listingId: listingId
+      })
+      
+      return {
+        success: false,
+        error: error.message || 'Network error occurred'
+      }
+    }
+  }
 }
 
 // Export singleton instance

@@ -11,6 +11,63 @@ import { useRouter } from 'next/navigation'
 import sellikoClient from '@/selliko-client'
 import { toast } from 'react-hot-toast'
 
+// Helper function to calculate time remaining based on approval time
+const calculateTimeRemaining = (timeApproved: string | null, status: string): string => {
+  // Only show time calculation for receiving_bids status
+  if (status !== 'receiving_bids') {
+    return 'Pending approval'
+  }
+
+  if (!timeApproved) {
+    return 'Pending approval'
+  }
+
+  try {
+    const approvedTime = new Date(timeApproved)
+    const endTime = new Date(approvedTime.getTime() + (24 * 60 * 60 * 1000)) // Add 24 hours
+    const now = new Date()
+    const timeLeft = endTime.getTime() - now.getTime()
+
+    // No negative time - minimum 0m
+    if (timeLeft <= 0) {
+      return '0m left'
+    }
+
+    const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60))
+    const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60))
+
+    if (hoursLeft > 0) {
+      return `${hoursLeft}h ${minutesLeft}m left`
+    } else if (minutesLeft > 0) {
+      return `${minutesLeft}m left`
+    } else {
+      return '0m left'
+    }
+  } catch (error) {
+    console.error('Error calculating time remaining:', error)
+    return 'Pending approval'
+  }
+}
+
+// Helper function to get time remaining status color
+const getTimeRemainingColor = (timeRemaining: string): string => {
+  if (timeRemaining.includes('Pending') || timeRemaining === '0m left') {
+    return 'text-gray-600'
+  }
+  
+  // Extract hours if present
+  const hoursMatch = timeRemaining.match(/(\d+)h/)
+  const hours = hoursMatch ? parseInt(hoursMatch[1]) : 0
+  
+  if (hours < 1) {
+    return 'text-red-600' // Less than 1 hour - red
+  } else if (hours < 6) {
+    return 'text-orange-600' // Less than 6 hours - orange
+  } else {
+    return 'text-green-600' // More than 6 hours - green
+  }
+}
+
 export default function ClientDashboard() {
   const { user, logout, isLoading } = useAuth()
   const router = useRouter()
@@ -18,6 +75,25 @@ export default function ClientDashboard() {
   const [isAuthChecking, setIsAuthChecking] = useState(true)
   const [currentListings, setCurrentListings] = useState<any[]>([])
   const [isLoadingListings, setIsLoadingListings] = useState(true)
+  const [lastUpdateTime, setLastUpdateTime] = useState(Date.now())
+
+  // Update time remaining every minute for real-time countdown
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLastUpdateTime(Date.now())
+      // This will cause listings to re-render with updated time calculations
+    }, 60000) // Update every minute
+
+    return () => clearInterval(interval)
+  }, [])
+
+  // Re-calculate time remaining when lastUpdateTime changes
+  const updateListingTimes = (listings: any[]) => {
+    return listings.map(listing => ({
+      ...listing,
+      timeLeft: calculateTimeRemaining(listing.time_approved, listing.status)
+    }))
+  }
 
   useEffect(() => {
     const checkAuthAndRole = async () => {
@@ -113,8 +189,8 @@ export default function ClientDashboard() {
       status: apiListing.status === 'pending' ? 'pending_approval' : apiListing.status,
       currentBid: apiListing.highest_bid || 0,
       askingPrice: apiListing.asking_price || apiListing.expected_price || 0,
-      bidsCount: apiListing.bids || 0,
-      timeLeft: apiListing.status === 'pending' ? 'Under review' : '24h left',
+      bidsCount: Array.isArray(apiListing.bids) ? apiListing.bids.length : 0,
+      timeLeft: calculateTimeRemaining(apiListing.time_approved, apiListing.status),
       image: image,
       storage: device.storage,
       condition: device.condition,
@@ -128,7 +204,9 @@ export default function ClientDashboard() {
         bottom: device.bottom_image_url,
         bill: device.bill_image_url,
         warranty: device.warranty_image_url
-      }
+      },
+      // Include time_approved for real-time calculations
+      time_approved: apiListing.time_approved
     }
   }
 
@@ -355,12 +433,12 @@ export default function ClientDashboard() {
               </Link>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {currentListings.map((listing) => {
+              {updateListingTimes(currentListings).map((listing) => {
                 const statusInfo = getStatusInfo(listing.status)
                 const StatusIcon = statusInfo.icon
                 
                 return (
-                  <Card key={listing.id} className="group overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-500 border-0 shadow-lg bg-white cursor-pointer rounded-2xl"
+                  <Card key={`${listing.id}-${lastUpdateTime}`} className="group overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-500 border-0 shadow-lg bg-white cursor-pointer rounded-2xl"
                     onClick={() => router.push(`/client/listings/${listing.id}`)}>
                     <CardContent className="p-0">
                       {/* Device Image */}
@@ -368,7 +446,7 @@ export default function ClientDashboard() {
                         <img 
                           src={listing.image} 
                           alt={listing.device}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
                           onError={(e) => {
                             console.warn('🖼️ [CLIENT-DASH] Image failed to load:', listing.image, 'for listing:', listing.id)
                             // Try alternative images if available
@@ -423,8 +501,18 @@ export default function ClientDashboard() {
                             </div>
                             <div className="flex justify-between items-center py-1">
                               <span className="text-gray-500 text-sm">{listing.bidsCount} bids</span>
-                              <span className="text-amber-600 font-semibold text-sm bg-amber-50 px-2 py-1 rounded-full">
-                                {listing.timeLeft} left
+                              <span className={`font-semibold text-sm px-2 py-1 rounded-full ${
+                                listing.timeLeft.includes('Pending') 
+                                  ? 'bg-blue-50 text-blue-600' 
+                                  : listing.timeLeft === '0m left'
+                                  ? 'bg-red-50 text-red-600'
+                                  : listing.timeLeft.includes('h') && parseInt(listing.timeLeft) >= 6
+                                  ? 'bg-green-50 text-green-600'
+                                  : listing.timeLeft.includes('h') || parseInt(listing.timeLeft.replace('m', '')) > 60
+                                  ? 'bg-orange-50 text-orange-600'
+                                  : 'bg-red-50 text-red-600'
+                              }`}>
+                                {listing.timeLeft}
                               </span>
                             </div>
                           </div>
