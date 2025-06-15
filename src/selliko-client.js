@@ -2766,6 +2766,337 @@ class SellikoClient {
       }
     }
   }
+
+  // 17. getBidAccepted - get all accepted bids that need agent assignment (admin only)
+  /**
+   * Retrieves a list of all accepted bids that need agent assignment
+   * 
+   * AUTHORIZATION REQUIREMENTS:
+   * - User role must be 'ADMIN'
+   * - Valid JWT token required in Authorization header
+   * 
+   * @returns {Promise<Object>} Response with success status and accepted_bids array
+   */
+  async getBidAccepted() {
+    console.log('🎯 [SELLIKO-CLIENT] getBidAccepted called')
+
+    try {
+      // Get current user and validate permissions
+      const user = await this.getCurrentUser()
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+
+      console.log('👤 [SELLIKO-CLIENT] Current user validation:', {
+        userId: user.id,
+        userRole: user.user_role,
+        normalizedRole: (user.user_role || '').toUpperCase()
+      })
+
+      // Validate user role (must be admin)
+      const userRole = (user.user_role || '').toUpperCase()
+      if (userRole !== 'ADMIN') {
+        throw new Error(`Only admins can view accepted bids for agent assignment. Current role: ${user.user_role}`)
+      }
+
+      console.log('✅ [SELLIKO-CLIENT] Role validation passed - proceeding with accepted bids retrieval')
+
+      // Get access token
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        throw new Error('No access token found')
+      }
+
+      const url = `${this.apiBase}functions/v1/get-bid-accepted`
+
+      console.log('📤 [SELLIKO-CLIENT] Submitting get bid accepted request:', {
+        url: url,
+        method: 'GET',
+        hasToken: !!token
+      })
+
+      // Make API request
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Get bid accepted response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
+      const result = await response.json()
+      
+      console.log('📥 [SELLIKO-CLIENT] Get bid accepted result:', {
+        success: result.success,
+        bidCount: result.accepted_bids ? result.accepted_bids.length : 0,
+        message: result.message,
+        error: result.error
+      })
+
+      // Log accepted bid details if available
+      if (result.success && result.accepted_bids && result.accepted_bids.length > 0) {
+        console.log(`✅ [SELLIKO-CLIENT] Found ${result.accepted_bids.length} accepted bids`)
+        result.accepted_bids.forEach((bidData, index) => {
+          console.log(`🎯 [SELLIKO-CLIENT] Accepted Bid ${index + 1}:`, {
+            listingId: bidData.listing?.id,
+            device: `${bidData.device?.brand} ${bidData.device?.model}`,
+            highestBidAmount: bidData.listing?.highest_bid, // Now a number (bid value)
+            winningBidAmount: bidData.winning_bid_amount, // Separate field for winning bid amount
+            bidDetails: bidData.bid_details ? {
+              bidId: bidData.bid_details.id,
+              bidAmount: bidData.bid_details.bid_amount,
+              vendorId: bidData.bid_details.vendor_id,
+              status: bidData.bid_details.status,
+              instantWin: bidData.bid_details.instant_win
+            } : 'NO_BID_DETAILS',
+            vendorId: bidData.listing?.vendor_id, // Vendor ID is in listing object
+            pickupCity: bidData.pickup_address?.city,
+            pickupPincode: bidData.pickup_address?.pincode,
+            hasAgentAssigned: !!bidData.listing?.agent_id,
+            availableAgents: bidData.agents_available?.length || 0
+          })
+        })
+      } else {
+        console.log('ℹ️ [SELLIKO-CLIENT] No accepted bids found or request failed')
+      }
+
+      return result
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] getBidAccepted error:', error)
+      console.error('📋 [SELLIKO-CLIENT] Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      })
+      
+      return {
+        success: false,
+        error: error.message || 'Network error occurred',
+        accepted_bids: []
+      }
+    }
+  }
+
+  // 18. assignAgent - assign an agent to a listing (admin only)
+  /**
+   * Assigns an agent to a listing that has an accepted bid
+   * 
+   * AUTHORIZATION REQUIREMENTS:
+   * - User role must be 'ADMIN'
+   * - Valid JWT token required in Authorization header
+   * 
+   * EXPECTED RESPONSE FORMAT:
+   * {
+   *   "success": true,
+   *   "listing": {
+   *     "id": 6,
+   *     "user_id": "af20ef43-81ac-4f86-bbd8-94fa1e7098b7",
+   *     "listing_type": "device",
+   *     "status": "agent_assigned",
+   *     "asking_price": 150000,
+   *     "expected_price": null,
+   *     "vendor_id": "6812f353-3000-4d12-852b-9ea80da552c2",
+   *     "agent_id": "48ef963f-6765-43e4-ab1e-83dede689bac",
+   *     "bids": 3,
+   *     "highest_bid": 3,
+   *     "bid_accepted": "2025-01-15T10:30:00Z",
+   *     "time_approved": null,
+   *     "created_at": "2025-01-15T09:00:00Z",
+   *     "updated_at": "2025-01-15T11:45:00Z"
+   *   },
+   *   "agent": {
+   *     "user": {
+   *       "id": "48ef963f-6765-43e4-ab1e-83dede689bac",
+   *       "email": "john.doe@example.com",
+   *       "phone": "+919876543210",
+   *       "name": "John Doe",
+   *       "user_role": "agent",
+   *       "created_at": "2025-01-10T08:00:00Z"
+   *     },
+   *     "agent_profile": {
+   *       "id": 1,
+   *       "agent_code": "AG001",
+   *       "name": "John Doe",
+   *       "email": "john.doe@example.com",
+   *       "number": "+919876543210",
+   *       "address": "123 Main Street",
+   *       "city": "Kochi",
+   *       "pincode": "682001",
+   *       "state": "Kerala",
+   *       "landmark": "Near Metro Station",
+   *       "contact_person": "John Doe",
+   *       "contact_person_phone": "+919876543210",
+   *       "working_pincodes": "682001,682002,682003",
+   *       "profile_image_url": "https://example.com/profile.jpg",
+   *       "created_at": "2025-01-10T08:15:00Z",
+   *       "updated_at": "2025-01-10T08:15:00Z"
+   *     }
+   *   },
+   *   "message": "Agent successfully assigned to listing 6"
+   * }
+   * 
+   * @param {number|string} listingId - The ID of the listing to assign agent to
+   * @param {string} agentUserId - The user_id of the agent to assign
+   * 
+   * @returns {Promise<Object>} Response with success status, updated listing, and agent info
+   */
+  async assignAgent(listingId, agentUserId) {
+    console.log('👥 [SELLIKO-CLIENT] assignAgent called with:', {
+      listingId: listingId,
+      agentUserId: agentUserId
+    })
+
+    try {
+      // Validate inputs
+      if (!listingId) {
+        throw new Error('Listing ID is required')
+      }
+
+      if (!agentUserId) {
+        throw new Error('Agent user ID is required')
+      }
+
+      // Get current user and validate permissions
+      const user = await this.getCurrentUser()
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+
+      console.log('👤 [SELLIKO-CLIENT] Current user validation:', {
+        userId: user.id,
+        userRole: user.user_role,
+        normalizedRole: (user.user_role || '').toUpperCase()
+      })
+
+      // Validate user role (must be admin)
+      const userRole = (user.user_role || '').toUpperCase()
+      if (userRole !== 'ADMIN') {
+        throw new Error(`Only admins can assign agents. Current role: ${user.user_role}`)
+      }
+
+      console.log('✅ [SELLIKO-CLIENT] Role validation passed - proceeding with agent assignment')
+
+      // Get access token
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        throw new Error('No access token found')
+      }
+
+      // Prepare request body
+      const requestBody = {
+        listing_id: parseInt(listingId), // Ensure it's a number
+        agent_id: agentUserId.toString() // Changed from agentid to agent_id as expected by server
+      }
+
+      console.log('📤 [SELLIKO-CLIENT] Submitting assign agent request:', {
+        url: `${this.apiBase}functions/v1/assign-agent`,
+        method: 'POST',
+        hasToken: !!token,
+        body: {
+          listing_id: requestBody.listing_id,
+          agent_id: requestBody.agent_id
+        }
+      })
+
+      // Make API request
+      const response = await fetch(`${this.apiBase}functions/v1/assign-agent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(requestBody)
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Assign agent response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
+      const result = await response.json()
+      
+      console.log('📥 [SELLIKO-CLIENT] Assign agent result:', {
+        success: result.success,
+        hasListing: !!result.listing,
+        hasAgent: !!result.agent,
+        listingStatus: result.listing?.status,
+        agentAssigned: result.listing?.agent_id,
+        agentCode: result.agent?.agent_profile?.agent_code,
+        agentName: result.agent?.agent_profile?.name,
+        message: result.message,
+        error: result.error,
+        listingId: listingId
+      })
+
+      // Log detailed assignment result if successful
+      if (result.success) {
+        console.log(`✅ [SELLIKO-CLIENT] Agent assigned successfully:`, {
+          listingId: listingId,
+          listingStatus: result.listing?.status,
+          agentUserId: agentUserId,
+          assignedAgentId: result.listing?.agent_id,
+          agentDetails: result.agent ? {
+            name: result.agent.agent_profile?.name,
+            code: result.agent.agent_profile?.agent_code,
+            phone: result.agent.agent_profile?.number,
+            city: result.agent.agent_profile?.city,
+            workingPincodes: result.agent.agent_profile?.working_pincodes
+          } : 'NO_AGENT_DETAILS',
+          listingDetails: result.listing ? {
+            id: result.listing.id,
+            status: result.listing.status,
+            vendorId: result.listing.vendor_id,
+            highestBid: result.listing.highest_bid,
+            bidAccepted: result.listing.bid_accepted
+          } : 'NO_LISTING_DETAILS'
+        })
+
+        // Log pickup task creation confirmation
+        if (result.agent?.agent_profile) {
+          console.log(`📋 [SELLIKO-CLIENT] Pickup task created for agent:`, {
+            agentCode: result.agent.agent_profile.agent_code,
+            agentName: result.agent.agent_profile.name,
+            agentPhone: result.agent.agent_profile.number ? `${result.agent.agent_profile.number.substring(0, 5)}***` : 'NO_PHONE',
+            taskType: 'device_pickup',
+            listingId: result.listing?.id,
+            vendorId: result.listing?.vendor_id
+          })
+        }
+      } else {
+        console.error(`❌ [SELLIKO-CLIENT] Failed to assign agent to listing ${listingId}:`, result.error)
+      }
+
+      // Echo the full response for debugging
+      console.log('🔊 [SELLIKO-CLIENT] FULL ASSIGN AGENT RESPONSE:', JSON.stringify(result, null, 2))
+
+      return result
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] assignAgent error:', error)
+      console.error('📋 [SELLIKO-CLIENT] Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        listingId: listingId,
+        agentUserId: agentUserId
+      })
+      
+      return {
+        success: false,
+        error: error.message || 'Network error occurred'
+      }
+    }
+  }
 }
 
 // Export singleton instance
