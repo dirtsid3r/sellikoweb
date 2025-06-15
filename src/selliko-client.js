@@ -2488,6 +2488,284 @@ class SellikoClient {
       }
     }
   }
+
+  // 15. listAgents - get all agents with their profiles (admin only)
+  /**
+   * Retrieves a list of all agents with their profile information
+   * 
+   * AUTHORIZATION REQUIREMENTS:
+   * - User role must be 'ADMIN'
+   * - Valid JWT token required in Authorization header
+   * 
+   * @returns {Promise<Object>} Response with success status and agents array
+   */
+  async listAgents() {
+    console.log('👥 [SELLIKO-CLIENT] listAgents called')
+
+    try {
+      // Get current user and validate permissions
+      const user = await this.getCurrentUser()
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+
+      console.log('👤 [SELLIKO-CLIENT] Current user validation:', {
+        userId: user.id,
+        userRole: user.user_role,
+        normalizedRole: (user.user_role || '').toUpperCase()
+      })
+
+      // Validate user role (must be admin)
+      const userRole = (user.user_role || '').toUpperCase()
+      if (userRole !== 'ADMIN') {
+        throw new Error(`Only admins can list agents. Current role: ${user.user_role}`)
+      }
+
+      console.log('✅ [SELLIKO-CLIENT] Role validation passed - proceeding with agent list retrieval')
+
+      // Get access token
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        throw new Error('No access token found')
+      }
+
+      const url = `${this.apiBase}functions/v1/list-agents`
+
+      console.log('📤 [SELLIKO-CLIENT] Submitting list agents request:', {
+        url: url,
+        method: 'GET',
+        hasToken: !!token
+      })
+
+      // Make API request
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] List agents response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
+      const result = await response.json()
+      
+      console.log('📥 [SELLIKO-CLIENT] List agents result:', {
+        success: result.success,
+        agentCount: result.agents ? result.agents.length : 0,
+        message: result.message,
+        error: result.error
+      })
+
+      // Log agent details if available
+      if (result.success && result.agents && result.agents.length > 0) {
+        console.log(`✅ [SELLIKO-CLIENT] Found ${result.agents.length} agents`)
+        result.agents.forEach((agent, index) => {
+          console.log(`👤 [SELLIKO-CLIENT] Agent ${index + 1}:`, {
+            id: agent.id,
+            name: agent.name,
+            email: agent.email,
+            phone: agent.phone ? `${agent.phone.substring(0, 5)}***` : 'N/A',
+            hasProfile: !!agent.agent_profile,
+            agentCode: agent.agent_profile?.agent_code || 'NO_CODE',
+            city: agent.agent_profile?.city || 'N/A'
+          })
+        })
+      } else {
+        console.log('ℹ️ [SELLIKO-CLIENT] No agents found or request failed')
+      }
+
+      return result
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] listAgents error:', error)
+      console.error('📋 [SELLIKO-CLIENT] Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      })
+      
+      return {
+        success: false,
+        error: error.message || 'Network error occurred',
+        agents: []
+      }
+    }
+  }
+
+  // 16. updateAgentProfile - update agent profile information (admin or agent themselves)
+  /**
+   * Updates an agent's profile information
+   * 
+   * AUTHORIZATION REQUIREMENTS:
+   * - User role must be 'ADMIN' or the agent themselves (based on user_id match)
+   * - Valid JWT token required in Authorization header
+   * 
+   * ACCESS CONTROL FOR AGENT_CODE:
+   * - agent_code can only be updated by ADMIN users
+   * - Agents themselves cannot update their agent_code
+   * 
+   * @param {number} agentId - The agent_id of the profile to update
+   * @param {Object} updateData - The fields to update
+   * @param {string} updateData.agent_code - 5-character alphanumeric code (admin only)
+   * @param {string} updateData.name - Agent's full name
+   * @param {string} updateData.email - Agent's email address
+   * @param {string} updateData.number - Agent's phone number
+   * @param {string} updateData.address - Agent's street address
+   * @param {string} updateData.city - Agent's city
+   * @param {string} updateData.pincode - Agent's postal/pin code
+   * @param {string} updateData.state - Agent's state/province
+   * @param {string} updateData.landmark - Nearby landmark
+   * @param {string} updateData.contact_person - Primary contact person name
+   * @param {string} updateData.contact_person_phone - Primary contact person's phone
+   * @param {string} updateData.working_pincodes - Comma-separated list of service area pincodes
+   * @param {string} updateData.profile_image_url - URL to agent's profile image
+   * 
+   * @returns {Promise<Object>} Response with success status and updated agent profile
+   */
+  async updateAgentProfile(agentId, updateData) {
+    console.log('🔄 [SELLIKO-CLIENT] updateAgentProfile called with:', {
+      agentId: agentId,
+      hasUpdateData: !!updateData,
+      updateFields: updateData ? Object.keys(updateData) : [],
+      hasAgentCode: !!(updateData && updateData.agent_code)
+    })
+
+    try {
+      // Validate inputs
+      if (!agentId) {
+        throw new Error('Agent ID is required')
+      }
+
+      if (!updateData || typeof updateData !== 'object' || Object.keys(updateData).length === 0) {
+        throw new Error('Update data is required and must contain at least one field')
+      }
+
+      // Get current user and validate permissions
+      const user = await this.getCurrentUser()
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+
+      console.log('👤 [SELLIKO-CLIENT] Current user validation:', {
+        userId: user.id,
+        userRole: user.user_role,
+        normalizedRole: (user.user_role || '').toUpperCase()
+      })
+
+      // Validate user role (must be admin or agent)
+      const userRole = (user.user_role || '').toUpperCase()
+      const allowedRoles = ['ADMIN', 'AGENT']
+      if (!allowedRoles.includes(userRole)) {
+        throw new Error(`Only admins and agents can update agent profiles. Current role: ${user.user_role}`)
+      }
+
+      // Special validation for agent_code updates - only admins can update
+      if (updateData.agent_code !== undefined) {
+        console.log('🔐 [SELLIKO-CLIENT] Agent code update requested - checking admin permissions...')
+        if (userRole !== 'ADMIN') {
+          console.error('❌ [SELLIKO-CLIENT] Agent code update denied - user is not admin')
+          throw new Error('Only administrators can update agent codes')
+        }
+        console.log('✅ [SELLIKO-CLIENT] Agent code update authorized for admin user')
+      }
+
+      console.log('✅ [SELLIKO-CLIENT] Role validation passed - proceeding with profile update')
+
+      // Get access token
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        throw new Error('No access token found')
+      }
+
+      // Prepare request body with agent_id and update fields
+      const requestBody = {
+        agent_id: parseInt(agentId), // Ensure it's a number
+        ...updateData // Spread all update fields
+      }
+
+      console.log('📤 [SELLIKO-CLIENT] Submitting update agent profile request:', {
+        url: `${this.apiBase}functions/v1/update-agent-profile`,
+        method: 'PUT',
+        hasToken: !!token,
+        body: {
+          agent_id: requestBody.agent_id,
+          updateFields: Object.keys(updateData),
+          hasAgentCode: !!updateData.agent_code,
+          agentCodeValue: updateData.agent_code || 'NOT_SET'
+        }
+      })
+
+      // Make API request
+      const response = await fetch(`${this.apiBase}functions/v1/update-agent-profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(requestBody)
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Update agent profile response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
+      const result = await response.json()
+      
+      console.log('📥 [SELLIKO-CLIENT] Update agent profile result:', {
+        success: result.success,
+        hasAgentProfile: !!result.agent_profile,
+        agentId: result.agent_profile?.id,
+        agentCode: result.agent_profile?.agent_code || 'NO_CODE',
+        agentName: result.agent_profile?.name || 'NO_NAME',
+        message: result.message,
+        error: result.error
+      })
+
+      // Log action result
+      if (result.success) {
+        console.log(`✅ [SELLIKO-CLIENT] Agent profile updated successfully:`, {
+          agentId: agentId,
+          updatedFields: Object.keys(updateData),
+          finalAgentCode: result.agent_profile?.agent_code,
+          finalName: result.agent_profile?.name,
+          finalCity: result.agent_profile?.city
+        })
+
+        // Special log for agent code updates
+        if (updateData.agent_code !== undefined) {
+          console.log(`🔑 [SELLIKO-CLIENT] Agent code updated successfully: ${updateData.agent_code}`)
+        }
+      } else {
+        console.error(`❌ [SELLIKO-CLIENT] Failed to update agent profile ${agentId}:`, result.error)
+      }
+
+      return result
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] updateAgentProfile error:', error)
+      console.error('📋 [SELLIKO-CLIENT] Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        agentId: agentId,
+        hasUpdateData: !!updateData
+      })
+      
+      return {
+        success: false,
+        error: error.message || 'Network error occurred'
+      }
+    }
+  }
 }
 
 // Export singleton instance

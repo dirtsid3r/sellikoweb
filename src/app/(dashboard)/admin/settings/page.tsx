@@ -32,6 +32,12 @@ const settingsMenuItems = [
     description: 'Manage vendor profiles and information'
   },
   {
+    id: 'agents',
+    label: 'Agent Management',
+    icon: Icons.user,
+    description: 'Manage agent profiles and information'
+  },
+  {
     id: 'listings',
     label: 'Listing Settings',
     icon: Icons.smartphone,
@@ -1311,6 +1317,683 @@ function VendorManagement() {
   )
 }
 
+// Agent Management Component
+function AgentManagement() {
+  // Get current user for role validation
+  const { user } = useAuth()
+  
+  // State for agent selection
+  const [selectedAgentId, setSelectedAgentId] = useState('')
+  const [agents, setAgents] = useState([])
+  const [isLoadingAgents, setIsLoadingAgents] = useState(false)
+  
+  // State for agent form
+  const [agentData, setAgentData] = useState({
+    agent_id: '',
+    agent_code: '',
+    name: '',
+    email: '',
+    number: '',
+    address: '',
+    city: '',
+    pincode: '',
+    state: '',
+    landmark: '',
+    contact_person: '',
+    contact_person_phone: '',
+    working_pincodes: '',
+    user_id: '',
+    user_name: '',
+    user_mobile: ''
+  })
+  const [isUpdatingAgent, setIsUpdatingAgent] = useState(false)
+
+  // State for working pincodes tags
+  const [workingPincodesArray, setWorkingPincodesArray] = useState([])
+  const [newPincode, setNewPincode] = useState('')
+
+  // Load agents on component mount
+  useEffect(() => {
+    loadAgents()
+  }, [])
+
+  // Load agents list from API
+  const loadAgents = async () => {
+    setIsLoadingAgents(true)
+    try {
+      console.log('📋 [AGENT-MGMT] Loading agents list from API...')
+      
+      const result = await sellikoClient.listAgents()
+      
+      console.log('📥 [AGENT-MGMT] List agents result:', {
+        success: result.success,
+        agentCount: result.agents ? result.agents.length : 0,
+        message: result.message,
+        error: result.error
+      })
+
+      if (result.success && result.agents) {
+        setAgents(result.agents)
+        console.log('✅ [AGENT-MGMT] Agents loaded:', result.agents.length)
+      } else {
+        console.error('❌ [AGENT-MGMT] Failed to load agents:', result.error)
+        toast.error(result.error || 'Failed to load agents')
+        setAgents([])
+      }
+    } catch (error) {
+      console.error('💥 [AGENT-MGMT] Load agents error:', error)
+      toast.error('Network error occurred while loading agents')
+      setAgents([])
+    } finally {
+      setIsLoadingAgents(false)
+    }
+  }
+
+  // Handle agent selection
+  const handleAgentSelect = async (agentId) => {
+    if (!agentId) {
+      setSelectedAgentId('')
+      setAgentData({
+        agent_id: '',
+        agent_code: '',
+        name: '',
+        email: '',
+        number: '',
+        address: '',
+        city: '',
+        pincode: '',
+        state: '',
+        landmark: '',
+        contact_person: '',
+        contact_person_phone: '',
+        working_pincodes: '',
+        user_id: '',
+        user_name: '',
+        user_mobile: ''
+      })
+      setWorkingPincodesArray([])
+      setNewPincode('')
+      return
+    }
+
+    setSelectedAgentId(agentId)
+    
+    try {
+      console.log('🔍 [AGENT-MGMT] Loading agent details for:', agentId)
+      
+      // Find the selected agent from the loaded agents list
+      const selectedAgent = agents.find(a => a.agent_profile?.agent_id === parseInt(agentId))
+      
+      if (!selectedAgent) {
+        console.error('❌ [AGENT-MGMT] Agent not found in loaded list:', agentId)
+        toast.error('Agent not found')
+        return
+      }
+
+      console.log('📋 [AGENT-MGMT] Selected agent data:', selectedAgent)
+      
+      // Map the API response to form data
+      const profile = selectedAgent.agent_profile
+      const mappedData = {
+        agent_id: profile?.agent_id || agentId,
+        agent_code: profile?.agent_code || '',
+        name: profile?.name || selectedAgent.name || '',
+        email: profile?.email || selectedAgent.email || '',
+        number: profile?.number || selectedAgent.phone || '',
+        address: profile?.address || '',
+        city: profile?.city || '',
+        pincode: profile?.pincode || '',
+        state: profile?.state || '',
+        landmark: profile?.landmark || '',
+        contact_person: profile?.contact_person || '',
+        contact_person_phone: profile?.contact_person_phone || '',
+        working_pincodes: profile?.working_pincodes || '',
+        user_id: selectedAgent.id || '',
+        user_name: selectedAgent.name || '',
+        user_mobile: selectedAgent.phone || ''
+      }
+      
+      setAgentData(mappedData)
+      console.log('✅ [AGENT-MGMT] Agent details loaded:', mappedData)
+      
+      // Convert working_pincodes string to array for tag display
+      const pincodes = mappedData.working_pincodes 
+        ? mappedData.working_pincodes.split(',').map((p) => p.trim()).filter((p) => p.length === 6)
+        : []
+      setWorkingPincodesArray(pincodes)
+      console.log('📍 [AGENT-MGMT] Working pincodes loaded:', pincodes)
+    } catch (error) {
+      console.error('💥 [AGENT-MGMT] Load agent details error:', error)
+      toast.error('Failed to load agent details')
+    }
+  }
+
+  // Handle form input changes
+  const handleInputChange = (field, value) => {
+    setAgentData(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
+  // Working Pincodes Management Functions
+  const addPincode = () => {
+    const trimmedPincode = newPincode.trim()
+    
+    // Validate pincode format (6 digits)
+    if (!/^\d{6}$/.test(trimmedPincode)) {
+      toast.error('Pincode must be exactly 6 digits')
+      return
+    }
+    
+    // Check for duplicates
+    if (workingPincodesArray.includes(trimmedPincode)) {
+      toast.error('Pincode already exists')
+      return
+    }
+    
+    const updatedPincodes = [...workingPincodesArray, trimmedPincode]
+    setWorkingPincodesArray(updatedPincodes)
+    
+    // Update the main form data
+    setAgentData(prev => ({
+      ...prev,
+      working_pincodes: updatedPincodes.join(', ')
+    }))
+    
+    setNewPincode('')
+    console.log('📍 [AGENT-MGMT] Added pincode:', trimmedPincode)
+  }
+
+  const removePincode = (pincodeToRemove) => {
+    const updatedPincodes = workingPincodesArray.filter(p => p !== pincodeToRemove)
+    setWorkingPincodesArray(updatedPincodes)
+    
+    // Update the main form data
+    setAgentData(prev => ({
+      ...prev,
+      working_pincodes: updatedPincodes.join(', ')
+    }))
+    
+    console.log('📍 [AGENT-MGMT] Removed pincode:', pincodeToRemove)
+  }
+
+  const handlePincodeKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      addPincode()
+    }
+  }
+
+  // Handle agent update using API
+  const handleUpdateAgent = async () => {
+    if (!selectedAgentId) {
+      toast.error('No agent selected')
+      return
+    }
+
+    // Validate required fields
+    if (!agentData.name || !agentData.email || !agentData.number) {
+      toast.error('Name, email, and phone number are required')
+      return
+    }
+
+    setIsUpdatingAgent(true)
+    try {
+      console.log('📝 [AGENT-MGMT] Updating agent:', selectedAgentId)
+      
+      // Prepare update payload - only include fields that can be updated
+      const updatePayload = {
+        name: agentData.name,
+        email: agentData.email,
+        number: agentData.number,
+        address: agentData.address,
+        city: agentData.city,
+        pincode: agentData.pincode,
+        state: agentData.state,
+        landmark: agentData.landmark,
+        contact_person: agentData.contact_person,
+        contact_person_phone: agentData.contact_person_phone,
+        working_pincodes: agentData.working_pincodes
+      }
+
+      // Only include agent_code if user is admin and agent_code has a value
+      const userRole = (user?.user_role || '').toUpperCase()
+      if (userRole === 'ADMIN' && agentData.agent_code && agentData.agent_code.trim()) {
+        updatePayload.agent_code = agentData.agent_code.trim()
+        console.log('🔑 [AGENT-MGMT] Including agent_code in update (admin user)')
+      } else if (agentData.agent_code && userRole !== 'ADMIN') {
+        console.log('⚠️ [AGENT-MGMT] Skipping agent_code update (user is not admin)')
+      }
+
+      console.log('📤 [AGENT-MGMT] Update payload:', {
+        agent_id: agentData.agent_id,
+        hasName: !!updatePayload.name,
+        hasEmail: !!updatePayload.email,
+        hasNumber: !!updatePayload.number,
+        hasAddress: !!updatePayload.address,
+        hasCity: !!updatePayload.city,
+        hasAgentCode: !!updatePayload.agent_code,
+        isAdmin: userRole === 'ADMIN'
+      })
+
+      const result = await sellikoClient.updateAgentProfile(agentData.agent_id, updatePayload)
+      
+      console.log('📥 [AGENT-MGMT] Update agent result:', {
+        success: result.success,
+        message: result.message,
+        error: result.error,
+        hasAgentProfile: !!result.agent_profile
+      })
+
+      if (result.success) {
+        toast.success('Agent updated successfully!')
+        console.log('✅ [AGENT-MGMT] Agent updated successfully:', result.agent_profile)
+        
+        // Refresh the agents list to get updated data
+        console.log('🔄 [AGENT-MGMT] Refreshing agents list after successful update...')
+        await loadAgents()
+        
+        // After reloading agents, re-select the current agent to refresh the form
+        console.log('🔄 [AGENT-MGMT] Reloading selected agent data after list refresh...')
+        setTimeout(() => {
+          handleAgentSelect(selectedAgentId)
+        }, 100) // Small delay to ensure agents list is updated
+        
+        // Also update the current form data with the response
+        if (result.agent_profile) {
+          const updatedProfile = result.agent_profile
+          setAgentData(prev => ({
+            ...prev,
+            agent_code: updatedProfile.agent_code || prev.agent_code,
+            name: updatedProfile.name || prev.name,
+            email: updatedProfile.email || prev.email,
+            number: updatedProfile.number || prev.number,
+            address: updatedProfile.address || prev.address,
+            city: updatedProfile.city || prev.city,
+            pincode: updatedProfile.pincode || prev.pincode,
+            state: updatedProfile.state || prev.state,
+            landmark: updatedProfile.landmark || prev.landmark,
+            contact_person: updatedProfile.contact_person || prev.contact_person,
+            contact_person_phone: updatedProfile.contact_person_phone || prev.contact_person_phone,
+            working_pincodes: updatedProfile.working_pincodes || prev.working_pincodes
+          }))
+          
+          // Update working pincodes array if it was updated
+          if (updatedProfile.working_pincodes !== undefined) {
+            const updatedPincodes = updatedProfile.working_pincodes 
+              ? updatedProfile.working_pincodes.split(',').map((p) => p.trim()).filter((p) => p.length === 6)
+              : []
+            setWorkingPincodesArray(updatedPincodes)
+            console.log('📍 [AGENT-MGMT] Working pincodes updated:', updatedPincodes)
+          }
+          
+          console.log('✅ [AGENT-MGMT] Form data updated with API response')
+        }
+      } else {
+        console.error('❌ [AGENT-MGMT] Update failed:', result.error)
+        toast.error(result.error || 'Failed to update agent')
+      }
+    } catch (error) {
+      console.error('💥 [AGENT-MGMT] Update agent error:', error)
+      toast.error('Network error occurred while updating agent')
+    } finally {
+      setIsUpdatingAgent(false)
+    }
+  }
+
+  // Check if current user is admin for agent_code editing
+  const isCurrentUserAdmin = (user?.user_role || '').toUpperCase() === 'ADMIN'
+
+  return (
+    <div className="space-y-6">
+      {/* Agent Selection Dropdown */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Icons.user className="w-5 h-5 text-blue-600" />
+            <span>Select Agent</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Choose Agent to Manage
+              </label>
+              <select
+                value={selectedAgentId}
+                onChange={(e) => handleAgentSelect(e.target.value)}
+                disabled={isLoadingAgents}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+              >
+                <option value="">
+                  {isLoadingAgents ? 'Loading agents...' : 'Select an agent'}
+                </option>
+                {agents.map((agent) => {
+                  const agentId = agent.agent_profile?.agent_id || 'NO-ID'
+                  const mobile = agent.phone || 'No mobile'
+                  const name = agent.name || 'No name'
+                  const city = agent.agent_profile?.city || 'No city'
+                  const agentCode = agent.agent_profile?.agent_code || 'NO-CODE'
+                  
+                  return (
+                    <option key={agent.id} value={agentId}>
+                      #{agentId} - {agentCode} - {mobile} - {name} - {city}
+                    </option>
+                  )
+                })}
+              </select>
+            </div>
+            
+            {isLoadingAgents && (
+              <div className="flex items-center justify-center py-4">
+                <Icons.spinner className="w-6 h-6 animate-spin text-blue-600" />
+                <span className="ml-2 text-sm text-gray-600">Loading agents...</span>
+              </div>
+            )}
+
+            {!isLoadingAgents && agents.length === 0 && (
+              <div className="text-center py-4">
+                <Icons.inbox className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-600">No agents found</p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Agent Details Form */}
+      {selectedAgentId && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Icons.edit className="w-5 h-5 text-green-600" />
+              <span>Agent Details - {agentData.agent_code || agentData.agent_id}</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              {/* Agent ID and Code */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Agent ID
+                  </label>
+                  <Input
+                    value={agentData.agent_id}
+                    disabled
+                    className="bg-gray-100 cursor-not-allowed"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Agent Code {!isCurrentUserAdmin && <span className="text-xs text-orange-600">(admin only)</span>}
+                  </label>
+                  <Input
+                    value={agentData.agent_code}
+                    onChange={(e) => handleInputChange('agent_code', e.target.value.toUpperCase())}
+                    placeholder="Enter 5-character code"
+                    maxLength={5}
+                    disabled={!isCurrentUserAdmin}
+                    className={!isCurrentUserAdmin ? "bg-gray-100 cursor-not-allowed" : ""}
+                  />
+                  {!isCurrentUserAdmin && (
+                    <p className="text-xs text-orange-600 mt-1">Only administrators can modify agent codes</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Basic Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Name *
+                  </label>
+                  <Input
+                    value={agentData.name}
+                    onChange={(e) => handleInputChange('name', e.target.value)}
+                    placeholder="Enter agent name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email *
+                  </label>
+                  <Input
+                    type="email"
+                    value={agentData.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    placeholder="Enter email address"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Phone Number *
+                  </label>
+                  <Input
+                    type="tel"
+                    value={agentData.number}
+                    onChange={(e) => handleInputChange('number', e.target.value)}
+                    placeholder="Enter phone number"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Contact Person
+                  </label>
+                  <Input
+                    value={agentData.contact_person}
+                    onChange={(e) => handleInputChange('contact_person', e.target.value)}
+                    placeholder="Enter contact person name"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Contact Person Phone
+                </label>
+                <Input
+                  type="tel"
+                  value={agentData.contact_person_phone}
+                  onChange={(e) => handleInputChange('contact_person_phone', e.target.value)}
+                  placeholder="Enter contact person phone"
+                />
+              </div>
+
+              {/* Address Information */}
+              <div className="border-t pt-6">
+                <h4 className="text-lg font-medium text-gray-900 mb-4">Address Information</h4>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Address
+                    </label>
+                    <Input
+                      value={agentData.address}
+                      onChange={(e) => handleInputChange('address', e.target.value)}
+                      placeholder="Enter full address"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        City
+                      </label>
+                      <Input
+                        value={agentData.city}
+                        onChange={(e) => handleInputChange('city', e.target.value)}
+                        placeholder="Enter city"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Pincode
+                      </label>
+                      <Input
+                        value={agentData.pincode}
+                        onChange={(e) => handleInputChange('pincode', e.target.value)}
+                        placeholder="Enter pincode"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        State
+                      </label>
+                      <Input
+                        value={agentData.state}
+                        onChange={(e) => handleInputChange('state', e.target.value)}
+                        placeholder="Enter state"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Landmark
+                    </label>
+                    <Input
+                      value={agentData.landmark}
+                      onChange={(e) => handleInputChange('landmark', e.target.value)}
+                      placeholder="Enter nearby landmark"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Working Pincodes Section */}
+              <div className="border-t pt-6">
+                <h4 className="text-lg font-medium text-gray-900 mb-4">Working Pincodes</h4>
+                
+                <div className="space-y-4">
+                  {/* Add New Pincode */}
+                  <div className="flex space-x-2">
+                    <div className="flex-1">
+                      <Input
+                        value={newPincode}
+                        onChange={(e) => setNewPincode(e.target.value)}
+                        onKeyPress={handlePincodeKeyPress}
+                        placeholder="Enter 6-digit pincode"
+                        maxLength={6}
+                        pattern="\d{6}"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={addPincode}
+                      disabled={!newPincode.trim() || newPincode.length !== 6}
+                      variant="outline"
+                      className="px-4"
+                    >
+                      <Icons.plus className="w-4 h-4 mr-1" />
+                      Add
+                    </Button>
+                  </div>
+                  
+                  {/* Pincodes Tags Display */}
+                  {workingPincodesArray.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Current Working Pincodes ({workingPincodesArray.length})
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {workingPincodesArray.map((pincode, index) => (
+                          <div
+                            key={index}
+                            className="inline-flex items-center bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full"
+                          >
+                            <span>{pincode}</span>
+                            <button
+                              type="button"
+                              onClick={() => removePincode(pincode)}
+                              className="ml-2 text-blue-600 hover:text-blue-800 focus:outline-none"
+                            >
+                              <Icons.x className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {workingPincodesArray.length === 0 && (
+                    <div className="text-center py-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                      <Icons.mapPin className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-600">No working pincodes added yet</p>
+                      <p className="text-xs text-gray-500">Add pincodes where this agent operates</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* User Information (Read-only) */}
+              <div className="border-t pt-6">
+                <h4 className="text-lg font-medium text-gray-900 mb-4">Associated User Account</h4>
+                
+                <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        User ID
+                      </label>
+                      <p className="text-sm text-gray-900 font-mono bg-white px-3 py-2 rounded border">
+                        {agentData.user_id || 'Not assigned'}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        User Name
+                      </label>
+                      <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">
+                        {agentData.user_name || 'Not available'}
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      User Mobile
+                    </label>
+                    <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">
+                      {agentData.user_mobile || 'Not available'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Update Button */}
+              <div className="border-t pt-6">
+                <Button
+                  onClick={handleUpdateAgent}
+                  disabled={isUpdatingAgent || !agentData.name || !agentData.email || !agentData.number}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {isUpdatingAgent ? (
+                    <>
+                      <Icons.spinner className="w-4 h-4 mr-2 animate-spin" />
+                      Updating Agent...
+                    </>
+                  ) : (
+                    <>
+                      <Icons.check className="w-4 h-4 mr-2" />
+                      Update Agent
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  )
+}
+
 // Main Content Component
 function SettingsContent({ activeSection }: { activeSection: string }) {
   const activeMenuItem = settingsMenuItems.find(item => item.id === activeSection)
@@ -1343,6 +2026,8 @@ function SettingsContent({ activeSection }: { activeSection: string }) {
             <UserManagement />
           ) : activeSection === 'vendors' ? (
             <VendorManagement />
+          ) : activeSection === 'agents' ? (
+            <AgentManagement />
           ) : (
             /* Placeholder content for other sections */
             <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">

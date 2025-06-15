@@ -375,7 +375,10 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+          <Card 
+            className="hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => router.push('/admin/settings')}
+          >
             <CardContent className="p-6">
               <div className="flex items-center">
                 <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
