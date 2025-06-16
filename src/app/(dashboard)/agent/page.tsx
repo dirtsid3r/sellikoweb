@@ -104,67 +104,94 @@ const getPriorityColor = (priority: string) => {
 
 const getStatusColor = (status: string) => {
   switch (status) {
-    case 'pending_pickup': return 'text-orange-600'
-    case 'in_progress': return 'text-blue-600'
-    case 'scheduled': return 'text-gray-600'
+    case 'agent_assigned': return 'text-blue-600'
+    case 'in_progress': return 'text-orange-600'
+    case 'scheduled': return 'text-purple-600'
     default: return 'text-gray-600'
   }
 }
 
 const getStatusText = (status: string) => {
   switch (status) {
-    case 'pending_pickup': return 'Ready for Pickup'
-    case 'in_progress': return 'Verification Started'
+    case 'agent_assigned': return 'Ready to Start'
+    case 'in_progress': return 'In Progress'
     case 'scheduled': return 'Scheduled'
     default: return status
   }
+}
+
+// Add type definitions for the API response
+interface ApiTask {
+  listing_id: number
+  product: string
+  front_image_url: string | null
+  seller: string
+  address: string
+  status: string
+  done_by: string
+  assigned_time: string
+  vendor_id?: string | number
+}
+
+interface ApiResponse {
+  success: boolean
+  tasks?: ApiTask[]
+  error?: string
+  message?: string
 }
 
 export default function AgentDashboard() {
   const { instanceId } = useInstanceId()
   const { user, logout, isLoading } = useAuth()
   const router = useRouter()
-  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  
+  // State for tasks
+  const [tasks, setTasks] = useState<ApiTask[]>([])
+  const [isLoadingTasks, setIsLoadingTasks] = useState(true)
+  const [lastRefresh, setLastRefresh] = useState<string | null>(null)
   const [isAuthChecking, setIsAuthChecking] = useState(true)
 
-  useEffect(() => {
-    const checkAuthAndRole = async () => {
-      console.log('🔒 [AGENT-DASH] Checking authentication and role...')
-      try {
-        const user = await sellikoClient.getCurrentUser()
-        console.log('👤 [AGENT-DASH] Current user:', user ? {
-          id: user.id,
-          role: user.user_role,
-        } : 'No user found')
-        
-        if (!user) {
-          console.log('❌ [AGENT-DASH] No user found, redirecting to login')
-          toast.error('Please login to continue')
-          router.replace('/login')
-          return
-        }
-
-        const userRole = (user.user_role || user.role || '').toLowerCase()
-        console.log('👑 [AGENT-DASH] User role:', userRole)
-        
-        if (userRole !== 'agent') {
-          console.log(`⚠️ [AGENT-DASH] Invalid role access attempt: ${userRole}`)
-          toast.error('Access denied. Redirecting to your dashboard.')
-          router.replace(`/${userRole}`)
-          return
-        }
-
-        console.log('✅ [AGENT-DASH] Role verification successful')
-        setIsAuthChecking(false)
-      } catch (error) {
-        console.error('💥 [AGENT-DASH] Auth check error:', error)
-        toast.error('Authentication error')
-        router.replace('/login')
+  // Fetch tasks from API
+  const fetchTasks = async () => {
+    setIsLoadingTasks(true)
+    try {
+      console.log('🔄 [AGENT-DASHBOARD] Fetching tasks...')
+      const response = await sellikoClient.getTasks() as ApiResponse
+      
+      if (response.success) {
+        console.log('✅ [AGENT-DASHBOARD] Tasks fetched successfully:', response.tasks?.length)
+        setTasks(response.tasks || [])
+        setLastRefresh(new Date().toLocaleTimeString())
+        toast.success(`${response.tasks?.length || 0} tasks loaded`)
+      } else {
+        console.error('❌ [AGENT-DASHBOARD] Failed to fetch tasks:', response.error)
+        toast.error(response.error || 'Failed to load tasks')
+        setTasks([])
       }
+    } catch (error) {
+      console.error('💥 [AGENT-DASHBOARD] Error fetching tasks:', error)
+      toast.error('Network error while loading tasks')
+      setTasks([])
+    } finally {
+      setIsLoadingTasks(false)
     }
+  }
 
-    checkAuthAndRole()
-  }, [router])
+  // Load tasks when component mounts
+  useEffect(() => {
+    if (user && (user as any).user_role?.toUpperCase() === 'AGENT') {
+      fetchTasks()
+      setIsAuthChecking(false)
+    }
+  }, [user])
+
+  // Auto-refresh tasks every 2 minutes
+  useEffect(() => {
+    if (user && (user as any).user_role?.toUpperCase() === 'AGENT') {
+      const interval = setInterval(fetchTasks, 120000) // 2 minutes
+      return () => clearInterval(interval)
+    }
+  }, [user])
 
   if (isLoading || isAuthChecking) {
     return (
@@ -179,6 +206,26 @@ export default function AgentDashboard() {
       </div>
     )
   }
+
+  // Convert API response to match component format
+  const formatApiTasksForComponent = (apiTasks: ApiTask[]) => {
+    return apiTasks.map((task: ApiTask) => ({
+      id: task.vendor_id && task.listing_id ? `${task.vendor_id}/${task.listing_id}` : `VER${task.listing_id.toString().padStart(3, '0')}`,
+      device: task.product || 'Unknown Device',
+      seller: task.seller || 'Unknown Seller',
+      location: task.address ? task.address.split(',').slice(-2).join(',').trim() : 'Unknown Location',
+      priority: 'medium', // Default since API doesn't provide priority
+      timeLeft: task.done_by || 'Unknown',
+      assignedAt: task.assigned_time ? new Date(task.assigned_time).toLocaleTimeString() : 'Unknown',
+      images: task.front_image_url ? [task.front_image_url] : ['/api/placeholder/100/100'],
+      status: task.status || 'agent_assigned',
+      fullAddress: task.address || 'Address not provided',
+      listingId: task.listing_id,
+      vendorId: task.vendor_id
+    }))
+  }
+
+  const formattedTasks = formatApiTasksForComponent(tasks)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
@@ -263,70 +310,122 @@ export default function AgentDashboard() {
             <div className="card-mobile bg-white/80 backdrop-blur-sm p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-gray-900">Pending Verifications</h2>
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
-                  {pendingVerifications.length} Active
-                </span>
+                <div className="flex items-center space-x-3">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
+                    {formattedTasks.length} Active
+                  </span>
+                  <Button
+                    onClick={fetchTasks}
+                    disabled={isLoadingTasks}
+                    size="sm"
+                    variant="outline"
+                    className="text-xs"
+                  >
+                    {isLoadingTasks ? (
+                      <Icons.spinner className="h-3 w-3 animate-spin mr-1" />
+                    ) : (
+                      <Icons.refresh className="h-3 w-3 mr-1" />
+                    )}
+                    Refresh
+                  </Button>
+                </div>
               </div>
 
-              <div className="space-y-4">
-                {pendingVerifications.map((verification) => (
-                  <div key={verification.id} className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all cursor-pointer">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start space-x-4">
-                        <img 
-                          src={verification.images[0]} 
-                          alt={verification.device}
-                          className="w-16 h-16 rounded-lg object-cover"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
-                            <h3 className="font-semibold text-gray-900">{verification.device}</h3>
-                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getPriorityColor(verification.priority)}`}>
-                              {verification.priority.toUpperCase()}
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-600 mb-1">Seller: {verification.seller}</p>
-                          <div className="flex items-center text-sm text-gray-500">
-                            <MapPinIcon className="w-4 h-4 mr-1" />
-                            {verification.location}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className={`text-sm font-medium ${getStatusColor(verification.status)}`}>
-                          {getStatusText(verification.status)}
-                        </div>
-                        <div className="text-sm text-gray-500 mt-1">
-                          <ClockIcon className="w-4 h-4 inline mr-1" />
-                          {verification.timeLeft} left
-                        </div>
-                        <div className="text-xs text-gray-400 mt-1">
-                          Assigned: {verification.assignedAt}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-                      <span className="text-sm text-gray-600">ID: {verification.id}</span>
-                      <Link
-                        href={`/agent/verification/${verification.id}`}
-                        className="inline-flex items-center px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
-                      >
-                        Start Verification
-                        <ArrowRightIcon className="w-4 h-4 ml-2" />
-                      </Link>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {lastRefresh && (
+                <p className="text-xs text-gray-500 mb-4">
+                  Last updated: {lastRefresh}
+                </p>
+              )}
 
-              <div className="mt-6 text-center">
-                <Link
-                  href="/agent/tasks"
-                  className="text-purple-600 hover:text-purple-700 font-medium"
-                >
-                  View All Tasks →
-                </Link>
-              </div>
+              {isLoadingTasks ? (
+                <div className="flex items-center justify-center py-8">
+                  <Icons.spinner className="h-6 w-6 animate-spin text-purple-600" />
+                  <span className="ml-2 text-gray-600">Loading tasks...</span>
+                </div>
+              ) : formattedTasks.length === 0 ? (
+                <div className="text-center py-8">
+                  <DevicePhoneMobileIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Tasks Assigned</h3>
+                  <p className="text-gray-600 mb-4">You don't have any verification tasks at the moment.</p>
+                  <Button
+                    onClick={fetchTasks}
+                    size="sm"
+                    className="bg-purple-600 hover:bg-purple-700"
+                  >
+                    <Icons.refresh className="h-4 w-4 mr-2" />
+                    Check for New Tasks
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {formattedTasks.map((task: any) => (
+                    <div key={task.id} className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all cursor-pointer">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start space-x-4">
+                          <img 
+                            src={task.images[0]} 
+                            alt={task.device}
+                            className="w-16 h-16 rounded-lg object-cover"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement
+                              target.src = '/api/placeholder/100/100'
+                            }}
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-3 mb-2">
+                              <h3 className="font-semibold text-gray-900">{task.device}</h3>
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getPriorityColor(task.priority)}`}>
+                                {task.priority.toUpperCase()}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-600 mb-1">Seller: {task.seller}</p>
+                            <div className="flex items-center text-sm text-gray-500">
+                              <MapPinIcon className="w-4 h-4 mr-1" />
+                              {task.location}
+                            </div>
+                            <p className="text-xs text-gray-400 mt-1" title={task.fullAddress}>
+                              Full address: {task.fullAddress}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className={`text-sm font-medium ${getStatusColor(task.status)}`}>
+                            {getStatusText(task.status)}
+                          </div>
+                          <div className="text-sm text-gray-500 mt-1">
+                            <ClockIcon className="w-4 h-4 inline mr-1" />
+                            {task.timeLeft} left
+                          </div>
+                          <div className="text-xs text-gray-400 mt-1">
+                            Assigned: {task.assignedAt}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            Listing ID: {task.listingId}
+                          </div>
+                          {task.vendorId && (
+                            <div className="text-xs text-gray-400">
+                              Vendor ID: {task.vendorId}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-100">
+                        <div className="text-sm text-gray-600">
+                          Task ID: {task.id}
+                        </div>
+                        <Link
+                          href={`/agent/verification?taskId=${task.listingId}`}
+                          className="inline-flex items-center px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
+                        >
+                          {task.status === 'in_progress' ? 'Continue' : 'Start'} Verification
+                          <ArrowRightIcon className="w-4 h-4 ml-2" />
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

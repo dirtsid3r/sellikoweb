@@ -3097,6 +3097,118 @@ class SellikoClient {
       }
     }
   }
+
+  // 19. getTasks - get assigned tasks for the current agent (agent only)
+  /**
+   * Retrieves tasks assigned to the current agent
+   * 
+   * AUTHORIZATION REQUIREMENTS:
+   * - User role must be 'AGENT'
+   * - Valid JWT token required in Authorization header
+   * 
+   * @returns {Promise<Object>} Response with success status and tasks array
+   */
+  async getTasks() {
+    console.log('📋 [SELLIKO-CLIENT] getTasks called')
+
+    try {
+      // Get current user and validate permissions
+      const user = await this.getCurrentUser()
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+
+      console.log('👤 [SELLIKO-CLIENT] Current user validation:', {
+        userId: user.id,
+        userRole: user.user_role,
+        normalizedRole: (user.user_role || '').toUpperCase()
+      })
+
+      // Validate user role (must be agent)
+      const userRole = (user.user_role || '').toUpperCase()
+      if (userRole !== 'AGENT') {
+        throw new Error(`Only agents can access tasks. Current role: ${user.user_role}`)
+      }
+
+      console.log('✅ [SELLIKO-CLIENT] Role validation passed - proceeding with tasks retrieval')
+
+      // Get access token
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        throw new Error('No access token found')
+      }
+
+      const url = `${this.apiBase}functions/v1/get-tasks`
+
+      console.log('📤 [SELLIKO-CLIENT] Submitting get tasks request:', {
+        url: url,
+        method: 'POST',
+        hasToken: !!token
+      })
+
+      // Make API request
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Get tasks response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
+      const result = await response.json()
+      
+      console.log('📥 [SELLIKO-CLIENT] Get tasks result:', {
+        success: result.success,
+        taskCount: result.tasks ? result.tasks.length : 0,
+        message: result.message,
+        error: result.error
+      })
+
+      // Log task details if available
+      if (result.success && result.tasks && result.tasks.length > 0) {
+        console.log(`✅ [SELLIKO-CLIENT] Found ${result.tasks.length} tasks`)
+        result.tasks.forEach((task, index) => {
+          console.log(`📋 [SELLIKO-CLIENT] Task ${index + 1}:`, {
+            listingId: task.listing_id,
+            vendorId: task.vendor_id || 'NOT_PROVIDED',
+            taskId: task.vendor_id ? `${task.vendor_id}/${task.listing_id}` : `LISTING_${task.listing_id}`,
+            product: task.product,
+            seller: task.seller,
+            status: task.status,
+            doneBy: task.done_by,
+            assignedTime: task.assigned_time,
+            hasFrontImage: !!task.front_image_url,
+            address: task.address
+          })
+        })
+      } else {
+        console.log('ℹ️ [SELLIKO-CLIENT] No tasks found or request failed')
+      }
+
+      return result
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] getTasks error:', error)
+      console.error('📋 [SELLIKO-CLIENT] Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      })
+      
+      return {
+        success: false,
+        error: error.message || 'Network error occurred',
+        tasks: []
+      }
+    }
+  }
 }
 
 // Export singleton instance
