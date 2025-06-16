@@ -1,7 +1,10 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
+import sellikoClient from '@/selliko-client'
+import { toast } from 'react-hot-toast'
 import { 
   CheckCircleIcon,
   ClockIcon,
@@ -28,6 +31,7 @@ import {
   PlayIcon
 } from '@heroicons/react/24/outline'
 import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid'
+import { Icons } from '@/components/ui/icons'
 
 interface VerificationStep {
   id: number
@@ -48,16 +52,140 @@ interface Deduction {
   severity: 'minor' | 'major' | 'critical'
 }
 
-const deviceInfo = {
+interface DeviceInfo {
+  id: string
+  device: string
+  model: string
+  seller: string
+  phone: string
+  location: string
+  askingPrice: number
+  vendorBid: number
+  timeSlot: string
+  fullAddress?: string
+  imei1?: string
+  imei2?: string
+  condition?: string
+  storage?: string
+  color?: string
+  images?: string[]
+  // Additional fields from API
+  description?: string
+  hasBill?: boolean
+  purchaseDate?: string
+  purchasePrice?: number
+  batteryHealth?: number
+  warrantyStatus?: string
+  warrantyExpiry?: string
+  warrantyType?: string
+  email?: string
+  pincode?: string
+  bankName?: string
+  ifscCode?: string
+  accountNumber?: string
+  accountHolderName?: string
+  pickupAddress?: string
+  pickupPincode?: string
+  pickupTime?: string
+}
+
+// Add interface for API response - updated to match actual structure
+interface ListingResponse {
+  success: boolean
+  listing?: {
+    id: number
+    user_id: string
+    listing_type: string
+    status: string
+    asking_price: number
+    expected_price: number
+    created_at: string
+    updated_at: string
+    vendor_id: string
+    agent_id: string
+    highest_bid: number
+    rejection_note?: string
+    time_approved?: string
+    instant_win: boolean
+    bid_accepted?: string
+    assigned_time?: string
+    devices: Array<{
+      id: string
+      brand: string
+      model: string
+      color: string
+      storage: string
+      condition: string
+      imei1: string
+      imei2?: string
+      description?: string
+      has_bill: boolean
+      purchase_date?: string
+      purchase_price?: number
+      battery_health?: number
+      warranty_status: string
+      warranty_expiry?: string
+      warranty_type?: string
+      front_image_url?: string
+      back_image_url?: string
+      top_image_url?: string
+      bottom_image_url?: string
+      bill_image_url?: string
+      warranty_image_url?: string
+    }>
+    addresses: Array<{
+      id: string
+      type: string
+      contact_name?: string
+      mobile_number?: string
+      email?: string
+      address: string
+      city: string
+      state: string
+      pincode: string
+      landmark?: string
+      pickup_time?: string
+      bank_name?: string
+      ifsc_code?: string
+      account_number?: string
+      account_holder_name?: string
+    }>
+    bids: Array<{
+      id: number
+      status: string
+      vendor_id?: string
+      bid_amount: number
+      created_at: string
+      listing_id: number
+      updated_at: string
+      instant_win: boolean
+      vendor_profile?: any
+    }>
+    agreements: Array<{
+      id: string
+      created_at: string
+      listing_id: number
+      updated_at: string
+      terms_accepted: boolean
+      privacy_accepted: boolean
+      whatsapp_consent: boolean
+    }>
+  }
+  error?: string
+  message?: string
+}
+
+// Initial mock data as fallback
+const initialDeviceInfo: DeviceInfo = {
   id: 'VER001',
-  device: 'iPhone 14 Pro Max',
-  model: '128GB Space Black',
-  seller: 'Rajesh Kumar',
-  phone: '+91 98765 43210',
-  location: 'Kakkanad, Kochi',
-  askingPrice: 85000,
-  vendorBid: 82000,
-  timeSlot: '2:30 PM - 3:30 PM'
+  device: 'Loading...',
+  model: 'Loading device details...',
+  seller: 'Loading...',
+  phone: 'Loading...',
+  location: 'Loading...',
+  askingPrice: 0,
+  vendorBid: 0,
+  timeSlot: 'Loading...'
 }
 
 const verificationSteps: VerificationStep[] = [
@@ -164,6 +292,10 @@ const verificationSteps: VerificationStep[] = [
 ]
 
 export default function AgentVerification() {
+  const searchParams = useSearchParams()
+  const taskId = searchParams.get('taskId')
+  
+  // State management
   const [currentStep, setCurrentStep] = useState(1)
   const [steps, setSteps] = useState(verificationSteps)
   const [verificationStarted, setVerificationStarted] = useState(false)
@@ -178,6 +310,112 @@ export default function AgentVerification() {
     amount: 0,
     severity: 'minor' as 'minor' | 'major' | 'critical'
   })
+  
+  // Device info state
+  const [deviceInfo, setDeviceInfo] = useState<DeviceInfo>(initialDeviceInfo)
+  const [isLoadingDevice, setIsLoadingDevice] = useState(true)
+  const [deviceLoadError, setDeviceLoadError] = useState<string | null>(null)
+
+  // Fetch listing data when component mounts
+  useEffect(() => {
+    const fetchListingData = async () => {
+      if (!taskId) {
+        setDeviceLoadError('No task ID provided')
+        setIsLoadingDevice(false)
+        return
+      }
+
+      setIsLoadingDevice(true)
+      setDeviceLoadError(null)
+
+      try {
+        console.log('🔍 [AGENT-VERIFICATION] Fetching listing data for task ID:', taskId)
+        
+        const response = await sellikoClient.getListingById(taskId, {
+          include_images: true,
+          include_bids: true,
+          include_user_details: true
+        }) as ListingResponse
+
+        if (response.success && response.listing) {
+          const listing = response.listing
+          console.log('✅ [AGENT-VERIFICATION] Listing data fetched successfully:', listing)
+          
+          // Get the main device (first one)
+          const device = listing.devices[0]
+          
+          // Get client address (type: "client")
+          const clientAddress = listing.addresses.find(addr => addr.type === 'client') || listing.addresses[0]
+          
+          // Get pickup address (type: "pickup") 
+          const pickupAddress = listing.addresses.find(addr => addr.type === 'pickup')
+          
+          // Get the winning bid amount
+          const winningBid = listing.bids.find(bid => bid.status === 'won')
+          const bidAmount = winningBid ? winningBid.bid_amount : listing.asking_price
+          
+          // Collect all available device images
+          const deviceImages: string[] = []
+          if (device.front_image_url) deviceImages.push(device.front_image_url)
+          if (device.back_image_url) deviceImages.push(device.back_image_url)
+          if (device.top_image_url) deviceImages.push(device.top_image_url)
+          if (device.bottom_image_url) deviceImages.push(device.bottom_image_url)
+          
+          // Transform API response to DeviceInfo format
+          const transformedDeviceInfo: DeviceInfo = {
+            id: `VER${listing.id.toString().padStart(3, '0')}`,
+            device: `${device.brand} ${device.model}`,
+            model: `${device.storage} ${device.color}`.trim(),
+            seller: clientAddress.contact_name || 'Unknown Seller',
+            phone: clientAddress.mobile_number || 'Not provided',
+            location: `${clientAddress.city}, ${clientAddress.state}`,
+            fullAddress: clientAddress.address,
+            askingPrice: listing.asking_price,
+            vendorBid: bidAmount,
+            timeSlot: pickupAddress?.pickup_time ? `${pickupAddress.pickup_time} slot` : 'To be confirmed',
+            imei1: device.imei1,
+            imei2: device.imei2,
+            condition: device.condition,
+            storage: device.storage,
+            color: device.color,
+            images: deviceImages,
+            description: device.description,
+            hasBill: device.has_bill,
+            purchaseDate: device.purchase_date,
+            purchasePrice: device.purchase_price,
+            batteryHealth: device.battery_health,
+            warrantyStatus: device.warranty_status,
+            warrantyExpiry: device.warranty_expiry,
+            warrantyType: device.warranty_type,
+            email: clientAddress.email,
+            pincode: clientAddress.pincode,
+            bankName: clientAddress.bank_name,
+            ifscCode: clientAddress.ifsc_code,
+            accountNumber: clientAddress.account_number,
+            accountHolderName: clientAddress.account_holder_name,
+            pickupAddress: pickupAddress?.address || clientAddress.address,
+            pickupPincode: pickupAddress?.pincode || clientAddress.pincode,
+            pickupTime: pickupAddress?.pickup_time || 'To be confirmed'
+          }
+
+          setDeviceInfo(transformedDeviceInfo)
+          toast.success('Device details loaded successfully')
+        } else {
+          console.error('❌ [AGENT-VERIFICATION] Failed to fetch listing:', response.error)
+          setDeviceLoadError(response.error || 'Failed to load device details')
+          toast.error('Failed to load device details')
+        }
+      } catch (error) {
+        console.error('💥 [AGENT-VERIFICATION] Error fetching listing:', error)
+        setDeviceLoadError('Network error occurred')
+        toast.error('Network error while loading device details')
+      } finally {
+        setIsLoadingDevice(false)
+      }
+    }
+
+    fetchListingData()
+  }, [taskId])
 
   const startVerification = () => {
     setVerificationStarted(true)
@@ -590,47 +828,216 @@ export default function AgentVerification() {
 
           {/* Device Info Card */}
           <div className="card-mobile bg-white/80 backdrop-blur-sm p-6 mb-8">
-            <div className="flex items-start justify-between">
-              <div className="flex items-start space-x-4">
-                <div className="w-20 h-20 bg-gray-100 rounded-xl flex items-center justify-center">
-                  <DevicePhoneMobileIcon className="w-8 h-8 text-gray-600" />
-                </div>
+            {isLoadingDevice ? (
+              <div className="flex items-center justify-center py-8">
+                <Icons.spinner className="h-8 w-8 animate-spin text-purple-600 mr-3" />
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900">{deviceInfo.device}</h2>
-                  <p className="text-gray-600">{deviceInfo.model}</p>
-                  <div className="flex items-center mt-2 text-sm text-gray-500">
-                    <MapPinIcon className="w-4 h-4 mr-1" />
-                    {deviceInfo.location}
+                  <h3 className="text-lg font-semibold text-gray-900">Loading Device Details...</h3>
+                  <p className="text-gray-600">Task ID: {taskId}</p>
+                </div>
+              </div>
+            ) : deviceLoadError ? (
+              <div className="text-center py-8">
+                <ExclamationTriangleIcon className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Failed to Load Device Details</h3>
+                <p className="text-red-600 mb-4">{deviceLoadError}</p>
+                <p className="text-gray-600 mb-4">Task ID: {taskId}</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-start justify-between">
+                <div className="flex items-start space-x-4">
+                  <div className="w-20 h-20 bg-gray-100 rounded-xl overflow-hidden flex items-center justify-center">
+                    {deviceInfo.images && deviceInfo.images.length > 0 ? (
+                      <img 
+                        src={deviceInfo.images[0]} 
+                        alt={deviceInfo.device}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement
+                          target.style.display = 'none'
+                          target.nextElementSibling?.classList.remove('hidden')
+                        }}
+                      />
+                    ) : null}
+                    <DevicePhoneMobileIcon className={`w-8 h-8 text-gray-600 ${deviceInfo.images && deviceInfo.images.length > 0 ? 'hidden' : ''}`} />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900">{deviceInfo.device}</h2>
+                    <p className="text-gray-600">{deviceInfo.model}</p>
+                    <div className="flex items-center mt-2 text-sm text-gray-500">
+                      <MapPinIcon className="w-4 h-4 mr-1" />
+                      {deviceInfo.location}
+                    </div>
+                    {deviceInfo.condition && (
+                      <div className="mt-1">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          Condition: {deviceInfo.condition}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-green-600">₹{deviceInfo.vendorBid.toLocaleString()}</div>
+                  <div className="text-sm text-gray-500">Vendor Bid</div>
+                  <div className="text-xs text-gray-400 mt-1">Ask: ₹{deviceInfo.askingPrice.toLocaleString()}</div>
+                </div>
               </div>
-              <div className="text-right">
-                <div className="text-2xl font-bold text-green-600">₹{deviceInfo.vendorBid.toLocaleString()}</div>
-                <div className="text-sm text-gray-500">Vendor Bid</div>
-                <div className="text-xs text-gray-400 mt-1">Ask: ₹{deviceInfo.askingPrice.toLocaleString()}</div>
-              </div>
-            </div>
+            )}
             
-            <div className="border-t mt-4 pt-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-gray-600">Seller:</span>
-                  <span className="ml-2 font-medium">{deviceInfo.seller}</span>
+            {!isLoadingDevice && !deviceLoadError && (
+              <div className="border-t mt-4 pt-4">
+                {/* Basic Info */}
+                <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+                  <div>
+                    <span className="text-gray-600">Seller:</span>
+                    <span className="ml-2 font-medium">{deviceInfo.seller}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Phone:</span>
+                    <span className="ml-2 font-medium">{deviceInfo.phone}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Email:</span>
+                    <span className="ml-2 font-medium">{deviceInfo.email || 'Not provided'}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Task ID:</span>
+                    <span className="ml-2 font-medium">{taskId}</span>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-gray-600">Phone:</span>
-                  <span className="ml-2 font-medium">{deviceInfo.phone}</span>
+
+                {/* Device Technical Details */}
+                {(deviceInfo.imei1 || deviceInfo.description) && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <h4 className="font-semibold text-blue-900 mb-2">Device Details</h4>
+                    <div className="space-y-2 text-sm">
+                      {deviceInfo.imei1 && (
+                        <div>
+                          <span className="text-blue-700">IMEI 1:</span>
+                          <span className="ml-2 font-mono">{deviceInfo.imei1}</span>
+                          {deviceInfo.imei2 && (
+                            <span className="ml-4 text-blue-700">IMEI 2: <span className="font-mono">{deviceInfo.imei2}</span></span>
+                          )}
+                        </div>
+                      )}
+                      {deviceInfo.description && (
+                        <div>
+                          <span className="text-blue-700">Description:</span>
+                          <p className="ml-2 text-blue-800">{deviceInfo.description}</p>
+                        </div>
+                      )}
+                      {deviceInfo.batteryHealth && (
+                        <div>
+                          <span className="text-blue-700">Battery Health:</span>
+                          <span className="ml-2 font-medium">{deviceInfo.batteryHealth}%</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Purchase & Warranty Info */}
+                {(deviceInfo.hasBill || deviceInfo.warrantyStatus) && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                    <h4 className="font-semibold text-green-900 mb-2">Purchase & Warranty</h4>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      {deviceInfo.hasBill && (
+                        <div>
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            ✓ Has Original Bill
+                          </span>
+                        </div>
+                      )}
+                      {deviceInfo.warrantyStatus && (
+                        <div>
+                          <span className="text-green-700">Warranty:</span>
+                          <span className={`ml-2 font-medium ${deviceInfo.warrantyStatus === 'active' ? 'text-green-600' : 'text-orange-600'}`}>
+                            {deviceInfo.warrantyStatus}
+                          </span>
+                        </div>
+                      )}
+                      {deviceInfo.purchaseDate && (
+                        <div>
+                          <span className="text-green-700">Purchase Date:</span>
+                          <span className="ml-2 font-medium">{new Date(deviceInfo.purchaseDate).toLocaleDateString()}</span>
+                        </div>
+                      )}
+                      {deviceInfo.warrantyExpiry && (
+                        <div>
+                          <span className="text-green-700">Warranty Expires:</span>
+                          <span className="ml-2 font-medium">{new Date(deviceInfo.warrantyExpiry).toLocaleDateString()}</span>
+                        </div>
+                      )}
+                      {deviceInfo.purchasePrice && (
+                        <div className="col-span-2">
+                          <span className="text-green-700">Original Purchase Price:</span>
+                          <span className="ml-2 font-medium text-lg">₹{deviceInfo.purchasePrice.toLocaleString()}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Pickup Information */}
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+                  <h4 className="font-semibold text-purple-900 mb-2">Pickup Details</h4>
+                  <div className="space-y-2 text-sm">
+                    <div>
+                      <span className="text-purple-700">Time Slot:</span>
+                      <span className="ml-2 font-medium">{deviceInfo.timeSlot}</span>
+                    </div>
+                    <div>
+                      <span className="text-purple-700">Address:</span>
+                      <p className="ml-2 text-purple-800">{deviceInfo.fullAddress}</p>
+                    </div>
+                    <div>
+                      <span className="text-purple-700">City & PIN:</span>
+                      <span className="ml-2 font-medium">{deviceInfo.location} - {deviceInfo.pincode}</span>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-gray-600">Time Slot:</span>
-                  <span className="ml-2 font-medium">{deviceInfo.timeSlot}</span>
-                </div>
-                <div>
-                  <span className="text-gray-600">ID:</span>
-                  <span className="ml-2 font-medium">{deviceInfo.id}</span>
-                </div>
+
+                {/* Bank Details */}
+                {(deviceInfo.bankName || deviceInfo.accountNumber) && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <h4 className="font-semibold text-yellow-900 mb-2">Payment Details</h4>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      {deviceInfo.bankName && (
+                        <div>
+                          <span className="text-yellow-700">Bank:</span>
+                          <span className="ml-2 font-medium">{deviceInfo.bankName}</span>
+                        </div>
+                      )}
+                      {deviceInfo.ifscCode && (
+                        <div>
+                          <span className="text-yellow-700">IFSC:</span>
+                          <span className="ml-2 font-mono">{deviceInfo.ifscCode}</span>
+                        </div>
+                      )}
+                      {deviceInfo.accountHolderName && (
+                        <div>
+                          <span className="text-yellow-700">Account Holder:</span>
+                          <span className="ml-2 font-medium">{deviceInfo.accountHolderName}</span>
+                        </div>
+                      )}
+                      {deviceInfo.accountNumber && (
+                        <div>
+                          <span className="text-yellow-700">Account:</span>
+                          <span className="ml-2 font-mono">***{deviceInfo.accountNumber.slice(-4)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
+            )}
           </div>
 
           {/* Verification Steps Preview */}

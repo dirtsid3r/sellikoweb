@@ -1363,7 +1363,12 @@ function AgentManagement() {
     try {
       console.log('📋 [AGENT-MGMT] Loading agents list from API...')
       
-      const result = await sellikoClient.listAgents()
+      const result = await sellikoClient.listAgents() as {
+        success: boolean
+        agents?: any[]
+        message?: string
+        error?: string
+      }
       
       console.log('📥 [AGENT-MGMT] List agents result:', {
         success: result.success,
