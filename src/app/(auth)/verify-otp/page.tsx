@@ -71,11 +71,13 @@ export default function VerifyOTPPage() {
         const pendingPhone = localStorage.getItem('pendingPhone')
         const pendingOtpId = localStorage.getItem('pendingOtpId')
         const pendingUserId = localStorage.getItem('pendingUserId')
+        const pendingOtp = localStorage.getItem('pendingOtp')
 
         console.log('📱 [VERIFY-OTP] LocalStorage data retrieved:', {
           pendingPhone: pendingPhone || 'NOT_FOUND',
           pendingOtpId: pendingOtpId || 'NOT_FOUND',
-          pendingUserId: pendingUserId || 'NOT_FOUND'
+          pendingUserId: pendingUserId || 'NOT_FOUND',
+          pendingOtp: pendingOtp ? '***found***' : 'NOT_FOUND'
         })
 
         const missingFields = []
@@ -98,6 +100,22 @@ export default function VerifyOTPPage() {
         console.log('✅ [VERIFY-OTP] Required data found, setting state')
         if (pendingPhone) setPhone(pendingPhone)
         if (pendingOtpId) setOtpId(pendingOtpId)
+        
+        // Auto-fill OTP if available from login response
+        if (pendingOtp && pendingOtp.length === 6) {
+          console.log('🔑 [VERIFY-OTP] Auto-filling OTP from login response')
+          setOtp(pendingOtp)
+          toast.success('OTP auto-filled! You can submit directly or modify if needed.')
+          
+          // Clear the stored OTP after using it for security
+          localStorage.removeItem('pendingOtp')
+          console.log('🧹 [VERIFY-OTP] Cleared stored OTP after auto-fill')
+        } else if (pendingOtp) {
+          console.log('⚠️ [VERIFY-OTP] Invalid OTP length in storage:', pendingOtp.length)
+          // Clear invalid OTP
+          localStorage.removeItem('pendingOtp')
+        }
+        
         setIsMounted(true)
 
         console.log('⏰ [VERIFY-OTP] Starting countdown timer')
@@ -177,6 +195,7 @@ export default function VerifyOTPPage() {
         localStorage.removeItem('pendingPhone')
         localStorage.removeItem('pendingOtpId')
         localStorage.removeItem('pendingUserId')
+        localStorage.removeItem('pendingOtp')
         localStorage.removeItem('selliko_instance_id')
         let userRole = result.user?.user_role || result.user?.role || 'client';
         if (typeof userRole !== 'string') userRole = 'client';
@@ -254,11 +273,25 @@ export default function VerifyOTPPage() {
         const newOtpId = result.otp_id || ''
         console.log('🔄 [VERIFY-OTP] Updating OTP ID:', {
           oldOtpId: otpId ? 'present' : 'missing',
-          newOtpId: newOtpId ? 'present' : 'missing'
+          newOtpId: newOtpId ? 'present' : 'missing',
+          hasNewOtp: !!result.otp
         })
         
         setOtpId(newOtpId)
         localStorage.setItem('pendingOtpId', newOtpId)
+        
+        // Auto-fill new OTP if provided by API
+        if (result.otp && result.otp.length === 6) {
+          console.log('🔑 [VERIFY-OTP] Auto-filling new OTP from resend response')
+          setOtp(result.otp)
+          toast.success('New OTP auto-filled! You can submit directly or modify if needed.')
+        } else if (result.otp) {
+          console.log('⚠️ [VERIFY-OTP] Invalid new OTP length from resend:', result.otp.length)
+        } else {
+          // Clear existing OTP when resending
+          console.log('🧹 [VERIFY-OTP] Clearing existing OTP for manual entry')
+          setOtp('')
+        }
         
         console.log('⏰ [VERIFY-OTP] Restarting countdown timer')
         // Restart countdown

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import sellikoClient from '@/selliko-client'
 import { toast } from 'react-hot-toast'
 import { 
@@ -28,7 +28,17 @@ import {
   IdentificationIcon,
   ChevronDownIcon,
   ChevronUpIcon,
-  PlayIcon
+  PlayIcon,
+  ComputerDesktopIcon,
+  PhoneIcon,
+  BoltIcon,
+  EyeIcon,
+  SignalIcon,
+  LockClosedIcon,
+  CpuChipIcon,
+  ClipboardDocumentListIcon,
+  UserGroupIcon,
+  TruckIcon
 } from '@heroicons/react/24/outline'
 import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid'
 import { Icons } from '@/components/ui/icons'
@@ -42,6 +52,9 @@ interface VerificationStep {
   required: boolean
   estimatedTime: string
   details?: string[]
+  category: string
+  type: 'image' | 'bool' | 'text'
+  value?: any // For storing the verification result
 }
 
 interface Deduction {
@@ -87,6 +100,105 @@ interface DeviceInfo {
   pickupAddress?: string
   pickupPincode?: string
   pickupTime?: string
+  status?: string
+}
+
+interface ClientConfig {
+  id: number
+  item: string
+  category: string
+  type: 'image' | 'bool' | 'text'
+  created_at: string
+  updated_at: string
+}
+
+interface ClientConfigsResponse {
+  success: boolean
+  configs: ClientConfig[]
+  error?: string
+}
+
+interface StartVerificationResponse {
+  success: boolean
+  error?: string
+  message?: string
+}
+
+// Random icon mapping for different categories
+const getCategoryIcon = (category: string, type: string) => {
+  const iconMap = {
+    'device_condition': [CameraIcon, DevicePhoneMobileIcon, EyeIcon, PhotoIcon],
+    'functionality': [BoltIcon, Battery0Icon, SpeakerWaveIcon, PhoneIcon],
+    'documentation': [DocumentCheckIcon, ClipboardDocumentListIcon, QrCodeIcon, IdentificationIcon],
+    'specifications': [CpuChipIcon, ComputerDesktopIcon, SparklesIcon, SignalIcon],
+    'security': [ShieldCheckIcon, LockClosedIcon, ShieldCheckIcon, LockClosedIcon]
+  }
+  
+  // Get icons for category, fallback to device_condition
+  const icons = iconMap[category as keyof typeof iconMap] || iconMap.device_condition
+  
+  // Use type to influence icon selection
+  if (type === 'image') return icons[0] || PhotoIcon
+  if (type === 'bool') return icons[1] || CheckCircleIcon
+  if (type === 'text') return icons[2] || ClipboardDocumentListIcon
+  
+  // Random selection as fallback
+  return icons[Math.floor(Math.random() * icons.length)] || DevicePhoneMobileIcon
+}
+
+// Transform client configs to verification steps
+const transformConfigsToSteps = (configs: ClientConfig[]): VerificationStep[] => {
+  if (!configs || configs.length === 0) return []
+  
+  return configs.map((config, index) => ({
+    id: config.id,
+    title: config.item,
+    description: `${config.category.replace('_', ' ')} verification step`,
+    icon: getCategoryIcon(config.category, config.type),
+    status: 'pending' as const,
+    required: true,
+    estimatedTime: config.type === 'image' ? '2 min' : '1 min',
+    category: config.category,
+    type: config.type,
+    value: null
+  }))
+}
+
+// Generate random test data for verification steps
+const generateRandomTestData = (steps: VerificationStep[]): VerificationStep[] => {
+  const randomTextValues = [
+    'Test value 1', 'Sample data', 'Good condition', 'Working fine', 'No issues found',
+    'Minor scratches', 'Excellent', 'Battery 85%', 'All functions working', 'Clean device'
+  ]
+
+  // Create a simple mock file object for image steps
+  const createMockFile = (filename: string) => {
+    const mockFile = new File(['mock image data'], filename, { type: 'image/jpeg' })
+    return mockFile
+  }
+
+  return steps.map((step) => {
+    let randomValue
+    
+    switch (step.type) {
+      case 'image':
+        randomValue = createMockFile(`${step.title.toLowerCase().replace(/\s+/g, '_')}_test.jpg`)
+        break
+      case 'bool':
+        randomValue = Math.random() > 0.3 // 70% chance of true (pass)
+        break
+      case 'text':
+        randomValue = randomTextValues[Math.floor(Math.random() * randomTextValues.length)]
+        break
+      default:
+        randomValue = null
+    }
+
+    return {
+      ...step,
+      value: randomValue
+    }
+  })
 }
 
 // Add interface for API response - updated to match actual structure
@@ -170,6 +282,27 @@ interface ListingResponse {
       privacy_accepted: boolean
       whatsapp_consent: boolean
     }>
+    all_bids?: Array<{
+      id: number
+      status: string
+      vendor_id?: string
+      bid_amount: number
+      created_at: string
+      listing_id: number
+      updated_at: string
+      instant_win: boolean
+      vendor_profile?: any
+    }>
+    highest_bid_details?: {
+      id: number
+      status: string
+      vendor_id?: string
+      bid_amount: number
+      created_at: string
+      listing_id: number
+      updated_at: string
+      instant_win: boolean
+    }
   }
   error?: string
   message?: string
@@ -188,133 +321,99 @@ const initialDeviceInfo: DeviceInfo = {
   timeSlot: 'Loading...'
 }
 
-const verificationSteps: VerificationStep[] = [
-  {
-    id: 1,
-    title: 'Customer Identity Verification',
-    description: 'Verify customer identity with ID card',
-    icon: IdentificationIcon,
-    status: 'pending',
-    required: true,
-    estimatedTime: '2 min',
-    details: ['Check ID card', 'Verify name matches', 'Upload ID photo']
-  },
-  {
-    id: 2,
-    title: 'IMEI Verification',
-    description: 'Verify device authenticity and check stolen database',
-    icon: QrCodeIcon,
-    status: 'pending',
-    required: true,
-    estimatedTime: '2 min',
-    details: ['Scan IMEI barcode', 'Check stolen device registry', 'Verify with original box']
-  },
-  {
-    id: 3,
-    title: 'Physical Inspection',
-    description: 'Assess external condition and damage',
-    icon: DevicePhoneMobileIcon,
-    status: 'pending',
-    required: true,
-    estimatedTime: '3 min',
-    details: ['Screen condition', 'Body scratches/dents', 'Button functionality', 'Port inspection']
-  },
-  {
-    id: 4,
-    title: 'Battery Health Check',
-    description: 'Test battery condition and performance',
-    icon: Battery0Icon,
-    status: 'pending',
-    required: true,
-    estimatedTime: '3 min',
-    details: ['Battery percentage', 'Battery health status', 'Charging test', 'Battery cycle count']
-  },
-  {
-    id: 5,
-    title: 'Screen & Display Test',
-    description: 'Test display quality and touch response',
-    icon: SparklesIcon,
-    status: 'pending',
-    required: true,
-    estimatedTime: '2 min',
-    details: ['Dead pixels check', 'Touch sensitivity', 'Screen brightness', 'Color accuracy']
-  },
-  {
-    id: 6,
-    title: 'Camera Test',
-    description: 'Test all cameras and image quality',
-    icon: CameraIcon,
-    status: 'pending',
-    required: true,
-    estimatedTime: '3 min',
-    details: ['Front camera', 'Rear camera(s)', 'Flash functionality', 'Video recording']
-  },
-  {
-    id: 7,
-    title: 'Audio Test',
-    description: 'Test speakers, microphone, and audio quality',
-    icon: SpeakerWaveIcon,
-    status: 'pending',
-    required: true,
-    estimatedTime: '2 min',
-    details: ['Speaker output', 'Microphone clarity', 'Headphone jack', 'Volume buttons']
-  },
-  {
-    id: 8,
-    title: 'Connectivity Test',
-    description: 'Test WiFi, Bluetooth, and cellular connectivity',
-    icon: WifiIcon,
-    status: 'pending',
-    required: true,
-    estimatedTime: '3 min',
-    details: ['WiFi connection', 'Bluetooth pairing', 'Cellular signal', 'GPS functionality']
-  },
-  {
-    id: 9,
-    title: 'Software & Performance',
-    description: 'Check OS version and performance',
-    icon: ShieldCheckIcon,
-    status: 'pending',
-    required: true,
-    estimatedTime: '2 min',
-    details: ['OS version', 'Performance test', 'Factory reset check', 'Account removal']
-  },
-  {
-    id: 10,
-    title: 'Photo Documentation',
-    description: 'Capture comprehensive device photos',
-    icon: PhotoIcon,
-    status: 'pending',
-    required: true,
-    estimatedTime: '4 min',
-    details: ['360° device photos', 'Screen condition', 'Defect documentation', 'Serial number']
-  }
-]
-
 export default function AgentVerification() {
   const searchParams = useSearchParams()
   const taskId = searchParams.get('taskId')
+  const router = useRouter()
   
   // State management
   const [currentStep, setCurrentStep] = useState(1)
-  const [steps, setSteps] = useState(verificationSteps)
+  const [steps, setSteps] = useState<VerificationStep[]>([])
+  const [currentBatch, setCurrentBatch] = useState(0)
   const [verificationStarted, setVerificationStarted] = useState(false)
+  const [verificationComplete, setVerificationComplete] = useState(false)
+  const [showVerificationNotes, setShowVerificationNotes] = useState(false)
+  const [verificationNotes, setVerificationNotes] = useState('')
   const [deductions, setDeductions] = useState<Deduction[]>([])
   const [batteryHealth, setBatteryHealth] = useState<number | null>(null)
-  const [verificationComplete, setVerificationComplete] = useState(false)
-  const [showDeductionsStep, setShowDeductionsStep] = useState(false)
   const [showDeductionForm, setShowDeductionForm] = useState(false)
+  const [isSubmittingVerification, setIsSubmittingVerification] = useState(false)
+  const [showDeductionsStep, setShowDeductionsStep] = useState(false)
   const [newDeduction, setNewDeduction] = useState({
     category: '',
     issue: '',
     amount: 0,
     severity: 'minor' as 'minor' | 'major' | 'critical'
   })
-  
+  const [isStartingVerification, setIsStartingVerification] = useState(false)
+  const [startVerificationError, setStartVerificationError] = useState<string | null>(null)
+
+  // Constants for batch processing
+  const STEPS_PER_BATCH = 5
+
+  // Calculate batch information
+  const totalBatches = Math.ceil(steps.length / STEPS_PER_BATCH)
+  const currentBatchSteps = steps.slice(
+    currentBatch * STEPS_PER_BATCH,
+    (currentBatch + 1) * STEPS_PER_BATCH
+  )
+
   // Device info state
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo>(initialDeviceInfo)
   const [isLoadingDevice, setIsLoadingDevice] = useState(true)
   const [deviceLoadError, setDeviceLoadError] = useState<string | null>(null)
+
+  // Client configs checklist state
+  const [clientConfigs, setClientConfigs] = useState<ClientConfig[]>([])
+  const [isLoadingConfigs, setIsLoadingConfigs] = useState(true)
+  const [configsError, setConfigsError] = useState<string | null>(null)
+
+  // Fetch client configs checklist when component mounts
+  useEffect(() => {
+    const fetchClientConfigs = async () => {
+      setIsLoadingConfigs(true)
+      setConfigsError(null)
+
+      try {
+        console.log('⚙️ [AGENT-VERIFICATION] Fetching client configs checklist...')
+        
+        const response = await sellikoClient.getClientConfigsChecklist() as ClientConfigsResponse
+
+        if (response.success && response.configs) {
+          console.log('✅ [AGENT-VERIFICATION] Client configs loaded successfully:', response.configs)
+          setClientConfigs(response.configs)
+          
+          // Transform configs to verification steps
+          const verificationSteps = transformConfigsToSteps(response.configs)
+          setSteps(verificationSteps)
+
+          // Generate random test data for verification steps
+          const randomTestData = generateRandomTestData(verificationSteps)
+          setSteps(randomTestData)
+
+          // Add random verification notes for testing
+          const testNotes = [
+            'Device is in good overall condition. All major functions working properly.',
+            'Minor cosmetic wear visible but does not affect functionality. Screen is clear and responsive.',
+            'Battery health is acceptable. Device has been well maintained by the owner.',
+            'Some signs of normal usage but no major issues found during verification process.',
+            'Excellent condition device. Owner has taken good care of it. All features tested and working.'
+          ]
+          setVerificationNotes(testNotes[Math.floor(Math.random() * testNotes.length)])
+        } else {
+          console.error('❌ [AGENT-VERIFICATION] Failed to fetch client configs:', response.error)
+          setConfigsError(response.error || 'Failed to load client configurations')
+        }
+      } catch (error) {
+        console.error('💥 [AGENT-VERIFICATION] Error fetching client configs:', error)
+        setConfigsError('Network error occurred while loading configurations')
+      } finally {
+        setIsLoadingConfigs(false)
+      }
+    }
+
+    fetchClientConfigs()
+  }, [])
 
   // Fetch listing data when component mounts
   useEffect(() => {
@@ -351,7 +450,7 @@ export default function AgentVerification() {
           const pickupAddress = listing.addresses.find(addr => addr.type === 'pickup')
           
           // Get the winning bid amount
-          const winningBid = listing.bids.find(bid => bid.status === 'won')
+          const winningBid = (listing.all_bids || []).find((bid: any) => bid.status === 'won')
           const bidAmount = winningBid ? winningBid.bid_amount : listing.asking_price
           
           // Collect all available device images
@@ -395,7 +494,8 @@ export default function AgentVerification() {
             accountHolderName: clientAddress.account_holder_name,
             pickupAddress: pickupAddress?.address || clientAddress.address,
             pickupPincode: pickupAddress?.pincode || clientAddress.pincode,
-            pickupTime: pickupAddress?.pickup_time || 'To be confirmed'
+            pickupTime: pickupAddress?.pickup_time || 'To be confirmed',
+            status: listing.status
           }
 
           setDeviceInfo(transformedDeviceInfo)
@@ -417,9 +517,47 @@ export default function AgentVerification() {
     fetchListingData()
   }, [taskId])
 
-  const startVerification = () => {
-    setVerificationStarted(true)
-    updateStepStatus(1, 'in_progress')
+  const startVerification = async () => {
+    if (!taskId) {
+      toast.error('Task ID is missing')
+      return
+    }
+
+    setIsStartingVerification(true)
+    setStartVerificationError(null)
+
+    try {
+      console.log('🚀 [VERIFICATION] Starting verification process for listing:', taskId)
+      
+      // Call the start-verification API
+      const result = await sellikoClient.startVerification(taskId) as StartVerificationResponse
+      
+      if (result.success) {
+        console.log('✅ [VERIFICATION] Start verification API call successful')
+        toast.success('Verification process started successfully')
+        
+        // Now show the verification form
+        setVerificationStarted(true)
+        setCurrentBatch(0)
+        setCurrentStep(0)
+        
+        // Update all steps to pending status
+        setSteps(prevSteps => 
+          prevSteps.map(step => ({ ...step, status: 'pending' }))
+        )
+      } else {
+        console.error('❌ [VERIFICATION] Start verification API call failed:', result.error)
+        setStartVerificationError(result.error || 'Failed to start verification process')
+        toast.error(result.error || 'Failed to start verification process')
+      }
+    } catch (error) {
+      console.error('💥 [VERIFICATION] Start verification error:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Network error occurred'
+      setStartVerificationError(errorMessage)
+      toast.error(errorMessage)
+    } finally {
+      setIsStartingVerification(false)
+    }
   }
 
   const updateStepStatus = (stepId: number, status: 'pending' | 'in_progress' | 'completed' | 'failed') => {
@@ -428,20 +566,146 @@ export default function AgentVerification() {
     ))
   }
 
-  const completeStep = (stepId: number, success: boolean = true) => {
-    updateStepStatus(stepId, success ? 'completed' : 'failed')
-    if (success && stepId < steps.length) {
-      setCurrentStep(stepId + 1)
-      updateStepStatus(stepId + 1, 'in_progress')
-    } else if (success && stepId === steps.length) {
-      // After all verification steps, show deductions step
-      setShowDeductionsStep(true)
+  const completeCurrentBatch = () => {
+    const batchSteps = currentBatchSteps
+    const allBatchStepsHaveValues = batchSteps.every(step => {
+      switch (step.type) {
+        case 'image':
+          return step.value instanceof File
+        case 'bool':
+          return step.value !== null && step.value !== undefined
+        case 'text':
+          return step.value && step.value.trim().length > 0
+        default:
+          return true
+      }
+    })
+
+    if (!allBatchStepsHaveValues) {
+      return false // Cannot complete batch
     }
+
+    // Mark all steps in current batch as completed or failed based on their values
+    setSteps(prev => prev.map(step => {
+      if (batchSteps.some(batchStep => batchStep.id === step.id)) {
+        // Determine status based on value for bool type
+        if (step.type === 'bool' && step.value === false) {
+          return { ...step, status: 'failed' }
+        } else if (step.value !== null && step.value !== undefined) {
+          return { ...step, status: 'completed' }
+        }
+      }
+      return step
+    }))
+
+    // Move to next batch or complete verification
+    if (currentBatch < totalBatches - 1) {
+      setCurrentBatch(currentBatch + 1)
+      // Set next batch steps to in_progress
+      const nextBatchSteps = steps.slice((currentBatch + 1) * STEPS_PER_BATCH, (currentBatch + 2) * STEPS_PER_BATCH)
+      setSteps(prev => prev.map(step => 
+        nextBatchSteps.some(batchStep => batchStep.id === step.id) 
+          ? { ...step, status: 'in_progress' } 
+          : step
+      ))
+    } else {
+      // All batches completed, show verification notes
+      setShowVerificationNotes(true)
+    }
+
+    return true
   }
 
-  const completeDeductionsStep = () => {
-    setShowDeductionsStep(false)
-    setVerificationComplete(true)
+  const completeVerificationWithNotes = () => {
+    setShowVerificationNotes(false)
+    setShowDeductionsStep(true)
+  }
+
+  // Update step value for different input types
+  const updateStepValue = (stepId: number, value: any) => {
+    setSteps(prev => prev.map(step => 
+      step.id === stepId ? { ...step, value } : step
+    ))
+  }
+
+  // Render input based on step type
+  const renderStepInput = (step: VerificationStep) => {
+    switch (step.type) {
+      case 'image':
+        return (
+          <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              {step.title}
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) {
+                  updateStepValue(step.id, file)
+                }
+              }}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            />
+            {step.value && (
+              <div className="mt-2 text-sm text-green-600">
+                ✓ Image selected: {step.value.name}
+              </div>
+            )}
+          </div>
+        )
+      
+      case 'bool':
+        return (
+          <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              {step.title}
+            </label>
+            <div className="flex space-x-4">
+              <button
+                onClick={() => updateStepValue(step.id, true)}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  step.value === true 
+                    ? 'bg-green-600 text-white' 
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                ✓ Pass
+              </button>
+              <button
+                onClick={() => updateStepValue(step.id, false)}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  step.value === false 
+                    ? 'bg-red-600 text-white' 
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                ✗ Fail
+              </button>
+            </div>
+          </div>
+        )
+      
+      case 'text':
+        return (
+          <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              {step.title}
+            </label>
+            <input
+              type="text"
+              value={step.value || ''}
+              onChange={(e) => updateStepValue(step.id, e.target.value)}
+              placeholder={`Enter ${step.title.toLowerCase()}...`}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            />
+          </div>
+        )
+      
+      default:
+        return null
+    }
   }
 
   const addDeduction = () => {
@@ -458,6 +722,79 @@ export default function AgentVerification() {
 
   const removeDeduction = (id: string) => {
     setDeductions(deductions.filter(d => d.id !== id))
+  }
+
+  // Function to collect all verification data as JSON
+  const collectVerificationData = () => {
+    const finalOfferValue = deviceInfo.vendorBid - deductions.reduce((sum, d) => sum + d.amount, 0)
+    
+    const verificationData = steps.map(step => ({
+      id: step.id,
+      item: step.title,
+      type: step.type,
+      category: step.category,
+      value: step.value
+    }))
+
+    const collectedData = {
+      verification_data: verificationData,
+      verification_note: verificationNotes,
+      deductions: deductions.map(deduction => ({
+        id: deduction.id,
+        category: deduction.category,
+        issue: deduction.issue,
+        amount: deduction.amount,
+        severity: deduction.severity
+      })),
+      offer_value: finalOfferValue
+    }
+
+    console.log('🚀 [VERIFICATION-COMPLETE] Collected Form Data:', JSON.stringify(collectedData, null, 2))
+    return collectedData
+  }
+
+  const completeDeductionsAndMakeOffer = async () => {
+    if (isSubmittingVerification) return
+
+    setIsSubmittingVerification(true)
+    
+    try {
+      // Validate taskId exists
+      if (!taskId) {
+        toast.error('Task ID is missing')
+        return
+      }
+
+      // Collect all verification data
+      const verificationData = collectVerificationData()
+      
+      console.log('🚀 [VERIFICATION] Submitting verification to server...')
+      
+      // Call the verify API
+      const result = await sellikoClient.verifyListing(
+        taskId, // listing_id (now guaranteed to be non-null)
+        verificationData.verification_data,
+        verificationData.verification_note,
+        verificationData.deductions,
+        verificationData.offer_value
+      ) as { success: boolean; error?: string; message?: string }
+
+      if (result.success) {
+        console.log('✅ [VERIFICATION] Verification submitted successfully')
+        toast.success('Verification completed successfully!')
+        
+        // Redirect to agent dashboard
+        router.push('/agent')
+      } else {
+        console.error('❌ [VERIFICATION] Verification submission failed:', result.error)
+        toast.error(result.error || 'Failed to submit verification')
+      }
+    } catch (error) {
+      console.error('💥 [VERIFICATION] Error submitting verification:', error)
+      toast.error('Network error occurred while submitting verification')
+    } finally {
+      setIsSubmittingVerification(false)
+    }
   }
 
   const totalDeductions = deductions.reduce((sum, d) => sum + d.amount, 0)
@@ -495,260 +832,344 @@ export default function AgentVerification() {
   }
 
   const completedSteps = steps.filter(step => step.status === 'completed').length
-  const progressPercentage = (completedSteps / steps.length) * 100
+  const failedSteps = steps.filter(step => step.status === 'failed').length
+  const processedSteps = completedSteps + failedSteps
+  const progressPercentage = steps.length > 0 ? (processedSteps / steps.length) * 100 : 0
 
-  // Deductions Input Step
-  if (showDeductionsStep) {
+  // Check if current batch can be completed
+  const canCompleteBatch = () => {
+    return currentBatchSteps.every(step => {
+      switch (step.type) {
+        case 'image':
+          return step.value instanceof File
+        case 'bool':
+          return step.value !== null && step.value !== undefined
+        case 'text':
+          return step.value && step.value.trim().length > 0
+        default:
+          return true
+      }
+    })
+  }
+
+  // Show verification notes section
+  if (showVerificationNotes) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
-              <h1 className="text-2xl font-bold text-gray-900">Assessment & Deductions</h1>
-              <span className="text-sm text-gray-600">Final Step</span>
+              <h1 className="text-2xl font-bold text-gray-900">Verification Complete - Add Notes</h1>
+              <span className="text-sm text-gray-600">All steps completed</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-orange-600 h-2 rounded-full" style={{ width: '90%' }}></div>
+              <div className="bg-green-600 h-2 rounded-full" style={{ width: '100%' }}></div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Main Deductions Form */}
-            <div className="lg:col-span-2">
-              <div className="card-mobile bg-white/80 backdrop-blur-sm p-6">
-                <div className="flex items-center space-x-4 mb-6">
-                  <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
-                    <CurrencyRupeeIcon className="w-6 h-6 text-orange-600" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-semibold text-gray-900">Enter Deductions</h2>
-                    <p className="text-gray-600">Add any deductions based on device condition found during verification</p>
-                  </div>
-                </div>
+          <div className="card-mobile bg-white/80 backdrop-blur-sm p-6">
+            <div className="flex items-center space-x-4 mb-6">
+              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                <CheckCircleSolid className="w-6 h-6 text-green-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Verification Summary</h2>
+                <p className="text-gray-600">All verification steps have been completed. Add any additional notes below.</p>
+              </div>
+            </div>
 
-                {/* Device Condition Summary */}
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-                  <h3 className="font-semibold text-green-900 mb-2">Verification Summary</h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-green-700">Steps Completed:</span>
-                      <span className="ml-2 font-medium">{completedSteps}/{steps.length}</span>
-                    </div>
-                    {batteryHealth && (
-                      <div>
-                        <span className="text-green-700">Battery Health:</span>
-                        <span className="ml-2 font-medium">{batteryHealth}%</span>
+            {/* Verification Summary */}
+            <div className="bg-gray-50 rounded-xl p-6 mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Verification Results</h3>
+              <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+                <div>
+                  <span className="text-gray-600">Total Steps:</span>
+                  <span className="ml-2 font-medium">{steps.length}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Completed:</span>
+                  <span className="ml-2 font-medium text-green-600">{completedSteps}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Failed:</span>
+                  <span className="ml-2 font-medium text-red-600">{failedSteps}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Success Rate:</span>
+                  <span className="ml-2 font-medium">{Math.round((completedSteps / steps.length) * 100)}%</span>
+                </div>
+              </div>
+
+              {/* Failed Steps Summary */}
+              {failedSteps > 0 && (
+                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <h4 className="font-semibold text-red-900 mb-2">Issues Found:</h4>
+                  <div className="space-y-1">
+                    {steps.filter(step => step.status === 'failed').map(step => (
+                      <div key={step.id} className="text-sm text-red-800">
+                        • {step.title}
                       </div>
-                    )}
+                    ))}
                   </div>
                 </div>
+              )}
+            </div>
 
-                {/* Add Deduction Button */}
-                <div className="mb-6">
-                  <button
-                    onClick={() => setShowDeductionForm(!showDeductionForm)}
-                    className="inline-flex items-center px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium"
+            {/* Verification Notes */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Verification Notes (Optional)
+              </label>
+              <textarea
+                value={verificationNotes}
+                onChange={(e) => setVerificationNotes(e.target.value)}
+                placeholder="Add any additional observations, concerns, or recommendations about the device..."
+                rows={6}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Document any specific issues, recommendations, or additional observations from the verification process.
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex space-x-4">
+              <button
+                onClick={completeVerificationWithNotes}
+                className="flex-1 px-6 py-4 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors font-semibold text-lg"
+              >
+                Complete Verification & Continue
+              </button>
+              <button
+                onClick={() => setCurrentBatch(Math.max(0, currentBatch - 1))}
+                className="px-6 py-4 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-semibold"
+              >
+                Back to Review
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Show deductions step
+  if (showDeductionsStep) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Header */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h1 className="text-2xl font-bold text-gray-900">Add Deductions & Make Offer</h1>
+              <span className="text-sm text-gray-600">Final step</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="bg-green-600 h-2 rounded-full" style={{ width: '100%' }}></div>
+            </div>
+          </div>
+
+          <div className="card-mobile bg-white/80 backdrop-blur-sm p-6">
+            {/* Current Offer Summary */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <h3 className="font-semibold text-blue-900 mb-3">Current Offer Calculation</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-blue-700">Original Vendor Bid:</span>
+                  <span className="font-semibold text-blue-900">₹{deviceInfo.vendorBid.toLocaleString()}</span>
+                </div>
+                {deductions.map((deduction) => (
+                  <div key={deduction.id} className="flex justify-between text-red-600">
+                    <span>{deduction.issue}:</span>
+                    <span>-₹{deduction.amount.toLocaleString()}</span>
+                  </div>
+                ))}
+                <div className="border-t border-blue-200 pt-2 flex justify-between text-lg font-bold">
+                  <span className="text-blue-900">Final Offer:</span>
+                  <span className="text-green-600">₹{(deviceInfo.vendorBid - deductions.reduce((sum, d) => sum + d.amount, 0)).toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Add Deduction Form */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-gray-900">Deductions</h3>
+                <button
+                  onClick={() => setShowDeductionForm(!showDeductionForm)}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                >
+                  {showDeductionForm ? 'Cancel' : 'Add Deduction'}
+                </button>
+              </div>
+
+              {showDeductionForm && (
+                <div className="space-y-4 p-4 bg-gray-50 rounded-lg mb-4">
+                  <select
+                    value={newDeduction.category}
+                    onChange={(e) => setNewDeduction({ ...newDeduction, category: e.target.value })}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   >
-                    <CurrencyRupeeIcon className="w-5 h-5 mr-2" />
-                    {showDeductionForm ? 'Cancel' : 'Add Deduction'}
+                    <option value="">Select Category</option>
+                    <option value="Screen">Screen Issues</option>
+                    <option value="Battery">Battery Problems</option>
+                    <option value="Body">Physical Damage</option>
+                    <option value="Camera">Camera Issues</option>
+                    <option value="Audio">Audio Problems</option>
+                    <option value="Connectivity">Connectivity Issues</option>
+                    <option value="Software">Software Problems</option>
+                  </select>
+                  <input
+                    type="text"
+                    value={newDeduction.issue}
+                    onChange={(e) => setNewDeduction({ ...newDeduction, issue: e.target.value })}
+                    placeholder="Describe the specific issue found"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <input
+                      type="number"
+                      value={newDeduction.amount}
+                      onChange={(e) => setNewDeduction({ ...newDeduction, amount: parseInt(e.target.value) || 0 })}
+                      placeholder="Deduction amount (₹)"
+                      className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    />
+                    <select
+                      value={newDeduction.severity}
+                      onChange={(e) => setNewDeduction({ ...newDeduction, severity: e.target.value as 'minor' | 'major' | 'critical' })}
+                      className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    >
+                      <option value="minor">Minor Issue</option>
+                      <option value="major">Major Issue</option>
+                      <option value="critical">Critical Issue</option>
+                    </select>
+                  </div>
+                  <button
+                    onClick={addDeduction}
+                    disabled={!newDeduction.category || !newDeduction.issue || newDeduction.amount <= 0}
+                    className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  >
+                    Add Deduction
                   </button>
                 </div>
+              )}
 
-                {/* Deduction Form */}
-                {showDeductionForm && (
-                  <div className="space-y-4 mb-6 p-6 bg-gray-50 rounded-xl border">
-                    <h4 className="font-semibold text-gray-900">New Deduction</h4>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-                        <select
-                          value={newDeduction.category}
-                          onChange={(e) => setNewDeduction({ ...newDeduction, category: e.target.value })}
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                        >
-                          <option value="">Select Category</option>
-                          <option value="Screen">Screen Issues</option>
-                          <option value="Battery">Battery Problems</option>
-                          <option value="Body">Physical Damage</option>
-                          <option value="Camera">Camera Issues</option>
-                          <option value="Audio">Audio Problems</option>
-                          <option value="Connectivity">Connectivity Issues</option>
-                          <option value="Software">Software Problems</option>
-                          <option value="Accessories">Missing Accessories</option>
-                        </select>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Severity</label>
-                        <select
-                          value={newDeduction.severity}
-                          onChange={(e) => setNewDeduction({ ...newDeduction, severity: e.target.value as 'minor' | 'major' | 'critical' })}
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                        >
-                          <option value="minor">Minor</option>
-                          <option value="major">Major</option>
-                          <option value="critical">Critical</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Issue Description</label>
-                      <textarea
-                        value={newDeduction.issue}
-                        onChange={(e) => setNewDeduction({ ...newDeduction, issue: e.target.value })}
-                        placeholder="Describe the specific issue found..."
-                        rows={3}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Deduction Amount (₹)</label>
-                      <input
-                        type="number"
-                        value={newDeduction.amount}
-                        onChange={(e) => setNewDeduction({ ...newDeduction, amount: parseInt(e.target.value) || 0 })}
-                        placeholder="Enter deduction amount"
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                        min="0"
-                      />
-                    </div>
-
-                    <div className="flex space-x-3">
-                      <button
-                        onClick={addDeduction}
-                        disabled={!newDeduction.category || !newDeduction.issue || newDeduction.amount <= 0}
-                        className="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Add Deduction
-                      </button>
-                      <button
-                        onClick={() => setShowDeductionForm(false)}
-                        className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
-                      >
-                        Cancel
-                      </button>
-                    </div>
+              {/* Existing Deductions List */}
+              <div className="space-y-3">
+                {deductions.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <CheckCircleIcon className="w-12 h-12 mx-auto mb-2 text-green-500" />
+                    <p>No deductions added</p>
+                    <p className="text-sm">Device appears to be in good condition</p>
                   </div>
+                ) : (
+                  deductions.map((deduction) => (
+                    <div key={deduction.id} className="flex items-center justify-between p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="flex-1">
+                        <div className="font-medium text-red-900">{deduction.issue}</div>
+                        <div className="text-sm text-red-600 mt-1">
+                          <span className="capitalize">{deduction.category}</span>
+                          <span className="mx-2">•</span>
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(deduction.severity)}`}>
+                            {deduction.severity}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <span className="font-semibold text-red-900 text-lg">₹{deduction.amount.toLocaleString()}</span>
+                        <button
+                          onClick={() => removeDeduction(deduction.id)}
+                          className="text-red-600 hover:text-red-800 transition-colors"
+                        >
+                          <XMarkIcon className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
                 )}
-
-                {/* Current Deductions List */}
-                <div className="space-y-3 mb-8">
-                  <h4 className="font-semibold text-gray-900">Applied Deductions</h4>
-                  {deductions.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      <CurrencyRupeeIcon className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                      <p>No deductions applied</p>
-                      <p className="text-sm">Device is in excellent condition</p>
-                    </div>
-                  ) : (
-                    deductions.map((deduction) => (
-                      <div key={deduction.id} className="flex items-center justify-between p-4 bg-red-50 border border-red-200 rounded-lg">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
-                            <span className="font-medium text-red-900">{deduction.category}</span>
-                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getSeverityColor(deduction.severity)}`}>
-                              {deduction.severity.toUpperCase()}
-                            </span>
-                          </div>
-                          <p className="text-red-800 text-sm">{deduction.issue}</p>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <span className="font-bold text-red-900 text-lg">₹{deduction.amount.toLocaleString()}</span>
-                          <button
-                            onClick={() => removeDeduction(deduction.id)}
-                            className="text-red-600 hover:text-red-800 p-1"
-                          >
-                            <XMarkIcon className="w-5 h-5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex space-x-4">
-                  <button
-                    onClick={completeDeductionsStep}
-                    className="flex-1 px-6 py-4 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-semibold text-lg"
-                  >
-                    Complete Assessment
-                  </button>
-                  <button
-                    onClick={() => setShowDeductionsStep(false)}
-                    className="px-6 py-4 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-semibold"
-                  >
-                    Back to Verification
-                  </button>
-                </div>
               </div>
             </div>
 
-            {/* Sidebar - Price Summary */}
-            <div className="space-y-6">
-              {/* Device Info */}
-              <div className="card-mobile bg-white/80 backdrop-blur-sm p-6">
-                <h3 className="font-semibold text-gray-900 mb-4">Device Summary</h3>
-                <div className="space-y-3 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Device:</span>
-                    <span className="font-medium">{deviceInfo.device}</span>
+            {/* Action Buttons */}
+            <div className="flex space-x-4">
+              <button
+                onClick={() => {
+                  setShowDeductionsStep(false)
+                  setShowVerificationNotes(true)
+                }}
+                disabled={isSubmittingVerification}
+                className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Back to Notes
+              </button>
+              <button
+                onClick={completeDeductionsAndMakeOffer}
+                disabled={isSubmittingVerification}
+                className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmittingVerification ? (
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                    Submitting...
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Seller:</span>
-                    <span className="font-medium">{deviceInfo.seller}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Original Bid:</span>
-                    <span className="font-semibold text-green-600">₹{deviceInfo.vendorBid.toLocaleString()}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Price Calculation */}
-              <div className="card-mobile bg-white/80 backdrop-blur-sm p-6">
-                <h3 className="font-semibold text-gray-900 mb-4">Final Price Calculation</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between text-lg">
-                    <span className="text-gray-700">Original Bid:</span>
-                    <span className="font-semibold">₹{deviceInfo.vendorBid.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-red-600">
-                    <span>Total Deductions:</span>
-                    <span className="font-semibold">-₹{totalDeductions.toLocaleString()}</span>
-                  </div>
-                  <div className="border-t pt-3 flex justify-between text-xl font-bold">
-                    <span className="text-gray-900">Final Offer:</span>
-                    <span className="text-green-600">₹{finalOffer.toLocaleString()}</span>
-                  </div>
-                  {batteryHealth && (
-                    <div className="text-sm text-gray-500 pt-2 border-t">
-                      Battery Health: {batteryHealth}%
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Verification Status */}
-              <div className="card-mobile bg-white/80 backdrop-blur-sm p-6">
-                <h3 className="font-semibold text-gray-900 mb-4">Verification Status</h3>
-                <div className="space-y-2">
-                  {steps.map((step) => (
-                    <div key={step.id} className="flex items-center space-x-3 text-sm">
-                      {getStepIcon(step)}
-                      <span className={`${step.status === 'completed' ? 'text-green-700' : step.status === 'failed' ? 'text-red-700' : 'text-gray-600'}`}>
-                        {step.title}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+                ) : (
+                  `Make Offer • ₹${(deviceInfo.vendorBid - deductions.reduce((sum, d) => sum + d.amount, 0)).toLocaleString()}`
+                )}
+              </button>
             </div>
           </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Show loading state if configs haven't loaded yet
+  if (isLoadingConfigs) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <Icons.spinner className="h-8 w-8 animate-spin text-purple-600 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900">Loading Verification Checklist...</h3>
+          <p className="text-gray-600">Fetching configuration from server</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show error state if configs failed to load
+  if (configsError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <ExclamationTriangleIcon className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Failed to Load Verification Checklist</h3>
+          <p className="text-red-600 mb-4">{configsError}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Show message if no steps available
+  if (steps.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <ClipboardDocumentListIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Verification Steps Found</h3>
+          <p className="text-gray-600 mb-4">No verification checklist items are configured.</p>
+          <Link
+            href="/agent"
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            Back to Dashboard
+          </Link>
         </div>
       </div>
     )
@@ -757,7 +1178,7 @@ export default function AgentVerification() {
   if (verificationComplete) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="card-mobile bg-white/80 backdrop-blur-sm p-8 text-center">
             <CheckCircleSolid className="w-16 h-16 text-green-600 mx-auto mb-6" />
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Verification Complete!</h2>
@@ -1058,13 +1479,46 @@ export default function AgentVerification() {
 
           {/* Start Button */}
           <div className="text-center">
-            <button
-              onClick={startVerification}
-              className="inline-flex items-center px-8 py-4 bg-purple-600 text-white text-lg font-semibold rounded-xl hover:bg-purple-700 transition-colors shadow-lg"
-            >
-              <PlayIcon className="w-6 h-6 mr-3" />
-              Start Verification Process
-            </button>
+            {startVerificationError && (
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-700 text-sm">{startVerificationError}</p>
+              </div>
+            )}
+            {/* Check if device is ready for pickup */}
+            {deviceInfo && deviceInfo.status === 'ready_for_pickup' ? (
+              <button
+                onClick={() => {
+                  // Handle pickup logic here
+                  toast.success('Pickup process initiated')
+                }}
+                className="inline-flex items-center px-8 py-4 text-lg font-semibold rounded-xl transition-colors shadow-lg bg-orange-600 text-white hover:bg-orange-700"
+              >
+                <TruckIcon className="w-6 h-6 mr-3" />
+                Pickup
+              </button>
+            ) : (
+              <button
+                onClick={startVerification}
+                disabled={isStartingVerification}
+                className={`inline-flex items-center px-8 py-4 text-lg font-semibold rounded-xl transition-colors shadow-lg ${
+                  isStartingVerification
+                    ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                    : 'bg-purple-600 text-white hover:bg-purple-700'
+                }`}
+              >
+                {isStartingVerification ? (
+                  <>
+                    <div className="w-6 h-6 mr-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Starting Verification...
+                  </>
+                ) : (
+                  <>
+                    <PlayIcon className="w-6 h-6 mr-3" />
+                    Start Verification Process
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -1077,8 +1531,10 @@ export default function AgentVerification() {
         {/* Progress Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold text-gray-900">Device Verification in Progress</h1>
-            <span className="text-sm text-gray-600">Step {currentStep} of {steps.length}</span>
+            <h1 className="text-2xl font-bold text-gray-900">Device Verification</h1>
+            <span className="text-sm text-gray-600">
+              Batch {currentBatch + 1} of {totalBatches} • Steps {currentBatch * STEPS_PER_BATCH + 1}-{Math.min((currentBatch + 1) * STEPS_PER_BATCH, steps.length)} of {steps.length}
+            </span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div 
@@ -1089,62 +1545,56 @@ export default function AgentVerification() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Current Step */}
+          {/* Current Batch Steps */}
           <div className="lg:col-span-2">
             <div className="card-mobile bg-white/80 backdrop-blur-sm p-6">
-              {currentStep <= steps.length && (
-                <div>
-                  <div className="flex items-center space-x-4 mb-6">
-                    {getStepIcon(steps[currentStep - 1])}
-                    <div>
-                      <h2 className="text-xl font-semibold text-gray-900">{steps[currentStep - 1].title}</h2>
-                      <p className="text-gray-600">{steps[currentStep - 1].description}</p>
-                    </div>
-                  </div>
+              <div className="mb-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                  Verification Steps {currentBatch * STEPS_PER_BATCH + 1}-{Math.min((currentBatch + 1) * STEPS_PER_BATCH, steps.length)}
+                </h2>
+                <p className="text-gray-600">Complete all fields in this section to continue.</p>
+              </div>
 
-                  <div className="space-y-4 mb-6">
-                    {steps[currentStep - 1].details?.map((detail, index) => (
-                      <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                        <CheckCircleIcon className="w-5 h-5 text-gray-400" />
-                        <span className="text-gray-700">{detail}</span>
+              <div className="space-y-6">
+                {currentBatchSteps.map((step, index) => (
+                  <div key={step.id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center space-x-3 mb-4">
+                      {getStepIcon(step)}
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900">{step.title}</h3>
+                        <p className="text-sm text-gray-600">{step.description}</p>
                       </div>
-                    ))}
-                  </div>
-
-                  {/* Battery Health Input */}
-                  {currentStep === 4 && (
-                    <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Battery Health Percentage
-                      </label>
-                      <input
-                        type="number"
-                        value={batteryHealth || ''}
-                        onChange={(e) => setBatteryHealth(parseInt(e.target.value))}
-                        placeholder="Enter battery health %"
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        min="0"
-                        max="100"
-                      />
+                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                        {currentBatch * STEPS_PER_BATCH + index + 1}
+                      </span>
                     </div>
-                  )}
-
-                  <div className="flex space-x-4">
-                    <button
-                      onClick={() => completeStep(currentStep)}
-                      className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-                    >
-                      Mark as Complete
-                    </button>
-                    <button
-                      onClick={() => completeStep(currentStep, false)}
-                      className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
-                    >
-                      Mark as Failed
-                    </button>
+                    
+                    {renderStepInput(step)}
                   </div>
-                </div>
-              )}
+                ))}
+              </div>
+
+              <div className="mt-8 flex space-x-4">
+                <button
+                  onClick={completeCurrentBatch}
+                  disabled={!canCompleteBatch()}
+                  className={`flex-1 px-6 py-3 rounded-lg font-medium transition-colors ${
+                    canCompleteBatch()
+                      ? 'bg-purple-600 text-white hover:bg-purple-700'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  {currentBatch < totalBatches - 1 ? 'Complete Batch & Continue' : 'Complete Final Batch'}
+                </button>
+                {currentBatch > 0 && (
+                  <button
+                    onClick={() => setCurrentBatch(currentBatch - 1)}
+                    className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                  >
+                    Previous Batch
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1165,100 +1615,6 @@ export default function AgentVerification() {
                     </span>
                   </div>
                 ))}
-              </div>
-            </div>
-
-            {/* Deductions */}
-            <div className="card-mobile bg-white/80 backdrop-blur-sm p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-900">Deductions</h3>
-                <button
-                  onClick={() => setShowDeductionForm(!showDeductionForm)}
-                  className="text-sm text-purple-600 hover:text-purple-700 font-medium"
-                >
-                  {showDeductionForm ? 'Cancel' : 'Add Deduction'}
-                </button>
-              </div>
-
-              {showDeductionForm && (
-                <div className="space-y-3 mb-4 p-4 bg-gray-50 rounded-lg">
-                  <select
-                    value={newDeduction.category}
-                    onChange={(e) => setNewDeduction({ ...newDeduction, category: e.target.value })}
-                    className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500"
-                  >
-                    <option value="">Select Category</option>
-                    <option value="Screen">Screen Issues</option>
-                    <option value="Battery">Battery Problems</option>
-                    <option value="Body">Physical Damage</option>
-                    <option value="Camera">Camera Issues</option>
-                    <option value="Audio">Audio Problems</option>
-                    <option value="Connectivity">Connectivity Issues</option>
-                    <option value="Software">Software Problems</option>
-                  </select>
-                  <input
-                    type="text"
-                    value={newDeduction.issue}
-                    onChange={(e) => setNewDeduction({ ...newDeduction, issue: e.target.value })}
-                    placeholder="Describe the issue"
-                    className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500"
-                  />
-                  <div className="flex space-x-2">
-                    <input
-                      type="number"
-                      value={newDeduction.amount}
-                      onChange={(e) => setNewDeduction({ ...newDeduction, amount: parseInt(e.target.value) || 0 })}
-                      placeholder="Amount"
-                      className="flex-1 p-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500"
-                    />
-                    <select
-                      value={newDeduction.severity}
-                      onChange={(e) => setNewDeduction({ ...newDeduction, severity: e.target.value as 'minor' | 'major' | 'critical' })}
-                      className="p-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500"
-                    >
-                      <option value="minor">Minor</option>
-                      <option value="major">Major</option>
-                      <option value="critical">Critical</option>
-                    </select>
-                  </div>
-                  <button
-                    onClick={addDeduction}
-                    className="w-full py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
-                  >
-                    Add Deduction
-                  </button>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                {deductions.map((deduction) => (
-                  <div key={deduction.id} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-                    <div>
-                      <div className="font-medium text-red-900">{deduction.issue}</div>
-                      <div className="text-sm text-red-600">{deduction.category} • {deduction.severity}</div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-semibold text-red-900">₹{deduction.amount.toLocaleString()}</span>
-                      <button
-                        onClick={() => removeDeduction(deduction.id)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <XMarkIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="border-t pt-4 mt-4">
-                <div className="flex justify-between text-lg font-semibold">
-                  <span>Total Deductions:</span>
-                  <span className="text-red-600">₹{totalDeductions.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-xl font-bold text-green-600 mt-2">
-                  <span>Final Offer:</span>
-                  <span>₹{finalOffer.toLocaleString()}</span>
-                </div>
               </div>
             </div>
           </div>

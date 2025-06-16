@@ -13,7 +13,8 @@ import {
   UserGroupIcon,
   MapPinIcon,
   ArrowRightIcon,
-  PlayIcon
+  PlayIcon,
+  TruckIcon
 } from '@heroicons/react/24/outline'
 import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid'
 import { useAuth } from '@/lib/auth'
@@ -105,8 +106,8 @@ const getPriorityColor = (priority: string) => {
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'agent_assigned': return 'text-blue-600'
-    case 'in_progress': return 'text-orange-600'
-    case 'scheduled': return 'text-purple-600'
+    case 'verification': return 'text-orange-600'
+    case 'ready_for_pickup': return 'text-green-600'
     default: return 'text-gray-600'
   }
 }
@@ -114,8 +115,8 @@ const getStatusColor = (status: string) => {
 const getStatusText = (status: string) => {
   switch (status) {
     case 'agent_assigned': return 'Ready to Start'
-    case 'in_progress': return 'In Progress'
-    case 'scheduled': return 'Scheduled'
+    case 'verification': return 'In Verification'
+    case 'ready_for_pickup': return 'Ready for Pickup'
     default: return status
   }
 }
@@ -414,13 +415,23 @@ export default function AgentDashboard() {
                         <div className="text-sm text-gray-600">
                           Task ID: {task.id}
                         </div>
-                        <Link
-                          href={`/agent/verification?taskId=${task.listingId}`}
-                          className="inline-flex items-center px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
-                        >
-                          {task.status === 'in_progress' ? 'Continue' : 'Start'} Verification
-                          <ArrowRightIcon className="w-4 h-4 ml-2" />
-                        </Link>
+                        {task.status === 'ready_for_pickup' ? (
+                          <Link
+                            href={`/agent/verification?taskId=${task.listingId}`}
+                            className="inline-flex items-center px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-lg hover:bg-orange-700 transition-colors"
+                          >
+                            <TruckIcon className="w-4 h-4 mr-2" />
+                            Pickup
+                          </Link>
+                        ) : (
+                          <Link
+                            href={`/agent/verification?taskId=${task.listingId}`}
+                            className="inline-flex items-center px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
+                          >
+                            {task.status === 'verification' ? 'Continue' : 'Start'} Verification
+                            <ArrowRightIcon className="w-4 h-4 ml-2" />
+                          </Link>
+                        )}
                       </div>
                     </div>
                   ))}

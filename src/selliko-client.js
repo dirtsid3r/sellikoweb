@@ -3209,6 +3209,436 @@ class SellikoClient {
       }
     }
   }
+
+  // 20. getClientConfigsChecklist - fetch all client configuration checklist entries (authorized users only)
+  /**
+   * Retrieves all entries from the client_configs_checklist table
+   * 
+   * AUTHORIZATION REQUIREMENTS:
+   * - Valid JWT token required in Authorization header
+   * - User must be authenticated (any role)
+   * 
+   * @returns {Promise<Object>} Response with success status and configs array
+   */
+  async getClientConfigsChecklist() {
+    console.log('⚙️ [SELLIKO-CLIENT] getClientConfigsChecklist called')
+
+    try {
+      // Get current user to ensure authenticated
+      const user = await this.getCurrentUser()
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+
+      console.log('👤 [SELLIKO-CLIENT] Current user validation:', {
+        userId: user.id,
+        userRole: user.user_role,
+        normalizedRole: (user.user_role || '').toUpperCase()
+      })
+
+      console.log('✅ [SELLIKO-CLIENT] Authentication validated - proceeding with config checklist retrieval')
+
+      // Get access token
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        throw new Error('No access token found')
+      }
+
+      // Use Supabase REST API endpoint directly
+      const url = `${this.apiBase}rest/v1/client_configs_checklist?select=*&order=id.asc`
+
+      console.log('📤 [SELLIKO-CLIENT] Submitting get client configs checklist request:', {
+        url: url,
+        method: 'GET',
+        hasToken: !!token
+      })
+
+      // Make API request using Supabase REST API
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'apikey': token, // Supabase also uses apikey header
+          'Prefer': 'return=representation'
+        }
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Get client configs checklist response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`HTTP ${response.status}: ${errorText}`)
+      }
+
+      const configs = await response.json()
+      
+      // Transform Supabase response to match expected format
+      const result = {
+        success: true,
+        configs: configs || [],
+        message: 'Configuration retrieved successfully'
+      }
+
+      console.log('📥 [SELLIKO-CLIENT] Get client configs checklist result:', {
+        success: result.success,
+        configCount: result.configs ? result.configs.length : 0,
+        message: result.message
+      })
+
+      // Log config details if available
+      if (result.success && result.configs && result.configs.length > 0) {
+        console.log(`✅ [SELLIKO-CLIENT] Found ${result.configs.length} configuration entries`)
+        result.configs.forEach((config, index) => {
+          console.log(`⚙️ [SELLIKO-CLIENT] Config ${index + 1}:`, {
+            id: config.id,
+            configKey: config.config_key,
+            configValue: config.config_value,
+            description: config.description,
+            isActive: config.is_active,
+            category: config.category,
+            createdAt: config.created_at,
+            updatedAt: config.updated_at
+          })
+        })
+      } else {
+        console.log('ℹ️ [SELLIKO-CLIENT] No configuration entries found')
+      }
+
+      return result
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] getClientConfigsChecklist error:', error)
+      console.error('📋 [SELLIKO-CLIENT] Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      })
+      
+      return {
+        success: false,
+        error: error.message || 'Network error occurred',
+        configs: []
+      }
+    }
+  }
+
+  // 21. verifyListing - submit device verification results with deductions and final offer (agent only)
+  /**
+   * Submits device verification results including form data, deductions, and final offer
+   * 
+   * AUTHORIZATION REQUIREMENTS:
+   * - User role must be 'AGENT'
+   * - Valid JWT token required in Authorization header
+   * 
+   * @param {number|string} listingId - The ID of the listing being verified
+   * @param {Array} verificationData - Array of verification step results
+   * @param {string} verificationNote - Agent's verification notes and observations
+   * @param {Array} deductions - Array of deduction objects for issues found
+   * @param {number} offerValue - Final calculated offer value after deductions
+   * 
+   * @returns {Promise<Object>} Response with success status and verification result
+   */
+  async verifyListing(listingId, verificationData, verificationNote, deductions, offerValue) {
+    console.log('🔍 [SELLIKO-CLIENT] verifyListing called with:', {
+      listingId: listingId,
+      verificationDataCount: verificationData ? verificationData.length : 0,
+      hasVerificationNote: !!verificationNote,
+      deductionsCount: deductions ? deductions.length : 0,
+      offerValue: offerValue,
+      formattedOffer: offerValue ? `₹${offerValue.toLocaleString()}` : 'N/A'
+    })
+
+    try {
+      // Validate inputs
+      if (!listingId) {
+        throw new Error('Listing ID is required')
+      }
+
+      if (!verificationData || !Array.isArray(verificationData) || verificationData.length === 0) {
+        throw new Error('Verification data is required and must be a non-empty array')
+      }
+
+      if (typeof offerValue !== 'number' || offerValue < 0) {
+        throw new Error('Valid offer value is required')
+      }
+
+      // Get current user and validate permissions
+      const user = await this.getCurrentUser()
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+
+      console.log('👤 [SELLIKO-CLIENT] Current user validation:', {
+        userId: user.id,
+        userRole: user.user_role,
+        normalizedRole: (user.user_role || '').toUpperCase()
+      })
+
+      // Validate user role (must be agent)
+      const userRole = (user.user_role || '').toUpperCase()
+      if (userRole !== 'AGENT') {
+        throw new Error(`Only agents can submit verification results. Current role: ${user.user_role}`)
+      }
+
+      console.log('✅ [SELLIKO-CLIENT] Role validation passed - proceeding with verification submission')
+
+      // Get access token
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        throw new Error('No access token found')
+      }
+
+      // Process verification data - upload any File objects to URLs
+      console.log('🖼️ [SELLIKO-CLIENT] Processing verification data for file uploads...')
+      const processedVerificationData = []
+
+      for (const step of verificationData) {
+        const processedStep = { ...step }
+
+        // If value is a File object (image type), upload it
+        if (step.type === 'image' && step.value instanceof File) {
+          console.log(`📸 [SELLIKO-CLIENT] Uploading image for step ${step.id}: ${step.item}`)
+          try {
+            // Convert to WebP and upload
+            const fileName = `verification_${listingId}_step_${step.id}_${this.generateUUID()}.webp`
+            const webpFile = await this.convertToWebP(step.value)
+            const imageUrl = await this.uploadFile(webpFile, fileName)
+            processedStep.value = imageUrl
+            console.log(`✅ [SELLIKO-CLIENT] Image uploaded for step ${step.id}:`, imageUrl)
+          } catch (uploadError) {
+            console.error(`💥 [SELLIKO-CLIENT] Failed to upload image for step ${step.id}:`, uploadError)
+            throw new Error(`Failed to upload verification image for step ${step.id}: ${uploadError.message}`)
+          }
+        }
+
+        processedVerificationData.push(processedStep)
+      }
+
+      // Prepare request body with the exact structure expected by API
+      const requestBody = {
+        listing_id: parseInt(listingId), // Ensure it's a number
+        verification_data: processedVerificationData,
+        verification_note: verificationNote || '',
+        deductions: deductions || [],
+        offer_value: parseInt(offerValue) // Ensure it's a number
+      }
+
+      console.log('📤 [SELLIKO-CLIENT] Submitting verification request:', {
+        url: `${this.apiBase}functions/v1/verify`,
+        method: 'POST',
+        hasToken: !!token,
+        body: {
+          listing_id: requestBody.listing_id,
+          verification_data_count: requestBody.verification_data.length,
+          verification_note_length: requestBody.verification_note.length,
+          deductions_count: requestBody.deductions.length,
+          offer_value: requestBody.offer_value,
+          formattedOffer: `₹${requestBody.offer_value.toLocaleString()}`
+        }
+      })
+
+      // Log verification data summary
+      console.log('📋 [SELLIKO-CLIENT] Verification data summary:', {
+        totalSteps: requestBody.verification_data.length,
+        imageSteps: requestBody.verification_data.filter(step => step.type === 'image').length,
+        boolSteps: requestBody.verification_data.filter(step => step.type === 'bool').length,
+        textSteps: requestBody.verification_data.filter(step => step.type === 'text').length,
+        passedSteps: requestBody.verification_data.filter(step => step.value === true).length,
+        failedSteps: requestBody.verification_data.filter(step => step.value === false).length,
+        categories: [...new Set(requestBody.verification_data.map(step => step.category))]
+      })
+
+      // Log deductions summary
+      if (requestBody.deductions.length > 0) {
+        const totalDeductionAmount = requestBody.deductions.reduce((sum, d) => sum + (d.amount || 0), 0)
+        console.log('💰 [SELLIKO-CLIENT] Deductions summary:', {
+          totalDeductions: requestBody.deductions.length,
+          totalAmount: `₹${totalDeductionAmount.toLocaleString()}`,
+          categories: [...new Set(requestBody.deductions.map(d => d.category))],
+          severities: [...new Set(requestBody.deductions.map(d => d.severity))]
+        })
+      }
+
+      // Make API request
+      const response = await fetch(`${this.apiBase}functions/v1/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(requestBody)
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Verification response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
+      const result = await response.json()
+      
+      console.log('📥 [SELLIKO-CLIENT] Verification result:', {
+        success: result.success,
+        message: result.message,
+        error: result.error,
+        listingId: listingId
+      })
+
+      // Log action result
+      if (result.success) {
+        console.log(`✅ [SELLIKO-CLIENT] Verification submitted successfully for listing ${listingId}:`, {
+          listingId: listingId,
+          offerValue: `₹${offerValue.toLocaleString()}`,
+          verificationSteps: verificationData.length,
+          deductionsApplied: deductions.length,
+          totalDeductions: deductions.reduce((sum, d) => sum + (d.amount || 0), 0),
+          noteLength: verificationNote ? verificationNote.length : 0
+        })
+      } else {
+        console.error(`❌ [SELLIKO-CLIENT] Failed to submit verification for listing ${listingId}:`, result.error)
+      }
+
+      return result
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] verifyListing error:', error)
+      console.error('📋 [SELLIKO-CLIENT] Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        listingId: listingId,
+        verificationDataCount: verificationData ? verificationData.length : 0,
+        deductionsCount: deductions ? deductions.length : 0,
+        offerValue: offerValue
+      })
+      
+      return {
+        success: false,
+        error: error.message || 'Network error occurred'
+      }
+    }
+  }
+
+  // 22. startVerification - start verification process for a listing (agent only)
+  /**
+   * Starts the verification process for a device listing
+   * 
+   * AUTHORIZATION REQUIREMENTS:
+   * - User role must be 'AGENT'
+   * - Valid JWT token required in Authorization header
+   * 
+   * @param {number|string} listingId - The ID of the listing to start verification for
+   * 
+   * @returns {Promise<Object>} Response with success status and verification start confirmation
+   */
+  async startVerification(listingId) {
+    console.log('🚀 [SELLIKO-CLIENT] startVerification called with:', {
+      listingId: listingId
+    })
+
+    try {
+      // Validate inputs
+      if (!listingId) {
+        throw new Error('Listing ID is required')
+      }
+
+      // Get current user and validate permissions
+      const user = await this.getCurrentUser()
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+
+      console.log('👤 [SELLIKO-CLIENT] Current user validation:', {
+        userId: user.id,
+        userRole: user.user_role,
+        normalizedRole: (user.user_role || '').toUpperCase()
+      })
+
+      // Validate user role (must be agent)
+      const userRole = (user.user_role || '').toUpperCase()
+      if (userRole !== 'AGENT') {
+        throw new Error(`Only agents can start verification process. Current role: ${user.user_role}`)
+      }
+
+      console.log('✅ [SELLIKO-CLIENT] Role validation passed - proceeding with verification start')
+
+      // Get access token
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        throw new Error('No access token found')
+      }
+
+      // Prepare request body
+      const requestBody = {
+        listing_id: parseInt(listingId) // Ensure it's a number
+      }
+
+      console.log('📤 [SELLIKO-CLIENT] Submitting start verification request:', {
+        url: `${this.apiBase}functions/v1/start-verification`,
+        method: 'POST',
+        hasToken: !!token,
+        body: {
+          listing_id: requestBody.listing_id
+        }
+      })
+
+      // Make API request
+      const response = await fetch(`${this.apiBase}functions/v1/start-verification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(requestBody)
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Start verification response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
+      const result = await response.json()
+      
+      console.log('📥 [SELLIKO-CLIENT] Start verification result:', {
+        success: result.success,
+        message: result.message,
+        error: result.error,
+        listingId: listingId
+      })
+
+      // Log action result
+      if (result.success) {
+        console.log(`✅ [SELLIKO-CLIENT] Verification process started successfully for listing ${listingId}`)
+      } else {
+        console.error(`❌ [SELLIKO-CLIENT] Failed to start verification for listing ${listingId}:`, result.error)
+      }
+
+      return result
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] startVerification error:', error)
+      console.error('📋 [SELLIKO-CLIENT] Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        listingId: listingId
+      })
+      
+      return {
+        success: false,
+        error: error.message || 'Network error occurred'
+      }
+    }
+  }
 }
 
 // Export singleton instance

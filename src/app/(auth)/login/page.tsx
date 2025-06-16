@@ -55,11 +55,13 @@ export default function SignInPage() {
       localStorage.removeItem('pendingPhone')
       localStorage.removeItem('pendingOtpId')
       localStorage.removeItem('pendingUserId')
+      localStorage.removeItem('pendingOtp')
       
       console.log('📱 [LOGIN] LocalStorage after cleanup:', {
         pendingPhone: localStorage.getItem('pendingPhone') || 'CLEARED',
         pendingOtpId: localStorage.getItem('pendingOtpId') || 'CLEARED',
-        pendingUserId: localStorage.getItem('pendingUserId') || 'CLEARED'
+        pendingUserId: localStorage.getItem('pendingUserId') || 'CLEARED',
+        pendingOtp: localStorage.getItem('pendingOtp') || 'CLEARED'
       })
     }
   }, [router])
@@ -128,17 +130,24 @@ export default function SignInPage() {
         console.log('💾 [LOGIN] Values to store:', {
           pendingPhone: fullPhone.substring(0, 6) + '***',
           pendingOtpId: result.otp_id || 'UNDEFINED',
-          pendingUserId: result.user_id || 'UNDEFINED'
+          pendingUserId: result.user_id || 'UNDEFINED',
+          pendingOtp: result.otp ? '***masked***' : 'NOT_PROVIDED'
         })
         
         localStorage.setItem('pendingPhone', fullPhone)
         localStorage.setItem('pendingOtpId', result.otp_id || '')
         localStorage.setItem('pendingUserId', result.user_id || '')
+        // Store the actual OTP for auto-filling (if provided by API)
+        if (result.otp) {
+          localStorage.setItem('pendingOtp', result.otp)
+          console.log('🔑 [LOGIN] OTP stored for auto-fill:', '***masked***')
+        }
         
         console.log('📱 [LOGIN] LocalStorage after storing:', {
           pendingPhone: localStorage.getItem('pendingPhone') || 'NOT_STORED',
           pendingOtpId: localStorage.getItem('pendingOtpId') || 'NOT_STORED',
-          pendingUserId: localStorage.getItem('pendingUserId') || 'NOT_STORED'
+          pendingUserId: localStorage.getItem('pendingUserId') || 'NOT_STORED',
+          pendingOtp: localStorage.getItem('pendingOtp') ? '***stored***' : 'NOT_STORED'
         })
         
         console.log('🔄 [LOGIN] Navigating to verify-otp page...')
