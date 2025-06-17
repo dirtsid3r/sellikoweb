@@ -215,7 +215,7 @@ interface ListingResponse {
     updated_at: string
     vendor_id: string
     agent_id: string
-    highest_bid: number
+    highest_bid: number | null // ID reference to the highest bid in bids array
     rejection_note?: string
     time_approved?: string
     instant_win: boolean
@@ -450,8 +450,15 @@ export default function AgentVerification() {
           const pickupAddress = listing.addresses.find(addr => addr.type === 'pickup')
           
           // Get the winning bid amount
-          const winningBid = (listing.all_bids || []).find((bid: any) => bid.status === 'won')
-          const bidAmount = winningBid ? winningBid.bid_amount : listing.asking_price
+          const winningBid = listing.highest_bid_details || 
+                            (listing.all_bids || []).find((bid: any) => bid.status === 'won') ||
+                            (listing.bids || []).find((bid: any) => bid.status === 'won')
+          
+          // Get the highest bid amount from the winning bid, or use the highest bid from all bids, or fallback to asking price
+          const bidAmount = winningBid?.bid_amount || 
+                          Math.max(...(listing.all_bids || []).map(bid => bid.bid_amount), 0) ||
+                          Math.max(...(listing.bids || []).map(bid => bid.bid_amount), 0) ||
+                          listing.asking_price
           
           // Collect all available device images
           const deviceImages: string[] = []

@@ -77,7 +77,7 @@ export default function VerifyOTPPage() {
           pendingPhone: pendingPhone || 'NOT_FOUND',
           pendingOtpId: pendingOtpId || 'NOT_FOUND',
           pendingUserId: pendingUserId || 'NOT_FOUND',
-          pendingOtp: pendingOtp ? '***found***' : 'NOT_FOUND'
+          pendingOtp: pendingOtp ? '***masked***' : 'NOT_FOUND'
         })
 
         const missingFields = []
@@ -100,22 +100,12 @@ export default function VerifyOTPPage() {
         console.log('✅ [VERIFY-OTP] Required data found, setting state')
         if (pendingPhone) setPhone(pendingPhone)
         if (pendingOtpId) setOtpId(pendingOtpId)
-        
-        // Auto-fill OTP if available from login response
-        if (pendingOtp && pendingOtp.length === 6) {
-          console.log('🔑 [VERIFY-OTP] Auto-filling OTP from login response')
+        // Pre-fill the OTP if it was returned from the login API
+        if (pendingOtp) {
+          console.log('🎯 [VERIFY-OTP] Pre-filling OTP from login response')
           setOtp(pendingOtp)
-          toast.success('OTP auto-filled! You can submit directly or modify if needed.')
-          
-          // Clear the stored OTP after using it for security
-          localStorage.removeItem('pendingOtp')
-          console.log('🧹 [VERIFY-OTP] Cleared stored OTP after auto-fill')
-        } else if (pendingOtp) {
-          console.log('⚠️ [VERIFY-OTP] Invalid OTP length in storage:', pendingOtp.length)
-          // Clear invalid OTP
-          localStorage.removeItem('pendingOtp')
+          toast.success('OTP auto-filled from login response!')
         }
-        
         setIsMounted(true)
 
         console.log('⏰ [VERIFY-OTP] Starting countdown timer')
@@ -273,25 +263,11 @@ export default function VerifyOTPPage() {
         const newOtpId = result.otp_id || ''
         console.log('🔄 [VERIFY-OTP] Updating OTP ID:', {
           oldOtpId: otpId ? 'present' : 'missing',
-          newOtpId: newOtpId ? 'present' : 'missing',
-          hasNewOtp: !!result.otp
+          newOtpId: newOtpId ? 'present' : 'missing'
         })
         
         setOtpId(newOtpId)
         localStorage.setItem('pendingOtpId', newOtpId)
-        
-        // Auto-fill new OTP if provided by API
-        if (result.otp && result.otp.length === 6) {
-          console.log('🔑 [VERIFY-OTP] Auto-filling new OTP from resend response')
-          setOtp(result.otp)
-          toast.success('New OTP auto-filled! You can submit directly or modify if needed.')
-        } else if (result.otp) {
-          console.log('⚠️ [VERIFY-OTP] Invalid new OTP length from resend:', result.otp.length)
-        } else {
-          // Clear existing OTP when resending
-          console.log('🧹 [VERIFY-OTP] Clearing existing OTP for manual entry')
-          setOtp('')
-        }
         
         console.log('⏰ [VERIFY-OTP] Restarting countdown timer')
         // Restart countdown
@@ -501,6 +477,7 @@ export default function VerifyOTPPage() {
           <div>OTP: {otp ? `${otp.length}/6 digits` : 'empty'}</div>
           <div>Phone: {phone ? phone.substring(0, 8) + '***' : 'not set'}</div>
           <div>OTP ID: {otpId ? 'present' : 'missing'}</div>
+          <div>OTP Pre-filled: {typeof window !== 'undefined' && localStorage.getItem('pendingOtp') ? 'yes' : 'no'}</div>
           <div>Loading: {isLoading ? 'yes' : 'no'}</div>
           <div>Countdown: {countdown}s</div>
           <div>Can Resend: {canResend ? 'yes' : 'no'}</div>

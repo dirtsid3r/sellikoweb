@@ -131,23 +131,20 @@ export default function SignInPage() {
           pendingPhone: fullPhone.substring(0, 6) + '***',
           pendingOtpId: result.otp_id || 'UNDEFINED',
           pendingUserId: result.user_id || 'UNDEFINED',
-          pendingOtp: result.otp ? '***masked***' : 'NOT_PROVIDED'
+          pendingOtp: result.otp ? '***masked***' : 'UNDEFINED'
         })
         
         localStorage.setItem('pendingPhone', fullPhone)
         localStorage.setItem('pendingOtpId', result.otp_id || '')
         localStorage.setItem('pendingUserId', result.user_id || '')
-        // Store the actual OTP for auto-filling (if provided by API)
-        if (result.otp) {
-          localStorage.setItem('pendingOtp', result.otp)
-          console.log('🔑 [LOGIN] OTP stored for auto-fill:', '***masked***')
-        }
+        // Store the OTP returned from the API so it can be pre-filled in verify-otp
+        localStorage.setItem('pendingOtp', result.otp || '')
         
         console.log('📱 [LOGIN] LocalStorage after storing:', {
           pendingPhone: localStorage.getItem('pendingPhone') || 'NOT_STORED',
           pendingOtpId: localStorage.getItem('pendingOtpId') || 'NOT_STORED',
           pendingUserId: localStorage.getItem('pendingUserId') || 'NOT_STORED',
-          pendingOtp: localStorage.getItem('pendingOtp') ? '***stored***' : 'NOT_STORED'
+          pendingOtp: localStorage.getItem('pendingOtp') ? '***masked***' : 'NOT_STORED'
         })
         
         console.log('🔄 [LOGIN] Navigating to verify-otp page...')

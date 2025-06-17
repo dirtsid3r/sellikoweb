@@ -107,6 +107,11 @@ export default function ListingDetailPage() {
         if ((result as any).success && (result as any).listing) {
           const apiListing = (result as any).listing
           
+          // Get highest bid from sorted bids array
+          const sortedBids = Array.isArray(apiListing.bids) ? 
+            [...apiListing.bids].sort((a, b) => b.bid_amount - a.bid_amount) : []
+          const highestBid = sortedBids.length > 0 ? sortedBids[0].bid_amount : 0
+          
           // Transform API data to match component format
           const transformedListing = {
             id: apiListing.id,
@@ -120,7 +125,7 @@ export default function ListingDetailPage() {
             timeLeft: calculateTimeRemaining(apiListing.time_approved),
             totalBids: Array.isArray(apiListing.bids) ? apiListing.bids.length : 0,
             bids: transformBids(apiListing.bids || []),
-            highestBid: apiListing.highest_bid || 0,
+            highestBid: highestBid,
             instantWin: apiListing.instant_win || false,
             // Additional data from API
             brand: apiListing.devices?.[0]?.brand,
@@ -248,13 +253,14 @@ export default function ListingDetailPage() {
     
     return apiBids
       .filter((bid: any) => bid && typeof bid === 'object') // Filter out invalid bids
+      .sort((a, b) => b.bid_amount - a.bid_amount) // Sort by bid amount in descending order
       .map((bid: any, index: number) => {
         // Handle vendor identification
         let vendorName = 'Anonymous Vendor'
         let vendorId = bid.vendor_id || `vendor-${index}`
         
-        if (bid.vendor_profile && bid.vendor_profile.name) {
-          vendorName = bid.vendor_profile.name
+        if (bid.vendor && bid.vendor.name) {
+          vendorName = bid.vendor.name
         } else if (bid.vendor_id) {
           // Create vendor name from vendor_id
           vendorName = `Vendor ${bid.vendor_id.substring(0, 8)}...`
@@ -267,11 +273,11 @@ export default function ListingDetailPage() {
           id: bid.id || `bid-${index}`,
           vendorId: vendorId,
           vendorName: vendorName,
-          vendorRating: bid.vendor_profile?.rating || 4.5,
+          vendorRating: bid.vendor?.rating || 4.5,
           amount: bid.bid_amount || 0,
           timestamp: bid.created_at || new Date().toISOString(),
           message: bid.message || 'Interested in this device.',
-          isHighest: index === 0, // Assume first bid is highest (API should sort)
+          isHighest: index === 0, // First bid after sorting is highest
           isNew: false, // Could be calculated based on timestamp
           status: bid.status || 'active',
           instantWin: bid.instant_win || false
