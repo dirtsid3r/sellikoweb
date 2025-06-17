@@ -24,6 +24,7 @@ import { toast } from 'react-hot-toast'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Icons } from '@/components/ui/icons'
+import DeliveryModal from '@/components/shared/DeliveryModal'
 
 // Mock data - in real app this would come from API
 const verificationStats = {
@@ -73,26 +74,7 @@ const pendingVerifications = [
   }
 ]
 
-const recentCompletions = [
-  {
-    id: 'VER004',
-    device: 'iPhone 13',
-    seller: 'Maya Thomas',
-    completedAt: '2:30 PM',
-    verificationScore: 98,
-    finalPrice: 45000,
-    deductions: 2000
-  },
-  {
-    id: 'VER005', 
-    device: 'Google Pixel 7',
-    seller: 'Kiran Jose',
-    completedAt: '1:15 PM',
-    verificationScore: 95,
-    finalPrice: 28000,
-    deductions: 1500
-  }
-]
+
 
 const getPriorityColor = (priority: string) => {
   switch (priority) {
@@ -141,6 +123,38 @@ interface ApiResponse {
   message?: string
 }
 
+// Type definitions for Pending Deliveries
+interface PickupDeliverTo {
+  id: string
+  vendor_code: string
+  name: string
+  email: string
+  number: string
+  address: string
+  city: string
+  pincode: string
+  state: string
+  landmark: string
+  contact_person: string
+  contact_person_phone: string
+  working_pincodes: string
+}
+
+interface PendingDelivery {
+  listing_id: number
+  name: string
+  seller: string
+  time: string
+  deliver_to: PickupDeliverTo
+}
+
+interface PickupsResponse {
+  success: boolean
+  pickups?: PendingDelivery[]
+  error?: string
+  message?: string
+}
+
 export default function AgentDashboard() {
   const { instanceId } = useInstanceId()
   const { user, logout, isLoading } = useAuth()
@@ -151,6 +165,14 @@ export default function AgentDashboard() {
   const [isLoadingTasks, setIsLoadingTasks] = useState(true)
   const [lastRefresh, setLastRefresh] = useState<string | null>(null)
   const [isAuthChecking, setIsAuthChecking] = useState(true)
+
+  // State for pending deliveries
+  const [pendingDeliveries, setPendingDeliveries] = useState<PendingDelivery[]>([])
+  const [isLoadingDeliveries, setIsLoadingDeliveries] = useState(true)
+
+  // State for delivery modal
+  const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false)
+  const [selectedDelivery, setSelectedDelivery] = useState<PendingDelivery | null>(null)
 
   // Fetch tasks from API
   const fetchTasks = async () => {
@@ -178,18 +200,78 @@ export default function AgentDashboard() {
     }
   }
 
-  // Load tasks when component mounts
+  // Fetch pending deliveries from API
+  const fetchPendingDeliveries = async () => {
+    setIsLoadingDeliveries(true)
+    try {
+      console.log('🔄 [AGENT-DASHBOARD] Fetching pending deliveries...')
+      const response = await sellikoClient.getPickups() as PickupsResponse
+      
+      if (response.success) {
+        console.log('✅ [AGENT-DASHBOARD] Pending deliveries fetched successfully:', response.pickups?.length)
+        setPendingDeliveries(response.pickups || [])
+      } else {
+        console.error('❌ [AGENT-DASHBOARD] Failed to fetch pending deliveries:', response.error)
+        setPendingDeliveries([])
+      }
+    } catch (error) {
+      console.error('💥 [AGENT-DASHBOARD] Error fetching pending deliveries:', error)
+      setPendingDeliveries([])
+    } finally {
+      setIsLoadingDeliveries(false)
+    }
+  }
+
+  // Handle delivery button click
+  const handleDeliverClick = (delivery: PendingDelivery) => {
+    setSelectedDelivery(delivery)
+    setIsDeliveryModalOpen(true)
+  }
+
+  // Handle delivery confirmation
+  const handleConfirmDelivery = async (listingId: number, deliveryOtp: string) => {
+    try {
+      console.log('🚀 [AGENT-DASHBOARD] Confirming delivery...', { listingId, deliveryOtp: '****' })
+      const response = await sellikoClient.confirmDelivery(listingId, deliveryOtp) as any
+      
+      if (response.success) {
+        console.log('✅ [AGENT-DASHBOARD] Delivery confirmed successfully')
+        toast.success('Delivery confirmed successfully!')
+        
+        // Refresh the pending deliveries list
+        await fetchPendingDeliveries()
+        
+        // Close modal
+        setIsDeliveryModalOpen(false)
+        setSelectedDelivery(null)
+      } else {
+        console.error('❌ [AGENT-DASHBOARD] Failed to confirm delivery:', response.error)
+        toast.error(response.error || 'Failed to confirm delivery')
+        throw new Error(response.error || 'Failed to confirm delivery')
+      }
+    } catch (error) {
+      console.error('💥 [AGENT-DASHBOARD] Error confirming delivery:', error)
+      toast.error('Network error while confirming delivery')
+      throw error // Re-throw to let modal handle the error state
+    }
+  }
+
+  // Load tasks and pending deliveries when component mounts
   useEffect(() => {
     if (user && (user as any).user_role?.toUpperCase() === 'AGENT') {
       fetchTasks()
+      fetchPendingDeliveries()
       setIsAuthChecking(false)
     }
   }, [user])
 
-  // Auto-refresh tasks every 2 minutes
+  // Auto-refresh tasks and deliveries every 2 minutes
   useEffect(() => {
     if (user && (user as any).user_role?.toUpperCase() === 'AGENT') {
-      const interval = setInterval(fetchTasks, 120000) // 2 minutes
+      const interval = setInterval(() => {
+        fetchTasks()
+        fetchPendingDeliveries()
+      }, 120000) // 2 minutes
       return () => clearInterval(interval)
     }
   }, [user])
@@ -442,29 +524,68 @@ export default function AgentDashboard() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Recent Completions */}
+            {/* Pending Deliveries */}
             <div className="card-mobile bg-white/80 backdrop-blur-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Completions</h2>
-              <div className="space-y-4">
-                {recentCompletions.map((completion) => (
-                  <div key={completion.id} className="border-l-4 border-green-500 pl-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-medium text-gray-900">{completion.device}</h3>
-                      <span className="text-sm text-blue-600 font-semibold">Score: {completion.verificationScore}%</span>
-                    </div>
-                    <p className="text-sm text-gray-600 mb-1">Seller: {completion.seller}</p>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500">{completion.completedAt}</span>
-                      <div className="text-right">
-                        <div className="text-xs text-gray-500">Final: ₹{completion.finalPrice.toLocaleString()}</div>
-                        {completion.deductions > 0 && (
-                          <div className="text-xs text-red-500">-₹{completion.deductions.toLocaleString()}</div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">Pending Deliveries</h2>
+                <Button
+                  onClick={fetchPendingDeliveries}
+                  disabled={isLoadingDeliveries}
+                  size="sm"
+                  variant="outline"
+                  className="text-xs"
+                >
+                  {isLoadingDeliveries ? (
+                    <Icons.spinner className="h-3 w-3 animate-spin mr-1" />
+                  ) : (
+                    <Icons.refresh className="h-3 w-3 mr-1" />
+                  )}
+                  Refresh
+                </Button>
               </div>
+
+              {isLoadingDeliveries ? (
+                <div className="flex items-center justify-center py-8">
+                  <Icons.spinner className="h-4 w-4 animate-spin text-purple-600" />
+                  <span className="ml-2 text-gray-600 text-sm">Loading deliveries...</span>
+                </div>
+              ) : pendingDeliveries.length === 0 ? (
+                <div className="text-center py-6">
+                  <TruckIcon className="w-10 h-10 text-gray-400 mx-auto mb-2" />
+                  <p className="text-sm text-gray-600">No pending deliveries</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {pendingDeliveries.map((delivery) => (
+                    <div key={delivery.listing_id} className="border-l-4 border-orange-500 pl-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="font-medium text-gray-900">{delivery.name}</h3>
+                        <span className="text-sm text-purple-600 font-semibold">
+                          #{delivery.deliver_to.vendor_code}/{delivery.listing_id}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-1">Seller: {delivery.seller}</p>
+                      <div className="flex items-center justify-between text-sm mb-3">
+                        <span className="text-gray-500">
+                          {new Date(delivery.time).toLocaleString()}
+                        </span>
+                        <div className="text-right">
+                          <div className="text-xs text-gray-600">{delivery.deliver_to.name}</div>
+                          <div className="text-xs text-gray-500">{delivery.deliver_to.city}</div>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        className="bg-orange-600 hover:bg-orange-700 text-white w-full"
+                        onClick={() => handleDeliverClick(delivery)}
+                      >
+                        <TruckIcon className="w-4 h-4 mr-2" />
+                        Deliver
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Quick Actions */}
@@ -510,6 +631,17 @@ export default function AgentDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Delivery Modal */}
+      <DeliveryModal
+        isOpen={isDeliveryModalOpen}
+        onClose={() => {
+          setIsDeliveryModalOpen(false)
+          setSelectedDelivery(null)
+        }}
+        delivery={selectedDelivery}
+        onConfirmDelivery={handleConfirmDelivery}
+      />
     </div>
   )
 } 

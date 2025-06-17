@@ -3640,7 +3640,119 @@ class SellikoClient {
     }
   }
 
-  // 23. confirmPickup - confirm pickup with OTP (agent only)
+  // 23. getPickups - get pending deliveries for current agent (agent only)
+  /**
+   * Retrieves pending deliveries assigned to the current agent
+   * 
+   * AUTHORIZATION REQUIREMENTS:
+   * - User role must be 'AGENT'
+   * - Valid JWT token required in Authorization header
+   * 
+   * @returns {Promise<Object>} Response with success status and pickups array
+   */
+  async getPickups() {
+    console.log('📦 [SELLIKO-CLIENT] getPickups called')
+
+    try {
+      // Get current user and validate permissions
+      const user = await this.getCurrentUser()
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+
+      console.log('👤 [SELLIKO-CLIENT] Current user validation:', {
+        userId: user.id,
+        userRole: user.user_role,
+        normalizedRole: (user.user_role || '').toUpperCase()
+      })
+
+      // Validate user role (must be agent)
+      const userRole = (user.user_role || '').toUpperCase()
+      if (userRole !== 'AGENT') {
+        throw new Error(`Only agents can access pending deliveries. Current role: ${user.user_role}`)
+      }
+
+      console.log('✅ [SELLIKO-CLIENT] Role validation passed - proceeding with pickups retrieval')
+
+      // Get access token
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        throw new Error('No access token found')
+      }
+
+      const url = `${this.apiBase}functions/v1/get-pickups`
+
+      console.log('📤 [SELLIKO-CLIENT] Submitting get pickups request:', {
+        url: url,
+        method: 'GET',
+        hasToken: !!token
+      })
+
+      // Make API request
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Get pickups response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
+      const result = await response.json()
+      
+      console.log('📥 [SELLIKO-CLIENT] Get pickups result:', {
+        success: result.success,
+        pickupCount: result.pickups ? result.pickups.length : 0,
+        message: result.message,
+        error: result.error
+      })
+
+      // Log pickup details if available
+      if (result.success && result.pickups && result.pickups.length > 0) {
+        console.log(`✅ [SELLIKO-CLIENT] Found ${result.pickups.length} pending deliveries`)
+        result.pickups.forEach((pickup, index) => {
+          console.log(`📦 [SELLIKO-CLIENT] Pickup ${index + 1}:`, {
+            listingId: pickup.listing_id,
+            name: pickup.name,
+            seller: pickup.seller,
+            time: pickup.time,
+            deliverTo: pickup.deliver_to ? {
+              vendorCode: pickup.deliver_to.vendor_code,
+              name: pickup.deliver_to.name,
+              city: pickup.deliver_to.city,
+              contactPerson: pickup.deliver_to.contact_person
+            } : 'NO_DELIVERY_INFO'
+          })
+        })
+      } else {
+        console.log('ℹ️ [SELLIKO-CLIENT] No pending deliveries found or request failed')
+      }
+
+      return result
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] getPickups error:', error)
+      console.error('📋 [SELLIKO-CLIENT] Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      })
+      
+      return {
+        success: false,
+        error: error.message || 'Network error occurred',
+        pickups: []
+      }
+    }
+  }
+
+  // 24. confirmPickup - confirm pickup with OTP (agent only)
   /**
    * Confirms device pickup with OTP verification
    * 
@@ -3789,6 +3901,201 @@ class SellikoClient {
         stack: error.stack,
         listingId: listingId,
         pickupOtp: pickupOtp ? '****' : 'MISSING'
+      })
+      
+      return {
+        success: false,
+        error: error.message || 'Network error occurred'
+      }
+    }
+  }
+
+  // 25. confirmDelivery - confirm delivery with OTP (agent only)
+  /**
+   * Confirms device delivery with OTP verification
+   * 
+   * AUTHORIZATION REQUIREMENTS:
+   * - User role must be 'AGENT'
+   * - Valid JWT token required in Authorization header
+   * - The requesting agent must be the assigned agent for the listing
+   * - Listing must be in appropriate status for delivery
+   * - OTP must be exactly 4 digits and match the stored delivery OTP
+   * 
+   * REQUEST MODEL:
+   * {
+   *   "listing_id": 123,
+   *   "delivery_otp": "5678"
+   * }
+   * 
+   * SUCCESSFUL RESPONSE (200):
+   * {
+   *   "success": true,
+   *   "pickup": {
+   *     "id": 456,
+   *     "listing_id": 123,
+   *     "agent_id": "uuid-agent-id",
+   *     "delivery_otp": "5678",
+   *     "picked_up": true,
+   *     "delivered": true,
+   *     "pickup_time": "2024-01-15T10:30:00.000Z",
+   *     "delivery_time": "2024-01-15T14:45:00.000Z"
+   *   },
+   *   "listing": {
+   *     "id": 123,
+   *     "status": "completed",
+   *     "agent_id": "uuid-agent-id",
+   *     "title": "Sample Listing",
+   *     "description": "Item description",
+   *     "created_at": "2024-01-15T09:00:00.000Z",
+   *     "updated_at": "2024-01-15T14:45:00.000Z"
+   *   },
+   *   "message": "Delivery completed successfully"
+   * }
+   * 
+   * ERROR RESPONSE (400/401/403/500):
+   * {
+   *   "success": false,
+   *   "error": "Invalid OTP format",
+   *   "message": "delivery_otp must be a 4-digit number"
+   * }
+   * 
+   * @param {number|string} listingId - The ID of the listing to confirm delivery for
+   * @param {string} deliveryOtp - The 4-digit OTP for delivery confirmation
+   * 
+   * @returns {Promise<Object>} Response with success status and delivery confirmation details
+   */
+  async confirmDelivery(listingId, deliveryOtp) {
+    console.log('📦 [SELLIKO-CLIENT] confirmDelivery called with:', {
+      listingId: listingId,
+      deliveryOtp: deliveryOtp ? '****' : 'MISSING'
+    })
+
+    try {
+      // Validate inputs
+      if (!listingId) {
+        throw new Error('Listing ID is required')
+      }
+
+      if (!deliveryOtp || deliveryOtp.length !== 4 || !/^\d{4}$/.test(deliveryOtp)) {
+        throw new Error('Delivery OTP must be exactly 4 digits')
+      }
+
+      // Get current user and validate permissions
+      const user = await this.getCurrentUser()
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+
+      console.log('👤 [SELLIKO-CLIENT] Current user validation:', {
+        userId: user.id,
+        userRole: user.user_role,
+        normalizedRole: (user.user_role || '').toUpperCase()
+      })
+
+      // Validate user role (must be agent)
+      const userRole = (user.user_role || '').toUpperCase()
+      if (userRole !== 'AGENT') {
+        throw new Error(`Only agents can confirm delivery. Current role: ${user.user_role}`)
+      }
+
+      console.log('✅ [SELLIKO-CLIENT] Role validation passed - proceeding with delivery confirmation')
+
+      // Get access token
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        throw new Error('No access token found')
+      }
+
+      // Prepare request body
+      const requestBody = {
+        listing_id: parseInt(listingId), // Ensure it's a number
+        delivery_otp: deliveryOtp.toString() // Ensure it's a string
+      }
+
+      console.log('📤 [SELLIKO-CLIENT] Submitting delivery confirmation request:', {
+        url: `${this.apiBase}functions/v1/deliver`,
+        method: 'POST',
+        hasToken: !!token,
+        body: {
+          listing_id: requestBody.listing_id,
+          delivery_otp: '****' // Hide OTP in logs
+        }
+      })
+
+      // Make API request
+      const response = await fetch(`${this.apiBase}functions/v1/deliver`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(requestBody)
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Delivery confirmation response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
+      const result = await response.json()
+      
+      console.log('📥 [SELLIKO-CLIENT] Delivery confirmation result:', {
+        success: result.success,
+        hasPickup: !!result.pickup,
+        hasListing: !!result.listing,
+        deliveryStatus: result.pickup?.delivered,
+        listingStatus: result.listing?.status,
+        message: result.message,
+        error: result.error,
+        listingId: listingId
+      })
+
+      // Log detailed delivery result if successful
+      if (result.success) {
+        console.log(`✅ [SELLIKO-CLIENT] Delivery confirmed successfully:`, {
+          listingId: listingId,
+          pickupDetails: result.pickup ? {
+            id: result.pickup.id,
+            listing_id: result.pickup.listing_id,
+            agent_id: result.pickup.agent_id,
+            delivery_otp: result.pickup.delivery_otp ? '****' : 'NOT_SET',
+            picked_up: result.pickup.picked_up,
+            delivered: result.pickup.delivered,
+            pickup_time: result.pickup.pickup_time,
+            delivery_time: result.pickup.delivery_time
+          } : 'NO_PICKUP_DETAILS',
+          listingDetails: result.listing ? {
+            id: result.listing.id,
+            status: result.listing.status,
+            agent_id: result.listing.agent_id,
+            title: result.listing.title,
+            description: result.listing.description,
+            created_at: result.listing.created_at,
+            updated_at: result.listing.updated_at
+          } : 'NO_LISTING_DETAILS'
+        })
+
+        // Log completion message
+        console.log(`🎉 [SELLIKO-CLIENT] Delivery process completed for listing ${listingId}`)
+      } else {
+        console.error(`❌ [SELLIKO-CLIENT] Failed to confirm delivery for listing ${listingId}:`, result.error)
+      }
+
+      // Echo the full response for debugging
+      console.log('🔊 [SELLIKO-CLIENT] FULL DELIVERY CONFIRMATION RESPONSE:', JSON.stringify(result, null, 2))
+
+      return result
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] confirmDelivery error:', error)
+      console.error('📋 [SELLIKO-CLIENT] Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        listingId: listingId,
+        deliveryOtp: deliveryOtp ? '****' : 'MISSING'
       })
       
       return {
