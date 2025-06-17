@@ -124,6 +124,29 @@ interface StartVerificationResponse {
   message?: string
 }
 
+interface PickupResponse {
+  success: boolean
+  pickup?: {
+    id: number
+    listing_id: number
+    agent_id: string
+    device_id: string
+    deliver_to: string
+    pickup_otp: string
+    delivery_otp: string
+    picked_up: boolean
+    delivered: boolean
+    pickup_time: string | null
+    delivery_time: string | null
+  }
+  listing?: {
+    id: number
+    status: string
+  }
+  message?: string
+  error?: string
+}
+
 // Random icon mapping for different categories
 const getCategoryIcon = (category: string, type: string) => {
   const iconMap = {
@@ -368,6 +391,11 @@ export default function AgentVerification() {
   const [isLoadingConfigs, setIsLoadingConfigs] = useState(true)
   const [configsError, setConfigsError] = useState<string | null>(null)
 
+  // Pickup OTP state
+  const [pickupOtp, setPickupOtp] = useState('')
+  const [isSubmittingPickup, setIsSubmittingPickup] = useState(false)
+  const [pickupError, setPickupError] = useState<string | null>(null)
+
   // Fetch client configs checklist when component mounts
   useEffect(() => {
     const fetchClientConfigs = async () => {
@@ -564,6 +592,48 @@ export default function AgentVerification() {
       toast.error(errorMessage)
     } finally {
       setIsStartingVerification(false)
+    }
+  }
+
+  // Handle pickup OTP submission
+  const handlePickupOtp = async () => {
+    if (!taskId) {
+      toast.error('Task ID is missing')
+      return
+    }
+
+    if (!pickupOtp || pickupOtp.length !== 4 || !/^\d{4}$/.test(pickupOtp)) {
+      setPickupError('Please enter a valid 4-digit OTP')
+      return
+    }
+
+    setIsSubmittingPickup(true)
+    setPickupError(null)
+
+    try {
+      console.log('📦 [PICKUP] Submitting pickup OTP for listing:', taskId)
+      
+      const result = await sellikoClient.confirmPickup(taskId, pickupOtp) as PickupResponse
+      
+      if (result.success) {
+        console.log('✅ [PICKUP] Pickup confirmed successfully')
+        toast.success('Pickup confirmed successfully!')
+        
+        // Wait 2 seconds then redirect to /agent
+        setTimeout(() => {
+          router.push('/agent')
+        }, 2000)
+      } else {
+        console.error('❌ [PICKUP] Pickup confirmation failed:', result.error)
+        setPickupError(result.error || 'Failed to confirm pickup')
+        toast.error(result.error || 'Failed to confirm pickup')
+      }
+    } catch (error) {
+      console.error('💥 [PICKUP] Error confirming pickup:', error)
+      setPickupError('Network error occurred')
+      toast.error('Network error occurred')
+    } finally {
+      setIsSubmittingPickup(false)
     }
   }
 
@@ -1242,8 +1312,18 @@ export default function AgentVerification() {
           <div className="mb-8">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">Device Verification</h1>
-                <p className="text-gray-600 mt-1">Complete the comprehensive device verification process</p>
+                <h1 className="text-3xl font-bold text-gray-900">
+                  {deviceInfo && (deviceInfo.status === 'agent_assigned' || deviceInfo.status === 'verification') 
+                    ? 'Device Verification' 
+                    : 'Device Pickup'
+                  }
+                </h1>
+                <p className="text-gray-600 mt-1">
+                  {deviceInfo && (deviceInfo.status === 'agent_assigned' || deviceInfo.status === 'verification')
+                    ? 'Complete the comprehensive device verification process'
+                    : 'Complete the device pickup process'
+                  }
+                </p>
               </div>
               <Link
                 href="/agent"
@@ -1371,8 +1451,9 @@ export default function AgentVerification() {
                   </div>
                 )}
 
-                {/* Purchase & Warranty Info */}
-                {(deviceInfo.hasBill || deviceInfo.warrantyStatus) && (
+                {/* Purchase & Warranty Info - Hide unless agent_assigned or verification */}
+                {(deviceInfo.hasBill || deviceInfo.warrantyStatus) && 
+                 (deviceInfo.status === 'agent_assigned' || deviceInfo.status === 'verification') && (
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
                     <h4 className="font-semibold text-green-900 mb-2">Purchase & Warranty</h4>
                     <div className="grid grid-cols-2 gap-3 text-sm">
@@ -1413,27 +1494,30 @@ export default function AgentVerification() {
                   </div>
                 )}
 
-                {/* Pickup Information */}
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
-                  <h4 className="font-semibold text-purple-900 mb-2">Pickup Details</h4>
-                  <div className="space-y-2 text-sm">
-                    <div>
-                      <span className="text-purple-700">Time Slot:</span>
-                      <span className="ml-2 font-medium">{deviceInfo.timeSlot}</span>
-                    </div>
-                    <div>
-                      <span className="text-purple-700">Address:</span>
-                      <p className="ml-2 text-purple-800">{deviceInfo.fullAddress}</p>
-                    </div>
-                    <div>
-                      <span className="text-purple-700">City & PIN:</span>
-                      <span className="ml-2 font-medium">{deviceInfo.location} - {deviceInfo.pincode}</span>
+                {/* Pickup Information - Hide unless agent_assigned or verification */}
+                {(deviceInfo.status === 'agent_assigned' || deviceInfo.status === 'verification') && (
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+                    <h4 className="font-semibold text-purple-900 mb-2">Pickup Details</h4>
+                    <div className="space-y-2 text-sm">
+                      <div>
+                        <span className="text-purple-700">Time Slot:</span>
+                        <span className="ml-2 font-medium">{deviceInfo.timeSlot}</span>
+                      </div>
+                      <div>
+                        <span className="text-purple-700">Address:</span>
+                        <p className="ml-2 text-purple-800">{deviceInfo.fullAddress}</p>
+                      </div>
+                      <div>
+                        <span className="text-purple-700">City & PIN:</span>
+                        <span className="ml-2 font-medium">{deviceInfo.location} - {deviceInfo.pincode}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
-                {/* Bank Details */}
-                {(deviceInfo.bankName || deviceInfo.accountNumber) && (
+                {/* Bank Details - Hide unless agent_assigned or verification */}
+                {(deviceInfo.bankName || deviceInfo.accountNumber) && 
+                 (deviceInfo.status === 'agent_assigned' || deviceInfo.status === 'verification') && (
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                     <h4 className="font-semibold text-yellow-900 mb-2">Payment Details</h4>
                     <div className="grid grid-cols-2 gap-3 text-sm">
@@ -1468,21 +1552,63 @@ export default function AgentVerification() {
             )}
           </div>
 
-          {/* Verification Steps Preview */}
-          <div className="card-mobile bg-white/80 backdrop-blur-sm p-6 mb-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Verification Checklist</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {steps.map((step) => (
-                <div key={step.id} className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50">
-                  {getStepIcon(step)}
-                  <div className="flex-1">
-                    <h4 className="font-medium text-gray-900">{step.title}</h4>
-                    <p className="text-sm text-gray-600">{step.estimatedTime}</p>
+          {/* Verification Steps Preview - Hide when ready for pickup */}
+          {deviceInfo && deviceInfo.status !== 'ready_for_pickup' && (
+            <div className="card-mobile bg-white/80 backdrop-blur-sm p-6 mb-8">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Verification Checklist</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {steps.map((step) => (
+                  <div key={step.id} className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50">
+                    {getStepIcon(step)}
+                    <div className="flex-1">
+                      <h4 className="font-medium text-gray-900">{step.title}</h4>
+                      <p className="text-sm text-gray-600">{step.estimatedTime}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Pickup OTP Section - Show when ready for pickup */}
+          {deviceInfo && deviceInfo.status === 'ready_for_pickup' && (
+            <div className="card-mobile bg-white/80 backdrop-blur-sm p-6 mb-8">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Device Ready for Pickup</h3>
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
+                <div className="flex items-center space-x-3 mb-3">
+                  <TruckIcon className="w-6 h-6 text-orange-600" />
+                  <div>
+                    <h4 className="font-semibold text-orange-900">Pickup Confirmation Required</h4>
+                    <p className="text-sm text-orange-700">Enter the 4-digit OTP to confirm pickup</p>
                   </div>
                 </div>
-              ))}
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="pickup-otp" className="block text-sm font-medium text-gray-700 mb-2">
+                    Pickup OTP
+                  </label>
+                  <input
+                    id="pickup-otp"
+                    type="text"
+                    maxLength={4}
+                    value={pickupOtp}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 4)
+                      setPickupOtp(value)
+                      setPickupError(null)
+                    }}
+                    placeholder="Enter 4-digit OTP"
+                    className="w-full max-w-xs p-3 text-center text-lg font-mono border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  />
+                  {pickupError && (
+                    <p className="mt-2 text-sm text-red-600">{pickupError}</p>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Start Button */}
           <div className="text-center">
@@ -1494,14 +1620,25 @@ export default function AgentVerification() {
             {/* Check if device is ready for pickup */}
             {deviceInfo && deviceInfo.status === 'ready_for_pickup' ? (
               <button
-                onClick={() => {
-                  // Handle pickup logic here
-                  toast.success('Pickup process initiated')
-                }}
-                className="inline-flex items-center px-8 py-4 text-lg font-semibold rounded-xl transition-colors shadow-lg bg-orange-600 text-white hover:bg-orange-700"
+                onClick={handlePickupOtp}
+                disabled={isSubmittingPickup || !pickupOtp || pickupOtp.length !== 4}
+                className={`inline-flex items-center px-8 py-4 text-lg font-semibold rounded-xl transition-colors shadow-lg ${
+                  isSubmittingPickup || !pickupOtp || pickupOtp.length !== 4
+                    ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                    : 'bg-orange-600 text-white hover:bg-orange-700'
+                }`}
               >
-                <TruckIcon className="w-6 h-6 mr-3" />
-                Pickup
+                {isSubmittingPickup ? (
+                  <>
+                    <div className="w-6 h-6 mr-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Confirming Pickup...
+                  </>
+                ) : (
+                  <>
+                    <TruckIcon className="w-6 h-6 mr-3" />
+                    Confirm Pickup with OTP
+                  </>
+                )}
               </button>
             ) : (
               <button
@@ -1538,7 +1675,12 @@ export default function AgentVerification() {
         {/* Progress Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold text-gray-900">Device Verification</h1>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {deviceInfo && (deviceInfo.status === 'agent_assigned' || deviceInfo.status === 'verification') 
+                ? 'Device Verification' 
+                : 'Device Pickup'
+              }
+            </h1>
             <span className="text-sm text-gray-600">
               Batch {currentBatch + 1} of {totalBatches} • Steps {currentBatch * STEPS_PER_BATCH + 1}-{Math.min((currentBatch + 1) * STEPS_PER_BATCH, steps.length)} of {steps.length}
             </span>

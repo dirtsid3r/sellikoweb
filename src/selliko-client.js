@@ -3639,6 +3639,164 @@ class SellikoClient {
       }
     }
   }
+
+  // 23. confirmPickup - confirm pickup with OTP (agent only)
+  /**
+   * Confirms device pickup with OTP verification
+   * 
+   * AUTHORIZATION REQUIREMENTS:
+   * - User role must be 'AGENT'
+   * - Valid JWT token required in Authorization header
+   * - The requesting agent must be the assigned agent for the listing
+   * - Listing must be in "ready_for_pickup" status
+   * - OTP must be exactly 4 digits and match the stored OTP
+   * 
+   * @param {number|string} listingId - The ID of the listing to confirm pickup for
+   * @param {string} pickupOtp - The 4-digit OTP for pickup confirmation
+   * 
+   * @returns {Promise<Object>} Response with success status and pickup confirmation details
+   */
+  async confirmPickup(listingId, pickupOtp) {
+    console.log('📦 [SELLIKO-CLIENT] confirmPickup called with:', {
+      listingId: listingId,
+      pickupOtp: pickupOtp ? '****' : 'MISSING'
+    })
+
+    try {
+      // Validate inputs
+      if (!listingId) {
+        throw new Error('Listing ID is required')
+      }
+
+      if (!pickupOtp || pickupOtp.length !== 4 || !/^\d{4}$/.test(pickupOtp)) {
+        throw new Error('Pickup OTP must be exactly 4 digits')
+      }
+
+      // Get current user and validate permissions
+      const user = await this.getCurrentUser()
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+
+      console.log('👤 [SELLIKO-CLIENT] Current user validation:', {
+        userId: user.id,
+        userRole: user.user_role,
+        normalizedRole: (user.user_role || '').toUpperCase()
+      })
+
+      // Validate user role (must be agent)
+      const userRole = (user.user_role || '').toUpperCase()
+      if (userRole !== 'AGENT') {
+        throw new Error(`Only agents can confirm pickup. Current role: ${user.user_role}`)
+      }
+
+      console.log('✅ [SELLIKO-CLIENT] Role validation passed - proceeding with pickup confirmation')
+
+      // Get access token
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        throw new Error('No access token found')
+      }
+
+      // Prepare request body
+      const requestBody = {
+        listing_id: parseInt(listingId), // Ensure it's a number
+        pickup_otp: pickupOtp.toString() // Ensure it's a string
+      }
+
+      console.log('📤 [SELLIKO-CLIENT] Submitting pickup confirmation request:', {
+        url: `${this.apiBase}functions/v1/pickup`,
+        method: 'POST',
+        hasToken: !!token,
+        body: {
+          listing_id: requestBody.listing_id,
+          pickup_otp: '****' // Hide OTP in logs
+        }
+      })
+
+      // Make API request
+      const response = await fetch(`${this.apiBase}functions/v1/pickup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(requestBody)
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Pickup confirmation response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
+      const result = await response.json()
+      
+      console.log('📥 [SELLIKO-CLIENT] Pickup confirmation result:', {
+        success: result.success,
+        hasPickup: !!result.pickup,
+        hasListing: !!result.listing,
+        pickupStatus: result.pickup?.picked_up,
+        listingStatus: result.listing?.status,
+        deliveryOtp: result.pickup?.delivery_otp ? '****' : 'NOT_PROVIDED',
+        message: result.message,
+        error: result.error,
+        listingId: listingId
+      })
+
+      // Log detailed pickup result if successful
+      if (result.success) {
+        console.log(`✅ [SELLIKO-CLIENT] Pickup confirmed successfully:`, {
+          listingId: listingId,
+          pickupDetails: result.pickup ? {
+            id: result.pickup.id,
+            picked_up: result.pickup.picked_up,
+            pickup_time: result.pickup.pickup_time,
+            delivered: result.pickup.delivered,
+            delivery_otp: result.pickup.delivery_otp ? '****' : 'NOT_SET',
+            agent_id: result.pickup.agent_id,
+            deliver_to: result.pickup.deliver_to
+          } : 'NO_PICKUP_DETAILS',
+          listingDetails: result.listing ? {
+            id: result.listing.id,
+            status: result.listing.status,
+            vendor_id: result.listing.vendor_id,
+            agent_id: result.listing.agent_id,
+            highest_bid: result.listing.highest_bid,
+            updated_at: result.listing.updated_at
+          } : 'NO_LISTING_DETAILS'
+        })
+
+        // Log next steps
+        if (result.pickup?.delivery_otp) {
+          console.log(`📋 [SELLIKO-CLIENT] Next step: Deliver to vendor with OTP: ****`)
+        }
+      } else {
+        console.error(`❌ [SELLIKO-CLIENT] Failed to confirm pickup for listing ${listingId}:`, result.error)
+      }
+
+      // Echo the full response for debugging
+      console.log('🔊 [SELLIKO-CLIENT] FULL PICKUP CONFIRMATION RESPONSE:', JSON.stringify(result, null, 2))
+
+      return result
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] confirmPickup error:', error)
+      console.error('📋 [SELLIKO-CLIENT] Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        listingId: listingId,
+        pickupOtp: pickupOtp ? '****' : 'MISSING'
+      })
+      
+      return {
+        success: false,
+        error: error.message || 'Network error occurred'
+      }
+    }
+  }
 }
 
 // Export singleton instance
