@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -13,6 +14,7 @@ interface ApiBidResponse {
   success: boolean
   bids?: Array<{
     bid: string
+    listing_id: string
     device: string
     bid_amnt: number
     bid_status: string
@@ -55,6 +57,7 @@ export function BidHistorySection({
   onTrackOrder, 
   onViewListing 
 }: BidHistorySectionProps) {
+  const router = useRouter()
   const [bids, setBids] = useState<VendorBid[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -73,22 +76,36 @@ export function BidHistorySection({
           console.log('✅ [BidHistorySection] Bid history fetched successfully:', response.bids.length)
           
           // Transform API response to component format
-          const transformedBids: VendorBid[] = response.bids.map((bid: any) => ({
-            id: bid.bid || `bid_${Date.now()}_${Math.random()}`,
-            listingId: extractListingIdFromBid(bid.bid) || 'unknown',
-            device: bid.device || 'Unknown Device',
-            bidAmount: bid.bid_amnt || 0,
-            status: mapBidStatus(bid.bid_status),
-            bidDate: formatDate(bid.creation_timestamp),
-            result: mapBidResult(bid.result, bid.bid_status),
-            orderId: bid.bid_status === 'accepted' ? `ORD_${bid.bid}` : undefined,
-            seller: undefined, // Not provided by /bids endpoint
-            delivery: bid.bid_status === 'accepted' ? {
-              status: 'pending',
-              estimatedDate: undefined,
-              trackingInfo: undefined
-            } : undefined
-          }))
+          const transformedBids: VendorBid[] = response.bids.map((bid: any, index: number) => {
+            console.log(`📋 [BidHistorySection] Transforming bid ${index + 1}:`, {
+              bidId: bid.bid,
+              device: bid.device,
+              amount: bid.bid_amnt,
+              status: bid.bid_status,
+              result: bid.result,
+              timestamp: bid.creation_timestamp
+            })
+            
+            const listingId = extractListingId(bid)
+            console.log(`🎯 [BidHistorySection] Extracted listing ID for bid ${index + 1}:`, listingId)
+            
+            return {
+              id: bid.bid || `bid_${Date.now()}_${Math.random()}`,
+              listingId: listingId || 'unknown',
+              device: bid.device || 'Unknown Device',
+              bidAmount: bid.bid_amnt || 0,
+              status: mapBidStatus(bid.bid_status),
+              bidDate: formatDate(bid.creation_timestamp),
+              result: mapBidResult(bid.result, bid.bid_status),
+              orderId: bid.bid_status === 'accepted' ? `ORD_${bid.bid}` : undefined,
+              seller: undefined, // Not provided by /bids endpoint
+              delivery: bid.bid_status === 'accepted' ? {
+                status: 'pending',
+                estimatedDate: undefined,
+                trackingInfo: undefined
+              } : undefined
+            }
+          })
           
           setBids(transformedBids)
         } else {
@@ -132,11 +149,60 @@ export function BidHistorySection({
     return null
   }
 
-  // Helper function to extract listing ID from bid ID (if possible)
-  const extractListingIdFromBid = (bidId: string): string => {
-    // Since the API doesn't provide listing_id directly, we'll use the bid ID
-    // You might need to adjust this based on your bid ID format
-    return bidId || 'unknown'
+  // Helper function to extract listing ID from API response
+  const extractListingId = (bid: any): string => {
+    console.log('🔍 [BidHistorySection] Extracting listing ID from bid:', bid)
+    
+    // First try to use the listing_id field directly from API
+    if (bid.listing_id) {
+      console.log('✅ [BidHistorySection] Using listing_id from API:', bid.listing_id)
+      
+      // Extract numeric part from listing_id (e.g., "listing_98765xyz" -> "98765")
+      const listingId = bid.listing_id
+      if (typeof listingId === 'string') {
+        // Try to extract numeric part
+        const numericMatch = listingId.match(/\d+/)
+        if (numericMatch) {
+          const extractedId = numericMatch[0]
+          console.log('🔢 [BidHistorySection] Extracted numeric listing ID:', extractedId)
+          return extractedId
+        }
+      }
+      
+      // If no numeric part found, use the full listing_id
+      return listingId
+    }
+    
+    // Fallback: try to extract from bid ID if it's a string
+    const bidId = bid.bid
+    if (typeof bidId === 'string' && bidId) {
+      console.log('🔄 [BidHistorySection] Fallback: extracting from bid ID:', bidId)
+      
+      // Try to extract listing ID from various bid ID formats
+      if (bidId.includes('_')) {
+        const parts = bidId.split('_')
+        console.log('📋 [BidHistorySection] Bid ID parts:', parts)
+        
+        // If first part looks like a number/ID, use it as listing ID
+        if (parts[0] && /^\d+$/.test(parts[0])) {
+          console.log('✅ [BidHistorySection] Using first part as listing ID:', parts[0])
+          return parts[0]
+        }
+      }
+      
+      // If bid ID is just a number, it might be the listing ID
+      if (/^\d+$/.test(bidId)) {
+        console.log('✅ [BidHistorySection] Using bid ID as listing ID:', bidId)
+        return bidId
+      }
+      
+      // Use the bid ID itself as fallback
+      console.log('🔄 [BidHistorySection] Using bid ID as fallback listing ID:', bidId)
+      return bidId
+    }
+    
+    console.warn('⚠️ [BidHistorySection] No valid listing ID found, using unknown')
+    return 'unknown'
   }
 
   // Helper function to format date
@@ -190,6 +256,22 @@ export function BidHistorySection({
 
   const formatCurrency = (amount: number) => {
     return `₹${amount.toLocaleString()}`
+  }
+
+  // Handle track order navigation
+  const handleTrackOrderNavigation = (bid: VendorBid) => {
+    console.log('🚚 [BidHistorySection] Navigating to listing for tracking:', {
+      bidId: bid.id,
+      listingId: bid.listingId,
+      status: bid.status
+    })
+    
+    if (bid.listingId && bid.listingId !== 'unknown') {
+      router.push(`/vendor/listings/${bid.listingId}`)
+    } else {
+      console.error('❌ [BidHistorySection] Cannot navigate - invalid listingId:', bid.listingId)
+      alert('Unable to track order - listing information not available')
+    }
   }
 
   return (
@@ -251,11 +333,11 @@ export function BidHistorySection({
                         <td className="py-3 px-4">{getResultText(bid.result, bid.status)}</td>
                         <td className="py-3 px-4">
                           {bid.status === 'won' || bid.status === 'completed' ? (
-                            <Button size="sm" variant="outline" onClick={() => onTrackOrder(bid.orderId!)}>
+                            <Button size="sm" variant="outline" onClick={() => handleTrackOrderNavigation(bid)}>
                               {bid.status === 'completed' ? 'Receipt' : 'Track Order'}
                             </Button>
                           ) : bid.status === 'active' || bid.status === 'pending' ? (
-                            <Button size="sm" variant="outline" onClick={() => onViewListing(bid.listingId)}>
+                            <Button size="sm" variant="outline" onClick={() => router.push(`/vendor/listings/${bid.listingId}`)}>
                               View Listing
                             </Button>
                           ) : (

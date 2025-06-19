@@ -3,6 +3,7 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { useRouter } from 'next/navigation'
 
 interface VendorBid {
   id: string
@@ -35,6 +36,7 @@ export function BidHistoryCard({
   onTrackOrder, 
   onViewListing 
 }: BidHistoryCardProps) {
+  const router = useRouter()
   
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -72,6 +74,27 @@ export function BidHistoryCard({
 
   const formatCurrency = (amount: number) => {
     return `₹${amount.toLocaleString()}`
+  }
+
+  const handleTrackOrder = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    console.log('🔍 [BID-HISTORY-CARD] Track Order clicked:', {
+      listingId: bid.listingId,
+      bidId: bid.id,
+      status: bid.status
+    })
+    
+    if (!bid.listingId) {
+      console.error('❌ [BID-HISTORY-CARD] No listingId provided:', bid)
+      return
+    }
+    
+    const targetUrl = `/vendor/listings/${bid.listingId}`
+    console.log('🔄 [BID-HISTORY-CARD] Navigating to:', targetUrl)
+    
+    router.push(targetUrl)
   }
 
   return (
@@ -118,7 +141,7 @@ export function BidHistoryCard({
               size="sm" 
               variant="outline" 
               className="w-full"
-              onClick={() => onTrackOrder(bid.orderId!)}
+              onClick={handleTrackOrder}
             >
               {bid.status === 'completed' ? 'View Receipt' : 'Track Order'}
             </Button>
