@@ -4187,6 +4187,146 @@ class SellikoClient {
     }
   }
 
+  // 27. getMyBids - get all bids placed by the current vendor (vendor only)
+  /**
+   * Retrieves all bids placed by the current vendor across all listings
+   * 
+   * AUTHORIZATION REQUIREMENTS:
+   * - User role must be 'VENDOR'
+   * - Valid JWT token required in Authorization header
+   * 
+   * @param {Object} options - Query options
+   * @param {string} options.status - Filter by bid status: 'active', 'won', 'lost', 'pending', 'completed' (optional)
+   * @param {number} options.page - Page number for pagination (optional, default: 1)
+   * @param {number} options.limit - Number of items per page (optional, default: 20)
+   * 
+   * @returns {Promise<Object>} Response with success status and bids array
+   */
+  async getMyBids(options = {}) {
+    console.log('💰 [SELLIKO-CLIENT] getMyBids called with options:', {
+      status: options.status || 'ALL',
+      page: options.page || 1,
+      limit: options.limit || 20
+    })
+
+    try {
+      // Get current user and validate permissions
+      const user = await this.getCurrentUser()
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+
+      console.log('👤 [SELLIKO-CLIENT] Current user validation:', {
+        userId: user.id,
+        userRole: user.user_role,
+        normalizedRole: (user.user_role || '').toUpperCase()
+      })
+
+      // Validate user role (must be vendor)
+      const userRole = (user.user_role || '').toUpperCase()
+      if (userRole !== 'VENDOR') {
+        throw new Error(`Only vendors can access their bid history. Current role: ${user.user_role}`)
+      }
+
+      console.log('✅ [SELLIKO-CLIENT] Role validation passed - proceeding with bid history retrieval')
+
+      // Get access token
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        throw new Error('No access token found')
+      }
+
+      // Build query parameters - /bids endpoint doesn't support filtering/pagination
+      // It returns all bids for the current vendor
+      const queryParams = new URLSearchParams()
+      
+      const url = `${this.apiBase}functions/v1/bids?${queryParams.toString()}`
+
+      console.log('📤 [SELLIKO-CLIENT] Submitting get my bids request:', {
+        url: url,
+        method: 'GET',
+        hasToken: !!token,
+        queryParams: Object.fromEntries(queryParams)
+      })
+
+      // Make API request
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Get my bids response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
+      const result = await response.json()
+      
+      console.log('📥 [SELLIKO-CLIENT] Get my bids result:', {
+        success: result.success,
+        bidCount: result.bids ? result.bids.length : 0,
+        totalCount: result.total || 0,
+        currentPage: result.page || 1,
+        message: result.message,
+        error: result.error
+      })
+
+      // Log bid summary if available
+      if (result.success && result.bids && result.bids.length > 0) {
+        console.log(`✅ [SELLIKO-CLIENT] Found ${result.bids.length} bids by current vendor`)
+        
+        // Log bid statistics
+        const bidStats = {
+          active: result.bids.filter(bid => bid.bid_status === 'active').length,
+          won: result.bids.filter(bid => bid.bid_status === 'won').length,
+          lost: result.bids.filter(bid => bid.bid_status === 'lost').length,
+          total: result.total || result.bids.length
+        }
+        
+        console.log('📊 [SELLIKO-CLIENT] Bid statistics:', bidStats)
+
+        // Log first few bids for debugging
+        result.bids.slice(0, 3).forEach((bid, index) => {
+          console.log(`💰 [SELLIKO-CLIENT] Bid ${index + 1} sample:`, {
+            bid: bid.bid,
+            device: bid.device,
+            bidAmount: bid.bid_amnt,
+            status: bid.bid_status,
+            result: bid.result,
+            vendorId: bid.vendor_id,
+            creationTimestamp: bid.creation_timestamp
+          })
+        })
+      } else {
+        console.log('ℹ️ [SELLIKO-CLIENT] No bids found for current vendor or request failed')
+      }
+
+      return result
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] getMyBids error:', error)
+      console.error('📋 [SELLIKO-CLIENT] Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      })
+      
+      return {
+        success: false,
+        error: error.message || 'Network error occurred',
+        bids: [],
+        total: 0,
+        page: 1,
+        limit: 20
+      }
+    }
+  }
+
   // 26. getBidsForListing - fetch real-time bids for a specific listing
   /**
    * Retrieves all bids for a specific listing with real-time data
