@@ -794,10 +794,11 @@ function VendorManagement() {
       
       // Convert working_pincodes string to array for tag display
       const pincodes = mappedData.working_pincodes 
-        ? mappedData.working_pincodes.split(',').map((p: string) => p.trim()).filter((p: string) => p.length === 6)
+        ? mappedData.working_pincodes.split(',').map((p: string) => p.trim()).filter((p: string) => p.length > 0)
         : []
       setWorkingPincodesArray(pincodes)
       console.log('📍 [VENDOR-MGMT] Working pincodes loaded:', pincodes)
+      console.log('📍 [VENDOR-MGMT] Raw working_pincodes string:', mappedData.working_pincodes)
     } catch (error: any) {
       console.error('💥 [VENDOR-MGMT] Load vendor details error:', error)
       toast.error('Failed to load vendor details')
@@ -967,10 +968,11 @@ function VendorManagement() {
           // Update working pincodes array if it was updated
           if (updatedProfile.working_pincodes !== undefined) {
             const updatedPincodes = updatedProfile.working_pincodes 
-              ? updatedProfile.working_pincodes.split(',').map((p: string) => p.trim()).filter((p: string) => p.length === 6)
+              ? updatedProfile.working_pincodes.split(',').map((p: string) => p.trim()).filter((p: string) => p.length > 0)
               : []
             setWorkingPincodesArray(updatedPincodes)
-            console.log('📍 [VENDOR-MGMT] Working pincodes updated:', updatedPincodes)
+            console.log('📍 [VENDOR-MGMT] Working pincodes updated from API response:', updatedPincodes)
+            console.log('📍 [VENDOR-MGMT] Raw working_pincodes string:', updatedProfile.working_pincodes)
           }
           
           console.log('✅ [VENDOR-MGMT] Form data updated with API response')
@@ -1324,7 +1326,7 @@ function AgentManagement() {
   
   // State for agent selection
   const [selectedAgentId, setSelectedAgentId] = useState('')
-  const [agents, setAgents] = useState([])
+  const [agents, setAgents] = useState<any[]>([])
   const [isLoadingAgents, setIsLoadingAgents] = useState(false)
   
   // State for agent form
@@ -1349,7 +1351,7 @@ function AgentManagement() {
   const [isUpdatingAgent, setIsUpdatingAgent] = useState(false)
 
   // State for working pincodes tags
-  const [workingPincodesArray, setWorkingPincodesArray] = useState([])
+  const [workingPincodesArray, setWorkingPincodesArray] = useState<string[]>([])
   const [newPincode, setNewPincode] = useState('')
 
   // Load agents on component mount
@@ -1395,7 +1397,7 @@ function AgentManagement() {
   }
 
   // Handle agent selection
-  const handleAgentSelect = async (agentId) => {
+  const handleAgentSelect = async (agentId: string) => {
     if (!agentId) {
       setSelectedAgentId('')
       setAgentData({
@@ -1463,10 +1465,11 @@ function AgentManagement() {
       
       // Convert working_pincodes string to array for tag display
       const pincodes = mappedData.working_pincodes 
-        ? mappedData.working_pincodes.split(',').map((p) => p.trim()).filter((p) => p.length === 6)
+        ? mappedData.working_pincodes.split(',').map((p) => p.trim()).filter((p) => p.length > 0)
         : []
       setWorkingPincodesArray(pincodes)
       console.log('📍 [AGENT-MGMT] Working pincodes loaded:', pincodes)
+      console.log('📍 [AGENT-MGMT] Raw working_pincodes string:', mappedData.working_pincodes)
     } catch (error) {
       console.error('💥 [AGENT-MGMT] Load agent details error:', error)
       toast.error('Failed to load agent details')
@@ -1474,7 +1477,7 @@ function AgentManagement() {
   }
 
   // Handle form input changes
-  const handleInputChange = (field, value) => {
+  const handleInputChange = (field: string, value: string) => {
     setAgentData(prev => ({
       ...prev,
       [field]: value
@@ -1510,7 +1513,7 @@ function AgentManagement() {
     console.log('📍 [AGENT-MGMT] Added pincode:', trimmedPincode)
   }
 
-  const removePincode = (pincodeToRemove) => {
+  const removePincode = (pincodeToRemove: string) => {
     const updatedPincodes = workingPincodesArray.filter(p => p !== pincodeToRemove)
     setWorkingPincodesArray(updatedPincodes)
     
@@ -1523,7 +1526,7 @@ function AgentManagement() {
     console.log('📍 [AGENT-MGMT] Removed pincode:', pincodeToRemove)
   }
 
-  const handlePincodeKeyPress = (e) => {
+  const handlePincodeKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault()
       addPincode()

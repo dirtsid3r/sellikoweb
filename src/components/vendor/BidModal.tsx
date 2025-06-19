@@ -42,6 +42,7 @@ interface BidModalProps {
   listing: MarketplaceListing
   open: boolean
   onOpenChange: (open: boolean) => void
+  currentUserId?: string
 }
 
 interface BidHistory {
@@ -50,6 +51,17 @@ interface BidHistory {
   amount: number
   timestamp: string
   isWinning: boolean
+}
+
+interface BidResult {
+  success: boolean
+  bid?: {
+    id: string
+    [key: string]: any
+  }
+  instant_win?: boolean
+  error?: string
+  [key: string]: any
 }
 
 // Extended interface for detailed listing data from API
@@ -135,7 +147,7 @@ interface DetailedListing {
   }>
 }
 
-export function BidModal({ listing, open, onOpenChange }: BidModalProps) {
+export function BidModal({ listing, open, onOpenChange, currentUserId }: BidModalProps) {
   const [bidAmount, setBidAmount] = useState('')
   const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -291,6 +303,11 @@ export function BidModal({ listing, open, onOpenChange }: BidModalProps) {
   const minimumBid = currentListing.currentBid ? currentListing.currentBid + 1000 : 1000
   const isInstantWin = bidAmount && parseInt(bidAmount) >= currentListing.askingPrice
   const isValidBid = bidAmount && parseInt(bidAmount) >= minimumBid
+  
+  // Check if user already has the highest bid
+  const hasHighestBid = detailedListing?.highest_bid && 
+                       detailedListing.bids.length > 0 && 
+                       detailedListing.bids[0]?.vendor_id === currentUserId
 
   // Real-time timer countdown
   useEffect(() => {
@@ -353,6 +370,16 @@ export function BidModal({ listing, open, onOpenChange }: BidModalProps) {
   }
 
   const handleSubmitBid = async () => {
+    // Check if user already has highest bid
+    const hasHighestBid = detailedListing?.highest_bid && 
+                         detailedListing.bids.length > 0 && 
+                         detailedListing.bids[0]?.vendor_id === currentUserId
+    
+    if (hasHighestBid) {
+      toast.error('You already have the highest bid on this listing')
+      return
+    }
+
     if (!isValidBid || !agreedToTerms || timeRemaining <= 0) return
 
     setIsSubmitting(true)
@@ -365,7 +392,7 @@ export function BidModal({ listing, open, onOpenChange }: BidModalProps) {
       })
 
       // Call the real API to place bid
-      const result = await sellikoClient.placeBid(currentListing.id, parseInt(bidAmount))
+      const result = await sellikoClient.placeBid(currentListing.id, parseInt(bidAmount)) as BidResult
       
       console.log('📥 [BID-MODAL] Bid placement result:', result)
       
@@ -618,28 +645,46 @@ export function BidModal({ listing, open, onOpenChange }: BidModalProps) {
                 <label className="block text-sm font-medium text-gray-900 mb-2">
                   Your Bid Amount *
                 </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">₹</span>
-                  <Input
-                    type="number"
-                    placeholder={`Minimum ${formatCurrency(minimumBid)}`}
-                    value={bidAmount}
-                    onChange={(e) => setBidAmount(e.target.value)}
-                    className="pl-8"
-                    min={minimumBid}
-                    step={100}
-                  />
-                </div>
-                <div className="mt-2 space-y-1">
-                  <p className="text-xs text-gray-600">
-                    ⚠️ Minimum bid: {formatCurrency(minimumBid)}
-                  </p>
-                  {isInstantWin && (
-                    <p className="text-xs text-orange-600 font-medium">
-                      🎯 Instant Win: This bid will immediately close the auction!
-                    </p>
-                  )}
-                </div>
+                
+                {/* Show message if user has highest bid */}
+                {hasHighestBid ? (
+                  <Card className="border-blue-200 bg-blue-50">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 text-blue-800">
+                        <Icons.crown className="w-5 h-5" />
+                        <span className="font-medium">You have the highest bid!</span>
+                      </div>
+                      <p className="text-sm text-blue-700 mt-1">
+                        You cannot place another bid while you're leading. Wait for others to outbid you.
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">₹</span>
+                      <Input
+                        type="number"
+                        placeholder={`Minimum ${formatCurrency(minimumBid)}`}
+                        value={bidAmount}
+                        onChange={(e) => setBidAmount(e.target.value)}
+                        className="pl-8"
+                        min={minimumBid}
+                        step={100}
+                      />
+                    </div>
+                    <div className="mt-2 space-y-1">
+                      <p className="text-xs text-gray-600">
+                        ⚠️ Minimum bid: {formatCurrency(minimumBid)}
+                      </p>
+                      {isInstantWin && (
+                        <p className="text-xs text-orange-600 font-medium">
+                          🎯 Instant Win: This bid will immediately close the auction!
+                        </p>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
@@ -663,7 +708,7 @@ export function BidModal({ listing, open, onOpenChange }: BidModalProps) {
             )}
 
             {/* Bid Terms */}
-            {timeRemaining > 0 && (
+            {timeRemaining > 0 && !hasHighestBid && (
               <div>
                 <h4 className="font-semibold text-gray-900 mb-3">Bid Terms</h4>
                 <div className="space-y-2">
@@ -694,20 +739,26 @@ export function BidModal({ listing, open, onOpenChange }: BidModalProps) {
               </Button>
               
               {timeRemaining > 0 ? (
-                <Button
-                  onClick={handleSubmitBid}
-                  className="flex-1"
-                  disabled={!isValidBid || !agreedToTerms || isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Icons.spinner className="w-4 h-4 mr-2 animate-spin" />
-                      {isInstantWin ? 'Winning...' : 'Placing Bid...'}
-                    </>
-                  ) : (
-                    isInstantWin ? '🏆 Win Instantly' : 'Place Bid'
-                  )}
-                </Button>
+                hasHighestBid ? (
+                  <Button variant="outline" disabled className="flex-1">
+                    You're Leading
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleSubmitBid}
+                    className="flex-1"
+                    disabled={!isValidBid || !agreedToTerms || isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Icons.spinner className="w-4 h-4 mr-2 animate-spin" />
+                        {isInstantWin ? 'Winning...' : 'Placing Bid...'}
+                      </>
+                    ) : (
+                      isInstantWin ? '🏆 Win Instantly' : 'Place Bid'
+                    )}
+                  </Button>
+                )
               ) : (
                 <Button variant="outline" disabled className="flex-1">
                   Auction Ended
@@ -744,30 +795,43 @@ export function BidModal({ listing, open, onOpenChange }: BidModalProps) {
             <Card className="max-h-96 overflow-y-auto">
               <CardContent className="p-4">
                 <div className="space-y-3">
-                  {bidHistory.map((bid, index) => (
-                    <div key={bid.id} className={`flex items-center justify-between p-3 rounded-lg border ${
-                      bid.isWinning ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
-                    }`}>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-900">{bid.vendorName}</span>
-                          {bid.isWinning && (
-                            <Badge className="bg-green-100 text-green-800 text-xs">Leading</Badge>
-                          )}
-                          {bid.vendorName.includes('You') && (
-                            <Badge className="bg-blue-100 text-blue-800 text-xs">Your Bid</Badge>
-                          )}
+                  {bidHistory.map((bid, index) => {
+                    // Check if this bid belongs to the current user
+                    // First check the vendor name, then check against actual bid data from API
+                    const isUserBidFromName = currentUserId && bid.vendorName.includes(currentUserId)
+                    const isUserBidFromAPI = currentUserId && detailedListing?.bids && 
+                                           detailedListing.bids.some(apiBid => 
+                                             apiBid.id?.toString() === bid.id && apiBid.vendor_id === currentUserId
+                                           )
+                    const isUserBid = isUserBidFromName || isUserBidFromAPI
+                    
+                    return (
+                      <div key={bid.id} className={`flex items-center justify-between p-3 rounded-lg border ${
+                        bid.isWinning ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
+                      }`}>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-gray-900">
+                              {isUserBid ? 'You' : bid.vendorName}
+                            </span>
+                            {bid.isWinning && (
+                              <Badge className="bg-green-100 text-green-800 text-xs">Leading</Badge>
+                            )}
+                            {isUserBid && (
+                              <Badge className="bg-orange-100 text-orange-800 text-xs">You</Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500">{bid.timestamp}</p>
                         </div>
-                        <p className="text-xs text-gray-500">{bid.timestamp}</p>
+                        <div className="text-right">
+                          <p className={`font-semibold ${bid.isWinning ? 'text-green-600' : 'text-gray-600'}`}>
+                            {bid.amount > 0 ? formatCurrency(bid.amount) : 'Amount unavailable'}
+                          </p>
+                          <p className="text-xs text-gray-500">#{index + 1}</p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className={`font-semibold ${bid.isWinning ? 'text-green-600' : 'text-gray-600'}`}>
-                          {bid.amount > 0 ? formatCurrency(bid.amount) : 'Amount unavailable'}
-                        </p>
-                        <p className="text-xs text-gray-500">#{index + 1}</p>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                   
                   {bidHistory.length === 0 && (
                     <div className="text-center py-8 text-gray-500">
@@ -801,4 +865,4 @@ export function BidModal({ listing, open, onOpenChange }: BidModalProps) {
       </DialogContent>
     </Dialog>
   )
-} 
+}

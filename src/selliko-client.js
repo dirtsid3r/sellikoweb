@@ -2133,8 +2133,10 @@ class SellikoClient {
         queryParams.append('search', options.search.trim())
       }
       
-      // Add status filter (default to receiving_bids for marketplace)
-      queryParams.append('status', options.status || 'receiving_bids')
+      // Add status filter (default to receiving_bids for marketplace, unless explicitly null)
+      if (options.status !== null) {
+        queryParams.append('status', options.status || 'receiving_bids')
+      }
       
       // Add pagination
       queryParams.append('page', (options.page || 1).toString())
@@ -4102,6 +4104,57 @@ class SellikoClient {
         success: false,
         error: error.message || 'Network error occurred'
       }
+    }
+  }
+
+  // Track order status and agent details
+  async trackOrder(listingId) {
+    console.log('🔍 [SELLIKO-CLIENT] Tracking order for listing:', listingId)
+    
+    try {
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        throw new Error('Authentication required')
+      }
+
+      const response = await fetch(`${this.apiBase}functions/v1/track`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'default-key'
+        },
+        body: JSON.stringify({ 
+          listing_id: parseInt(listingId) 
+        })
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Track API response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('❌ [SELLIKO-CLIENT] Track API error:', errorText)
+        throw new Error(`Track API failed: ${response.status} ${response.statusText}`)
+      }
+
+      const result = await response.json()
+      
+      console.log('📥 [SELLIKO-CLIENT] Track API result:', {
+        listing_id: result.listing_id,
+        status: result.status,
+        hasAgent: !!result.agent,
+        hasDeliveryOtp: !!result.delivery_otp
+      })
+
+      return result
+      
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] Track order error:', error)
+      throw error
     }
   }
 }
