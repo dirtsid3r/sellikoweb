@@ -13,6 +13,7 @@ import { toast } from 'react-hot-toast'
 import React from 'react'
 import { useAuth } from '@/lib/auth'
 import sellikoClient from '@/selliko-client'
+import Header from '@/components/layout/header'
 
 interface DeviceImages {
   front?: File | null
@@ -292,8 +293,9 @@ export default function ListDevice() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
+      <Header variant="client" />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
+        {/* Page Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">List Your Device</h1>
           <p className="text-gray-600">Complete all steps to list your device for selling</p>

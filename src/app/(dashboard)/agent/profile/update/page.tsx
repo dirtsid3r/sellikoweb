@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import sellikoClient from '@/selliko-client'
 import { toast } from 'react-hot-toast'
+import Header from '@/components/layout/header'
 
 export default function AgentProfileUpdate() {
   const { user, isLoading } = useAuth()
@@ -319,6 +320,7 @@ export default function AgentProfileUpdate() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-purple-50">
+      <Header variant="agent" showBackButton />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Agent Profile Update</h1>

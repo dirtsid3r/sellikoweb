@@ -11,6 +11,7 @@ import { Modal } from '@/components/ui/modal'
 import { useRouter } from 'next/navigation'
 import sellikoClient from '@/selliko-client'
 import { toast } from 'react-hot-toast'
+import Header from '@/components/layout/header'
 
 interface Listing {
   id: string
@@ -351,34 +352,28 @@ export default function PendingApprovals() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-orange-50">
-      {/* Header - iOS Style */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200/60 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
+      <Header variant="admin" showBackButton />
+      
+      {/* Page Header */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
-              <button
-                onClick={() => router.back()}
-                className="touch-target btn-ghost p-2 rounded-xl"
-              >
-                <Icons.arrowLeft className="w-5 h-5" />
-              </button>
               <div className="w-10 h-10 bg-gradient-to-r from-orange-600 to-orange-700 rounded-xl flex items-center justify-center shadow-lg">
                 <Icons.clock className="w-6 h-6 text-white" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">Pending Approvals</h1>
-                <p className="text-xs text-gray-500">{filteredListings.length} pending review</p>
+                <p className="text-sm text-gray-500">{filteredListings.length} pending review</p>
               </div>
             </div>
             
-            <div className="flex items-center space-x-3">
-              <button className="btn-ghost px-4 py-2 rounded-xl">
-                <Icons.refresh className="w-5 h-5" />
-              </button>
-            </div>
+            <button className="btn-ghost px-4 py-2 rounded-xl" onClick={() => window.location.reload()}>
+              <Icons.refresh className="w-5 h-5" />
+            </button>
           </div>
         </div>
-      </header>
+      </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Search and Filter */}

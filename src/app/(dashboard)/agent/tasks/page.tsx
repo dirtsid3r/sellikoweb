@@ -25,6 +25,7 @@ import sellikoClient from '@/selliko-client'
 import { toast } from 'react-hot-toast'
 import { Icons } from '@/components/ui/icons'
 import { Button } from '@/components/ui/button'
+import Header from '@/components/layout/header'
 
 // Type definitions for API response
 interface ApiTask {
@@ -255,8 +256,9 @@ export default function AgentTasks() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
+      <Header variant="agent" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
+        {/* Page Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Task Management</h1>

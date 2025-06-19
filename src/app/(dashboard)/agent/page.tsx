@@ -25,6 +25,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Icons } from '@/components/ui/icons'
 import DeliveryModal from '@/components/shared/DeliveryModal'
+import Header from '@/components/layout/header'
 
 // Mock data - in real app this would come from API
 const verificationStats = {
@@ -312,8 +313,9 @@ export default function AgentDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
+      <Header variant="agent" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
+        {/* Page Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>

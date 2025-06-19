@@ -10,6 +10,7 @@ import Link from 'next/link'
 import { useAuth } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import sellikoClient from '@/selliko-client'
+import Header from '@/components/layout/header'
 
 interface DeviceListing {
   id: string
@@ -47,8 +48,7 @@ export default function MyListings() {
   const [isLoadingListings, setIsLoadingListings] = useState(true)
   const [isAuthChecking, setIsAuthChecking] = useState(true)
   const [selectedTab, setSelectedTab] = useState<'all' | 'active' | 'pending' | 'sold'>('all')
-  const [selectedListing, setSelectedListing] = useState<DeviceListing | null>(null)
-  const [bidDetailsOpen, setBidDetailsOpen] = useState(false)
+
 
   // Authentication and role check
   useEffect(() => {
@@ -89,6 +89,8 @@ export default function MyListings() {
 
     checkAuthAndRole()
   }, [router])
+
+
 
   // Transform API listing data to match card format
   const transformListingData = (apiListing: any): DeviceListing => {
@@ -217,32 +219,10 @@ export default function MyListings() {
     loadListings()
   }, [isAuthChecking, isLoading])
 
-  // Function to handle listing card click and fetch detailed information
-  const handleListingClick = async (listingId: string, listingTitle: string) => {
-    console.log('🖱️ [MY-LISTINGS] Listing card clicked:', { listingId, listingTitle })
-    
-    try {
-      // Call getListingById to fetch detailed information
-      const listingDetails = await sellikoClient.getListingById(listingId, {
-        include_images: true,
-        include_bids: true,
-        include_user_details: true // Include user details for this detailed view
-      })
-      
-      console.log('📋 [MY-LISTINGS] Fetched listing details for clicked listing:', listingDetails)
-      
-      if ((listingDetails as any).success && (listingDetails as any).listing) {
-        toast.success(`Loaded details for ${listingTitle}`)
-        // Here you could navigate to a detail page or open a modal
-        // For now, we're just logging the details as requested
-        console.log('✅ [MY-LISTINGS] Successfully loaded listing details - check console for full response')
-      } else {
-        toast.error(`Failed to load details: ${(listingDetails as any).error}`)
-      }
-    } catch (error) {
-      console.error('💥 [MY-LISTINGS] Error fetching listing details:', error)
-      toast.error('Failed to load listing details')
-    }
+  // Function to handle listing card click and navigate to listing details page
+  const handleListingClick = (listingId: string) => {
+    console.log('🖱️ [MY-LISTINGS] Listing card clicked, navigating to:', `/client/listings/${listingId}`)
+    router.push(`/client/listings/${listingId}`)
   }
 
   // Real-time updates simulation
@@ -344,20 +324,7 @@ export default function MyListings() {
     return listing.status === selectedTab
   })
 
-  const handleAcceptBid = (listingId: string, bidId: string) => {
-    toast.success('Bid accepted! Order tracking will begin automatically.')
-    // In real app, this would call API to accept bid and start order process
-  }
 
-  const handleDeclineBid = (listingId: string, bidId: string) => {
-    toast('Bid declined')
-    // In real app, this would call API to decline bid
-  }
-
-  const handleViewBidDetails = (listing: DeviceListing) => {
-    setSelectedListing(listing)
-    setBidDetailsOpen(true)
-  }
 
   const tabs = [
     { key: 'all', label: 'All Listings', count: listings.length },
@@ -382,12 +349,19 @@ export default function MyListings() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-green-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
+      <Header variant="client" />
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
+        {/* Page Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">📱 My Device Listings</h1>
+            <div className="flex items-center space-x-2 mb-2">
+              <Link href="/client" className="text-gray-500 hover:text-gray-700">
+                <Icons.arrowLeft className="w-5 h-5" />
+              </Link>
+              <h1 className="text-3xl font-bold text-gray-900">📱 My Device Listings</h1>
+            </div>
             <p className="text-gray-600">Track your device sales and manage bids</p>
           </div>
           <Link href="/client/list-device">
@@ -494,7 +468,7 @@ export default function MyListings() {
               <Card 
                 key={listing.id} 
                 className="hover:shadow-lg transition-all duration-200 cursor-pointer"
-                onClick={() => handleListingClick(listing.id, `${listing.device.brand} ${listing.device.model}`)}
+                onClick={() => handleListingClick(listing.id)}
               >
                 <CardContent className="p-0">
                   {/* Image and Status */}
@@ -550,46 +524,17 @@ export default function MyListings() {
                         <span className={`font-medium ${listing.totalBids > 0 ? 'text-green-600' : 'text-gray-600'}`}>
                           {listing.totalBids === 0 ? 'No bids yet' : `${listing.totalBids} bid${listing.totalBids > 1 ? 's' : ''} received`}
                         </span>
-                        {listing.status === 'active' && listing.totalBids > 0 && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleViewBidDetails(listing)}
-                            className="text-blue-600 hover:text-blue-700"
-                          >
-                            View Bids
-                          </Button>
-                        )}
                       </div>
                     </div>
 
                     {/* Latest Bid Alert */}
                     {listing.status === 'active' && listing.bids.length > 0 && (
                       <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-blue-900">Latest Bid</p>
-                            <p className="text-xs text-blue-700">
-                              {formatCurrency(listing.bids[0].amount)} by {listing.bids[0].vendorName}
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              className="bg-green-600 hover:bg-green-700"
-                              onClick={() => handleAcceptBid(listing.id, listing.bids[0].id)}
-                            >
-                              Accept
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-xs"
-                              onClick={() => handleDeclineBid(listing.id, listing.bids[0].id)}
-                            >
-                              Decline
-                            </Button>
-                          </div>
+                        <div>
+                          <p className="text-sm font-medium text-blue-900">Latest Bid</p>
+                          <p className="text-xs text-blue-700">
+                            {formatCurrency(listing.bids[0].amount)} by {listing.bids[0].vendorName}
+                          </p>
                         </div>
                       </div>
                     )}
@@ -631,59 +576,7 @@ export default function MyListings() {
           </div>
         )}
 
-        {/* Bid Details Modal */}
-        {selectedListing && bidDetailsOpen && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-semibold">Bids for {selectedListing.device.model}</h3>
-                  <Button variant="ghost" onClick={() => setBidDetailsOpen(false)}>
-                    <Icons.x className="w-5 h-5" />
-                  </Button>
-                </div>
-                
-                <div className="space-y-3">
-                  {selectedListing.bids.map((bid, index) => (
-                    <div key={bid.id} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">{bid.vendorName}</p>
-                          <p className="text-sm text-gray-500">{bid.timestamp}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-lg font-semibold text-green-600">
-                            {formatCurrency(bid.amount)}
-                          </p>
-                          <p className="text-xs text-gray-500">Bid #{index + 1}</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2 mt-3">
-                        <Button
-                          size="sm"
-                          className="bg-green-600 hover:bg-green-700"
-                          onClick={() => {
-                            handleAcceptBid(selectedListing.id, bid.id)
-                            setBidDetailsOpen(false)
-                          }}
-                        >
-                          Accept Bid
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDeclineBid(selectedListing.id, bid.id)}
-                        >
-                          Decline
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+
       </div>
     </div>
   )

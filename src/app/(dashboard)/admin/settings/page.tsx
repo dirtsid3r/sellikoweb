@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import sellikoClient from '@/selliko-client'
 import { toast } from 'react-hot-toast'
+import Header from '@/components/layout/header'
 
 // Settings menu items configuration
 const settingsMenuItems = [
@@ -2068,35 +2069,7 @@ export default function AdminSettings() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => router.back()}
-                className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
-              >
-                <Icons.arrowLeft className="w-5 h-5 text-gray-600" />
-              </button>
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <Icons.shield className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">SELLIKO Admin</h1>
-                <p className="text-xs text-gray-500">Settings & Configuration</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <p className="text-sm font-medium text-gray-900">{user?.name || 'Admin User'}</p>
-                <p className="text-xs text-gray-500">Administrator</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header variant="admin" showBackButton />
 
       {/* Main Content */}
       <div className="flex h-[calc(100vh-73px)]">

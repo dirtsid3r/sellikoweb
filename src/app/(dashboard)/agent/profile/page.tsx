@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Header from '@/components/layout/header'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Icons } from '@/components/ui/icons'
@@ -8,6 +9,7 @@ import { Icons } from '@/components/ui/icons'
 export default function AgentProfile() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-purple-50">
+      <Header variant="agent" />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">

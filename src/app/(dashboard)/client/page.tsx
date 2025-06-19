@@ -10,6 +10,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import sellikoClient from '@/selliko-client'
 import { toast } from 'react-hot-toast'
+import Header from '@/components/layout/header'
 
 // Helper function to calculate time remaining based on approval time
 const calculateTimeRemaining = (timeApproved: string | null, status: string): string => {
@@ -71,7 +72,7 @@ const getTimeRemainingColor = (timeRemaining: string): string => {
 export default function ClientDashboard() {
   const { user, logout, isLoading } = useAuth()
   const router = useRouter()
-  const [isLoggingOut, setIsLoggingOut] = useState(false)
+
   const [isAuthChecking, setIsAuthChecking] = useState(true)
   const [currentListings, setCurrentListings] = useState<any[]>([])
   const [isLoadingListings, setIsLoadingListings] = useState(true)
@@ -134,11 +135,7 @@ export default function ClientDashboard() {
     checkAuthAndRole()
   }, [router])
 
-  const handleLogout = () => {
-    console.log('🔄 [CLIENT-DASH] Logout button clicked')
-    setIsLoggingOut(true)
-    router.push('/logout')
-  }
+
 
   // Transform API listing data to match card format
   const transformListingData = (apiListing: any) => {
@@ -338,42 +335,7 @@ export default function ClientDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200/60 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-2 sm:space-x-3">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-lg">
-                <Icons.smartphone className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-lg sm:text-xl font-bold text-gray-900">SELLIKO</h1>
-                <p className="text-xs text-gray-500 hidden sm:block">Your device marketplace</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-2 sm:space-x-4">
-              <div className="text-right hidden sm:block">
-                <p className="text-sm font-semibold text-gray-900">{user?.name || 'Test User 1'}</p>
-                <p className="text-xs text-gray-500">Ready to sell?</p>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleLogout}
-                disabled={isLoggingOut}
-                className="hover:bg-gray-100"
-              >
-                {isLoggingOut ? (
-                  <Icons.spinner className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Icons.logOut className="w-4 h-4" />
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header variant="client" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Hero Section */}
@@ -442,11 +404,11 @@ export default function ClientDashboard() {
                     onClick={() => router.push(`/client/listings/${listing.id}`)}>
                     <CardContent className="p-0">
                       {/* Device Image */}
-                      <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
+                      <div className="relative">
                         <img 
                           src={listing.image} 
                           alt={listing.device}
-                          className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                          className="w-full h-48 object-cover rounded-t-lg group-hover:scale-105 transition-transform duration-500"
                           onError={(e) => {
                             console.warn('🖼️ [CLIENT-DASH] Image failed to load:', listing.image, 'for listing:', listing.id)
                             // Try alternative images if available

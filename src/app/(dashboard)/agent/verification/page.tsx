@@ -42,6 +42,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid'
 import { Icons } from '@/components/ui/icons'
+import Header from '@/components/layout/header'
 
 interface VerificationStep {
   id: number
@@ -1331,8 +1332,9 @@ export default function AgentVerification() {
   if (!verificationStarted) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
+        <Header variant="agent" showBackButton />
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Header */}
+          {/* Page Header */}
           <div className="mb-8">
             <div className="flex items-center justify-between">
               <div>
@@ -1349,12 +1351,6 @@ export default function AgentVerification() {
                   }
                 </p>
               </div>
-              <Link
-                href="/agent"
-                className="px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                ← Back to Dashboard
-              </Link>
             </div>
           </div>
 
