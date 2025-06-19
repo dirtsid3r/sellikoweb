@@ -134,6 +134,19 @@ export default function MyListings() {
       timeLeftMinutes = 1440 // 24 hours in minutes
     }
 
+    // Process bids data correctly
+    const bidsArray = Array.isArray(apiListing.bids) ? apiListing.bids : []
+    const transformedBids = bidsArray.map((bid: any) => ({
+      id: bid.id?.toString() || '',
+      vendorName: bid.vendor_profile?.name || 'Unknown Vendor',
+      amount: bid.bid_amount || 0,
+      timestamp: bid.created_at || new Date().toISOString(),
+      status: bid.status === 'active' ? 'active' : bid.status === 'accepted' ? 'accepted' : 'declined'
+    }))
+
+    // Extract current bid from highest_bid object
+    const currentBidAmount = apiListing.highest_bid?.bid_amount || undefined
+
     return {
       id: apiListing.id,
       device: {
@@ -145,13 +158,13 @@ export default function MyListings() {
       },
       images,
       askingPrice: apiListing.asking_price || apiListing.expected_price || 0,
-      currentBid: apiListing.highest_bid || undefined,
-      totalBids: apiListing.bids || 0,
+      currentBid: currentBidAmount,
+      totalBids: bidsArray.length,
       timeLeft,
       timeLeftMinutes,
       status,
       submittedAt: apiListing.created_at || new Date().toISOString(),
-      bids: [], // TODO: Implement bid details if needed
+      bids: transformedBids,
       description: device.description || 'No description available',
       location: apiListing.pickup_city || 'Unknown location'
     }

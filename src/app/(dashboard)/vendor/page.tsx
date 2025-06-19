@@ -22,7 +22,17 @@ interface VendorStats {
   wonThisMonth: number
   totalDevices: number
   winRate: number
-  totalSpent: number
+}
+
+interface DashboardResponse {
+  success: boolean
+  data?: {
+    activBids: number
+    winInMonth: number
+    totalDevices: number
+    winRate: number
+  }
+  error?: string
 }
 
 interface RecentActivity {
@@ -40,13 +50,14 @@ export default function VendorDashboard() {
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [activeTab, setActiveTab] = useState('dashboard')
   const [stats, setStats] = useState<VendorStats>({
-    activeBids: 3,
-    wonThisMonth: 12,
-    totalDevices: 45,
-    winRate: 73,
-    totalSpent: 485000
+    activeBids: 0,
+    wonThisMonth: 0,
+    totalDevices: 0,
+    winRate: 0
   })
   const [isAuthChecking, setIsAuthChecking] = useState(true)
+  const [isLoadingStats, setIsLoadingStats] = useState(true)
+  const [statsError, setStatsError] = useState<string | null>(null)
 
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([
     {
@@ -101,10 +112,41 @@ export default function VendorDashboard() {
 
         console.log('✅ [VENDOR-DASH] Role verification successful')
         setIsAuthChecking(false)
+        
+        // Load dashboard stats after authentication
+        await loadDashboardStats()
       } catch (error) {
         console.error('💥 [VENDOR-DASH] Auth check error:', error)
         toast.error('Authentication error')
         router.replace('/login')
+      }
+    }
+
+    const loadDashboardStats = async () => {
+      try {
+        setIsLoadingStats(true)
+        setStatsError(null)
+        
+        console.log('📊 [VENDOR-DASH] Loading dashboard stats...')
+        const response = await sellikoClient.getDashboard('vendor-desk') as DashboardResponse
+        
+        if (response.success && response.data) {
+          console.log('✅ [VENDOR-DASH] Dashboard stats loaded:', response.data)
+          setStats({
+            activeBids: response.data.activBids || 0,
+            wonThisMonth: response.data.winInMonth || 0,
+            totalDevices: response.data.totalDevices || 0,
+            winRate: response.data.winRate || 0
+          })
+        } else {
+          console.error('❌ [VENDOR-DASH] Failed to load dashboard stats:', response.error)
+          setStatsError(response.error || 'Failed to load dashboard data')
+        }
+      } catch (error) {
+        console.error('💥 [VENDOR-DASH] Dashboard stats error:', error)
+        setStatsError(error instanceof Error ? error.message : 'An unexpected error occurred')
+      } finally {
+        setIsLoadingStats(false)
       }
     }
 
@@ -169,110 +211,103 @@ export default function VendorDashboard() {
             {/* Business Summary Stats */}
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">📊 Your Business Summary</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {isLoadingStats ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {[1, 2, 3, 4].map((i) => (
+                    <Card key={i} className="animate-pulse">
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="h-4 bg-gray-200 rounded w-16 mb-1"></div>
+                            <div className="h-4 bg-gray-200 rounded w-20 mb-2"></div>
+                            <div className="h-8 bg-gray-200 rounded w-12"></div>
+                          </div>
+                          <div className="w-12 h-12 bg-gray-200 rounded-lg"></div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : statsError ? (
                 <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">🔥 Active</p>
-                        <p className="text-sm font-medium text-gray-600">Bids</p>
-                        <p className="text-3xl font-bold text-gray-900 mt-2">{stats.activeBids}</p>
-                      </div>
-                      <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                        <Icons.clock className="w-6 h-6 text-red-600" />
-                      </div>
-                    </div>
+                  <CardContent className="p-6 text-center">
+                    <Icons.alertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+                    <h4 className="text-lg font-semibold text-gray-900 mb-2">Error Loading Stats</h4>
+                    <p className="text-gray-600 mb-4">{statsError}</p>
+                    <Button 
+                      onClick={() => window.location.reload()} 
+                      variant="outline"
+                    >
+                      Try Again
+                    </Button>
                   </CardContent>
                 </Card>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <Card>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-gray-600">🔥 Active</p>
+                          <p className="text-sm font-medium text-gray-600">Bids</p>
+                          <p className="text-3xl font-bold text-gray-900 mt-2">{stats.activeBids}</p>
+                        </div>
+                        <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                          <Icons.clock className="w-6 h-6 text-red-600" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">✅ Won</p>
-                        <p className="text-sm font-medium text-gray-600">This Month</p>
-                        <p className="text-3xl font-bold text-gray-900 mt-2">{stats.wonThisMonth}</p>
+                  <Card>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-gray-600">✅ Won</p>
+                          <p className="text-sm font-medium text-gray-600">This Month</p>
+                          <p className="text-3xl font-bold text-gray-900 mt-2">{stats.wonThisMonth}</p>
+                        </div>
+                        <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                          <Icons.check className="w-6 h-6 text-green-600" />
+                        </div>
                       </div>
-                      <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                        <Icons.check className="w-6 h-6 text-green-600" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
 
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">📱 Total</p>
-                        <p className="text-sm font-medium text-gray-600">Devices</p>
-                        <p className="text-3xl font-bold text-gray-900 mt-2">{stats.totalDevices}</p>
+                  <Card>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-gray-600">📱 Total</p>
+                          <p className="text-sm font-medium text-gray-600">Devices</p>
+                          <p className="text-3xl font-bold text-gray-900 mt-2">{stats.totalDevices}</p>
+                        </div>
+                        <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <Icons.smartphone className="w-6 h-6 text-blue-600" />
+                        </div>
                       </div>
-                      <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <Icons.smartphone className="w-6 h-6 text-blue-600" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
 
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">⭐ Win</p>
-                        <p className="text-sm font-medium text-gray-600">Rate</p>
-                        <p className="text-3xl font-bold text-gray-900 mt-2">{stats.winRate}%</p>
+                  <Card>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-gray-600">⭐ Win</p>
+                          <p className="text-sm font-medium text-gray-600">Rate</p>
+                          <p className="text-3xl font-bold text-gray-900 mt-2">{stats.winRate}%</p>
+                        </div>
+                        <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                          <Icons.star className="w-6 h-6 text-yellow-600" />
+                        </div>
                       </div>
-                      <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                        <Icons.star className="w-6 h-6 text-yellow-600" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
             </div>
 
-            {/* Quick Actions */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">📋 Quick Actions</h3>
-              <Card>
-                <CardContent className="p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <Button 
-                      className="h-auto p-4 flex flex-col items-center gap-2"
-                      onClick={() => setActiveTab('marketplace')}
-                    >
-                      <Icons.smartphone className="w-6 h-6" />
-                      <span>Browse New Listings</span>
-                    </Button>
-                    <Button 
-                      variant="outline"
-                      className="h-auto p-4 flex flex-col items-center gap-2"
-                      onClick={() => setActiveTab('my-bids')}
-                    >
-                      <Icons.list className="w-6 h-6" />
-                      <span>My Bids</span>
-                    </Button>
-                    <Button 
-                      variant="outline"
-                      className="h-auto p-4 flex flex-col items-center gap-2"
-                      onClick={() => setActiveTab('notifications')}
-                    >
-                      <Icons.bell className="w-6 h-6" />
-                      <span>Notifications</span>
-                    </Button>
-                    <Button 
-                      variant="outline"
-                      className="h-auto p-4 flex flex-col items-center gap-2"
-                      onClick={() => setActiveTab('my-bids')}
-                    >
-                      <Icons.trendingUp className="w-6 h-6" />
-                      <span>Transaction History</span>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+
 
             {/* Recent Activity */}
             <div>

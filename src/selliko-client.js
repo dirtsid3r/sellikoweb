@@ -4305,6 +4305,114 @@ class SellikoClient {
    * 
    * @returns {Promise<Object>} Response with success status and bids array
    */
+  // Dashboard function - fetch dashboard data by function name
+  /**
+   * Retrieves dashboard data for a specific function
+   * 
+   * AUTHORIZATION REQUIREMENTS:
+   * - Valid JWT token required in Authorization header
+   * - User must be authenticated and have appropriate role permissions
+   * 
+   * @param {string} functionName - The dashboard function to call (e.g., 'bids')
+   * 
+   * @returns {Promise<Object>} Response with success status and dashboard data
+   */
+  async getDashboard(functionName) {
+    console.log('📊 [SELLIKO-CLIENT] getDashboard called with function:', functionName)
+
+    try {
+      // Validate inputs
+      if (!functionName) {
+        throw new Error('Function name is required')
+      }
+
+      // Get current user and validate authentication
+      const user = await this.getCurrentUser()
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+
+      console.log('👤 [SELLIKO-CLIENT] Current user validation:', {
+        userId: user.id,
+        userRole: user.user_role
+      })
+
+      // Get access token
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        throw new Error('No access token found')
+      }
+
+      // Build query parameters
+      const queryParams = new URLSearchParams({
+        function: functionName
+      })
+
+      const url = `${this.apiBase}functions/v1/dashboard?${queryParams.toString()}`
+
+      console.log('📤 [SELLIKO-CLIENT] Submitting dashboard request:', {
+        url: url,
+        method: 'GET',
+        hasToken: !!token,
+        function: functionName
+      })
+
+      // Make API request
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Dashboard response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
+      const result = await response.json()
+      
+      console.log('📥 [SELLIKO-CLIENT] Dashboard result:', {
+        success: result.success,
+        hasData: !!result.data,
+        function: functionName,
+        message: result.message,
+        error: result.error
+      })
+
+      // Log dashboard data if available
+      if (result.success && result.data) {
+        console.log(`✅ [SELLIKO-CLIENT] Dashboard data received for ${functionName}:`, {
+          totalBids: result.data.total_bids,
+          bidsWon: result.data.bids_won,
+          financialTotal: result.data.financial_total,
+          currentActivity: result.data.current_activity
+        })
+      } else {
+        console.log('ℹ️ [SELLIKO-CLIENT] No dashboard data found or request failed')
+      }
+
+      return result
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] getDashboard error:', error)
+      console.error('📋 [SELLIKO-CLIENT] Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      })
+      
+      return {
+        success: false,
+        error: error.message || 'Network error occurred',
+        data: null
+      }
+    }
+  }
+
   async getMyBids(options = {}) {
     console.log('💰 [SELLIKO-CLIENT] getMyBids called with options:', {
       status: options.status || 'ALL',
