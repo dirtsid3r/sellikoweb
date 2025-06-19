@@ -224,10 +224,12 @@ export function BidModal({ listing, open, onOpenChange, currentUserId }: BidModa
                   vendorName: bid.vendor_id ? `Vendor ${bid.vendor_id.substring(0, 8)}...` : `Vendor ${index + 1}`,
                   amount: bid.bid_amount || 0,
                   timestamp: bid.created_at ? new Date(bid.created_at).toLocaleString() : 'Unknown time',
-                  isWinning: index === 0 // First bid is highest (assuming sorted)
+                  isWinning: false // Will be set after sorting
                 }
               })
               .filter((bid: BidHistory) => bid.amount > 0) // Only include bids with valid amounts
+              .sort((a, b) => b.amount - a.amount) // Sort by bid amount in descending order (highest first)
+              .map((bid, index) => ({ ...bid, isWinning: index === 0 })) // Mark the highest bid as winning
               
             console.log('✅ [BID-MODAL] Transformed bids:', transformedBids)
             setBidHistory(transformedBids)
@@ -300,7 +302,13 @@ export function BidModal({ listing, open, onOpenChange, currentUserId }: BidModa
     device: `${listing.brand} - ${listing.model} - ${listing.storage} - ${listing.color}`
   }
 
-  const minimumBid = currentListing.currentBid ? currentListing.currentBid + 1000 : 1000
+  // Calculate current highest bid from bid history or API data
+  const currentHighestBid = Math.max(
+    bidHistory.length > 0 ? bidHistory[0].amount : 0,
+    currentListing.currentBid || 0
+  )
+  
+  const minimumBid = currentHighestBid > 0 ? currentHighestBid + 1000 : 1000
   const isInstantWin = bidAmount && parseInt(bidAmount) >= currentListing.askingPrice
   const isValidBid = bidAmount && parseInt(bidAmount) >= minimumBid
   
@@ -326,32 +334,62 @@ export function BidModal({ listing, open, onOpenChange, currentUserId }: BidModa
     return () => clearInterval(timer)
   }, [open, timeRemaining])
 
-  // Simulate real-time bid updates (only if watching)
+  // Real-time bid updates using API (only if watching)
   useEffect(() => {
-    if (!open || !isWatchingAuction) return
+    if (!open || !isWatchingAuction || !currentListing.id) return
 
-    const bidUpdateTimer = setInterval(() => {
-      // Random chance of new bid
-      if (Math.random() < 0.1) { // 10% chance every 10 seconds
-        const randomBidders = ['Digital Hub Kerala', 'Phone Paradise', 'Smart Gadgets Co']
-        const randomBidder = randomBidders[Math.floor(Math.random() * randomBidders.length)]
-        const newBidAmount = (currentListing.currentBid || minimumBid) + Math.floor(Math.random() * 2000) + 500
+    let bidUpdateTimer: NodeJS.Timeout | null = null
+
+    const fetchLatestBids = async () => {
+      try {
+        console.log('🔄 [BID-MODAL] Fetching latest bids for listing:', currentListing.id)
         
-        const newBid: BidHistory = {
-          id: Date.now().toString(),
-          vendorName: randomBidder,
-          amount: newBidAmount,
-          timestamp: 'Just now',
-          isWinning: true
+        const response = await sellikoClient.getBidsForListing(currentListing.id)
+        
+        if (response.success && response.bids && response.bids.length > 0) {
+          console.log('📥 [BID-MODAL] Real-time bids received:', response.bids.length)
+          
+          // Transform API response to BidHistory format
+          const transformedBids: BidHistory[] = response.bids
+            .map((bid: any) => ({
+              id: bid.bid?.toString() || `bid_${Date.now()}`,
+              vendorName: `Vendor ${bid.vendor_id || 'Unknown'}`,
+              amount: bid.bid_amnt || 0,
+              timestamp: bid.creation_timestamp ? new Date(bid.creation_timestamp).toLocaleString() : 'Unknown time',
+              isWinning: false // Will be set after sorting
+            }))
+            .filter((bid: BidHistory) => bid.amount > 0) // Only include valid bids
+            .sort((a, b) => b.amount - a.amount) // Sort by amount descending
+            .map((bid, index) => ({ ...bid, isWinning: index === 0 })) // Mark highest as winning
+
+          // Update bid history with real data
+          setBidHistory(transformedBids)
+          
+          console.log('✅ [BID-MODAL] Bid history updated with real-time data:', {
+            totalBids: transformedBids.length,
+            highestBid: transformedBids.length > 0 ? transformedBids[0].amount : 0
+          })
+        } else {
+          console.log('ℹ️ [BID-MODAL] No new bids found in real-time update')
         }
-
-        setBidHistory(prev => [newBid, ...prev.map(bid => ({ ...bid, isWinning: false }))])
-                 toast(`New bid: ₹${newBidAmount.toLocaleString()} by ${randomBidder}`)
+      } catch (error) {
+        console.error('💥 [BID-MODAL] Error fetching real-time bids:', error)
+        // Don't show user error for background updates
       }
-    }, 10000) // Check every 10 seconds
+    }
 
-    return () => clearInterval(bidUpdateTimer)
-  }, [open, isWatchingAuction, currentListing.currentBid, minimumBid])
+    // Fetch immediately when watching starts
+    fetchLatestBids()
+
+    // Set up interval for real-time updates
+    bidUpdateTimer = setInterval(fetchLatestBids, 10000) // Poll every 10 seconds
+
+    return () => {
+      if (bidUpdateTimer) {
+        clearInterval(bidUpdateTimer)
+      }
+    }
+  }, [open, isWatchingAuction, currentListing.id])
 
   const formatTimeRemaining = (minutes: number): string => {
     if (minutes <= 0) return 'Auction Ended'
@@ -408,7 +446,12 @@ export function BidModal({ listing, open, onOpenChange, currentUserId }: BidModa
           timestamp: 'Just now',
           isWinning: true
         }
-        setBidHistory(prev => [winningBid, ...prev.map(bid => ({ ...bid, isWinning: false }))])
+        setBidHistory(prev => {
+          const updatedBids = [winningBid, ...prev.map(bid => ({ ...bid, isWinning: false }))]
+          return updatedBids
+            .sort((a, b) => b.amount - a.amount) // Sort by bid amount in descending order
+            .map((bid, index) => ({ ...bid, isWinning: index === 0 })) // Mark highest bid as winning
+        })
         
         // Close auction
         setTimeRemaining(0)
@@ -423,7 +466,12 @@ export function BidModal({ listing, open, onOpenChange, currentUserId }: BidModa
           timestamp: 'Just now',
           isWinning: true
         }
-        setBidHistory(prev => [newBid, ...prev.map(bid => ({ ...bid, isWinning: false }))])
+        setBidHistory(prev => {
+          const updatedBids = [newBid, ...prev.map(bid => ({ ...bid, isWinning: false }))]
+          return updatedBids
+            .sort((a, b) => b.amount - a.amount) // Sort by bid amount in descending order
+            .map((bid, index) => ({ ...bid, isWinning: index === 0 })) // Mark highest bid as winning
+        })
       }
       
       setIsWatchingAuction(true)
@@ -450,9 +498,53 @@ export function BidModal({ listing, open, onOpenChange, currentUserId }: BidModa
     return `₹${amount.toLocaleString()}`
   }
 
-  const handleWatchAuction = () => {
-    setIsWatchingAuction(!isWatchingAuction)
-         toast(isWatchingAuction ? 'Stopped watching auction' : 'Now watching auction for real-time updates')
+  const handleWatchAuction = async () => {
+    const wasWatching = isWatchingAuction
+    setIsWatchingAuction(!wasWatching)
+    
+    if (!wasWatching) {
+      // Starting to watch - fetch initial data
+      toast('Now watching auction for real-time updates')
+      
+      try {
+        console.log('🔄 [BID-MODAL] Fetching initial real-time bids for listing:', currentListing.id)
+        
+        const response = await sellikoClient.getBidsForListing(currentListing.id)
+        
+        if (response.success && response.bids && response.bids.length > 0) {
+          console.log('📥 [BID-MODAL] Initial real-time bids received:', response.bids.length)
+          
+          // Transform API response to BidHistory format
+          const transformedBids: BidHistory[] = response.bids
+            .map((bid: any) => ({
+              id: bid.bid?.toString() || `bid_${Date.now()}`,
+              vendorName: `Vendor ${bid.vendor_id || 'Unknown'}`,
+              amount: bid.bid_amnt || 0,
+              timestamp: bid.creation_timestamp ? new Date(bid.creation_timestamp).toLocaleString() : 'Unknown time',
+              isWinning: false // Will be set after sorting
+            }))
+            .filter((bid: BidHistory) => bid.amount > 0) // Only include valid bids
+            .sort((a, b) => b.amount - a.amount) // Sort by amount descending
+            .map((bid, index) => ({ ...bid, isWinning: index === 0 })) // Mark highest as winning
+
+          // Update bid history with real data immediately
+          setBidHistory(transformedBids)
+          
+          console.log('✅ [BID-MODAL] Initial bid history loaded:', {
+            totalBids: transformedBids.length,
+            highestBid: transformedBids.length > 0 ? transformedBids[0].amount : 0
+          })
+        } else {
+          console.log('ℹ️ [BID-MODAL] No bids found for initial load')
+        }
+      } catch (error) {
+        console.error('💥 [BID-MODAL] Error fetching initial bids:', error)
+        toast.error('Failed to load real-time bid data')
+      }
+    } else {
+      // Stopping watch
+      toast('Stopped watching auction')
+    }
   }
 
   // Show loading state
@@ -624,8 +716,7 @@ export function BidModal({ listing, open, onOpenChange, currentUserId }: BidModa
                 <div className="flex justify-between">
                   <span className="text-gray-600">Current Highest Bid:</span>
                   <span className="font-semibold">
-                    {bidHistory.length > 0 && bidHistory[0].amount > 0 ? formatCurrency(bidHistory[0].amount) : 
-                     currentListing.currentBid && currentListing.currentBid > 0 ? formatCurrency(currentListing.currentBid) : 'No bids yet'}
+                    {currentHighestBid > 0 ? formatCurrency(currentHighestBid) : 'No bids yet'}
                   </span>
                 </div>
                 <div className="flex justify-between">

@@ -1118,11 +1118,11 @@ class SellikoClient {
         hasListing: !!data.listing,
         listingId: data.listing?.id,
         listingStatus: data.listing?.status,
-        listingBrand: data.listing?.brand,
-        listingModel: data.listing?.model,
-        hasImages: !!data.listing?.device_images,
+        hasDevices: !!data.listing?.devices && data.listing.devices.length > 0,
+        hasAddresses: !!data.listing?.addresses && data.listing.addresses.length > 0,
         hasBids: !!data.listing?.bids,
         bidCount: data.listing?.bids?.length || 0,
+        hasHighestBid: !!data.listing?.highest_bid,
         error: data.error,
         message: data.message
       })
@@ -1132,35 +1132,44 @@ class SellikoClient {
 
       // Log listing details if available
       if (data.listing) {
+        const device = data.listing.devices?.[0] // Get first device
+        const clientAddress = data.listing.addresses?.find(addr => addr.type === 'client') || data.listing.addresses?.[0]
+        
         console.log('📋 [SELLIKO-CLIENT] Listing details:', {
           id: data.listing.id,
-          brand: data.listing.brand,
-          model: data.listing.model,
-          storage: data.listing.storage,
-          condition: data.listing.condition,
+          brand: device?.brand,
+          model: device?.model,
+          storage: device?.storage,
+          condition: device?.condition,
           status: data.listing.status,
           expected_price: data.listing.expected_price,
           asking_price: data.listing.asking_price,
           highest_bid: data.listing.highest_bid,
           created_at: data.listing.created_at,
-          contact_name: data.listing.contact_name,
-          mobile_number: data.listing.mobile_number ? `${data.listing.mobile_number.substring(0, 5)}***` : 'NOT_SET',
-          city: data.listing.city,
-          pickup_city: data.listing.pickup_city,
-          device_images: data.listing.device_images ? Object.keys(data.listing.device_images) : [],
-          image_count: data.listing.device_images ? Object.values(data.listing.device_images).filter(Boolean).length : 0
+          contact_name: clientAddress?.contact_name,
+          mobile_number: clientAddress?.mobile_number ? `${clientAddress.mobile_number.substring(0, 5)}***` : 'NOT_SET',
+          city: clientAddress?.city,
+          device_images: device ? {
+            front: device.front_image_url,
+            back: device.back_image_url,
+            top: device.top_image_url,
+            bottom: device.bottom_image_url
+          } : {},
+          image_count: device ? [device.front_image_url, device.back_image_url, device.top_image_url, device.bottom_image_url].filter(Boolean).length : 0
         })
 
         // Log bid information if available
         if (data.listing.bids && data.listing.bids.length > 0) {
           console.log('💰 [SELLIKO-CLIENT] Bid information:', {
             total_bids: data.listing.bids.length,
-            highest_bid_amount: Math.max(...data.listing.bids.map(bid => bid.amount || 0)),
+            highest_bid_amount: Math.max(...data.listing.bids.map(bid => bid.bid_amount || 0)),
             latest_bid: data.listing.bids[0],
+            highest_bid_object: data.listing.highest_bid,
+            winning_bid_object: data.listing.winning_bid,
             bid_timeline: data.listing.bids.map(bid => ({
               id: bid.id,
-              amount: bid.amount,
-              vendor_name: bid.vendor_name,
+              amount: bid.bid_amount,
+              vendor_name: bid.vendor_profile?.name,
               created_at: bid.created_at,
               status: bid.status
             }))
@@ -2108,6 +2117,10 @@ class SellikoClient {
   /**
    * Fetches marketplace listings for vendor bidding
    * 
+   * AUTHORIZATION REQUIREMENTS:
+   * - Valid JWT token required in Authorization header
+   * - User must be authenticated (any role can view marketplace)
+   * 
    * @param {Object} options - Query options
    * @param {string} options.search - Search term for device/brand filtering (optional)
    * @param {string} options.status - Filter by listing status (optional, default: 'receiving_bids')
@@ -2125,6 +2138,20 @@ class SellikoClient {
     })
 
     try {
+      // Get access token for authentication
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        console.error('❌ [SELLIKO-CLIENT] No access token found')
+        return {
+          success: false,
+          error: 'Authentication required',
+          listings: [],
+          total: 0,
+          page: 1,
+          limit: 20
+        }
+      }
+
       // Build query parameters
       const queryParams = new URLSearchParams()
       
@@ -2147,12 +2174,14 @@ class SellikoClient {
       console.log('🌐 [SELLIKO-CLIENT] Making marketplace request:', {
         url: url,
         method: 'GET',
+        hasToken: !!token,
         queryParams: Object.fromEntries(queryParams)
       })
 
       const response = await fetch(url, {
         method: 'GET',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         }
       })
@@ -4155,6 +4184,125 @@ class SellikoClient {
     } catch (error) {
       console.error('💥 [SELLIKO-CLIENT] Track order error:', error)
       throw error
+    }
+  }
+
+  // 26. getBidsForListing - fetch real-time bids for a specific listing
+  /**
+   * Retrieves all bids for a specific listing with real-time data
+   * 
+   * AUTHORIZATION REQUIREMENTS:
+   * - Valid JWT token required in Authorization header
+   * - User must be authenticated (any role can view bids)
+   * 
+   * @param {number|string} listingId - The ID of the listing to fetch bids for
+   * 
+   * @returns {Promise<Object>} Response with success status and bids array
+   */
+  async getBidsForListing(listingId) {
+    console.log('💰 [SELLIKO-CLIENT] getBidsForListing called with:', {
+      listingId: listingId
+    })
+
+    try {
+      // Validate inputs
+      if (!listingId) {
+        throw new Error('Listing ID is required')
+      }
+
+      // Get access token - authentication required but any role can view bids
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        throw new Error('Authentication required to view bids')
+      }
+
+      // Build query parameters
+      const queryParams = new URLSearchParams({
+        listing_id: listingId.toString()
+      })
+
+      const url = `${this.apiBase}functions/v1/bids?${queryParams.toString()}`
+
+      console.log('📤 [SELLIKO-CLIENT] Submitting get bids request:', {
+        url: url,
+        method: 'GET',
+        hasToken: !!token,
+        listingId: listingId
+      })
+
+      // Make API request
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Get bids response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
+      const result = await response.json()
+      
+      console.log('📥 [SELLIKO-CLIENT] Get bids result:', {
+        success: result.success,
+        bidCount: result.bids ? result.bids.length : 0,
+        message: result.message,
+        error: result.error,
+        listingId: listingId
+      })
+
+      // Log bid details if available
+      if (result.success && result.bids && result.bids.length > 0) {
+        console.log(`✅ [SELLIKO-CLIENT] Found ${result.bids.length} bids for listing ${listingId}`)
+        result.bids.forEach((bid, index) => {
+          console.log(`💰 [SELLIKO-CLIENT] Bid ${index + 1}:`, {
+            bid: bid.bid,
+            amount: bid.bid_amnt,
+            status: bid.bid_status,
+            vendorId: bid.vendor_id,
+            device: bid.device,
+            result: bid.result,
+            createdAt: bid.creation_timestamp,
+            isActive: bid.bid_status === 'active',
+            isWinning: bid.result && (bid.result.includes('position 1') || bid.result.includes('instant win'))
+          })
+        })
+
+        // Log summary
+        const activeBids = result.bids.filter(bid => bid.bid_status === 'active')
+        const highestBid = activeBids.length > 0 ? Math.max(...activeBids.map(bid => bid.bid_amnt)) : 0
+        console.log('📊 [SELLIKO-CLIENT] Bidding summary:', {
+          totalBids: result.bids.length,
+          activeBids: activeBids.length,
+          highestBid: highestBid,
+          winningBids: result.bids.filter(bid => bid.bid_status === 'accepted').length,
+          lostBids: result.bids.filter(bid => bid.bid_status === 'outbid').length
+        })
+      } else {
+        console.log('ℹ️ [SELLIKO-CLIENT] No bids found for this listing or request failed')
+      }
+
+      return result
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] getBidsForListing error:', error)
+      console.error('📋 [SELLIKO-CLIENT] Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        listingId: listingId
+      })
+      
+      return {
+        success: false,
+        error: error.message || 'Network error occurred',
+        bids: []
+      }
     }
   }
 }

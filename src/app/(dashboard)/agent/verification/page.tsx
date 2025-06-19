@@ -224,7 +224,7 @@ const generateRandomTestData = (steps: VerificationStep[]): VerificationStep[] =
   })
 }
 
-// Add interface for API response - updated to match actual structure
+// Update the ListingResponse interface to match the new API structure
 interface ListingResponse {
   success: boolean
   listing?: {
@@ -236,16 +236,15 @@ interface ListingResponse {
     expected_price: number
     created_at: string
     updated_at: string
-    vendor_id: string
-    agent_id: string
-    highest_bid: number | null // ID reference to the highest bid in bids array
+    vendor_id: string | null
+    agent_id: string | null
+    assigned_time?: string
     rejection_note?: string
     time_approved?: string
-    instant_win: boolean
     bid_accepted?: string
-    assigned_time?: string
     devices: Array<{
       id: string
+      listing_id: number
       brand: string
       model: string
       color: string
@@ -267,9 +266,12 @@ interface ListingResponse {
       bottom_image_url?: string
       bill_image_url?: string
       warranty_image_url?: string
+      created_at: string
+      updated_at: string
     }>
     addresses: Array<{
       id: string
+      listing_id: number
       type: string
       contact_name?: string
       mobile_number?: string
@@ -284,47 +286,71 @@ interface ListingResponse {
       ifsc_code?: string
       account_number?: string
       account_holder_name?: string
-    }>
-    bids: Array<{
-      id: number
-      status: string
-      vendor_id?: string
-      bid_amount: number
       created_at: string
-      listing_id: number
       updated_at: string
-      instant_win: boolean
-      vendor_profile?: any
     }>
     agreements: Array<{
       id: string
-      created_at: string
       listing_id: number
-      updated_at: string
-      terms_accepted: boolean
       privacy_accepted: boolean
+      terms_accepted: boolean
       whatsapp_consent: boolean
-    }>
-    all_bids?: Array<{
-      id: number
-      status: string
-      vendor_id?: string
-      bid_amount: number
       created_at: string
-      listing_id: number
       updated_at: string
-      instant_win: boolean
-      vendor_profile?: any
     }>
-    highest_bid_details?: {
+    bids: Array<{
       id: number
-      status: string
-      vendor_id?: string
-      bid_amount: number
-      created_at: string
+      vendor_id: string
       listing_id: number
-      updated_at: string
+      bid_amount: number
+      status: string
       instant_win: boolean
+      created_at: string
+      updated_at: string
+      vendor_profile?: {
+        id: string
+        user_id: string
+        name: string
+        email: string
+        city: string
+        state: string
+      }
+    }>
+    highest_bid?: {
+      id: number
+      vendor_id: string
+      listing_id: number
+      bid_amount: number
+      status: string
+      instant_win: boolean
+      created_at: string
+      updated_at: string
+      vendor_profile?: {
+        id: string
+        user_id: string
+        name: string
+        email: string
+        city: string
+        state: string
+      }
+    }
+    winning_bid?: {
+      id: number
+      vendor_id: string
+      listing_id: number
+      bid_amount: number
+      status: string
+      instant_win: boolean
+      created_at: string
+      updated_at: string
+      vendor_profile?: {
+        id: string
+        user_id: string
+        name: string
+        email: string
+        city: string
+        state: string
+      }
     }
   }
   error?: string
@@ -478,13 +504,11 @@ export default function AgentVerification() {
           const pickupAddress = listing.addresses.find(addr => addr.type === 'pickup')
           
           // Get the winning bid amount
-          const winningBid = listing.highest_bid_details || 
-                            (listing.all_bids || []).find((bid: any) => bid.status === 'won') ||
+          const winningBid = listing.winning_bid || 
                             (listing.bids || []).find((bid: any) => bid.status === 'won')
           
           // Get the highest bid amount from the winning bid, or use the highest bid from all bids, or fallback to asking price
           const bidAmount = winningBid?.bid_amount || 
-                          Math.max(...(listing.all_bids || []).map(bid => bid.bid_amount), 0) ||
                           Math.max(...(listing.bids || []).map(bid => bid.bid_amount), 0) ||
                           listing.asking_price
           
