@@ -2629,6 +2629,109 @@ class SellikoClient {
     }
   }
 
+  // 15.5. getprofile - get current user's profile (vendor or agent)
+  /**
+   * Retrieves the current user's profile information
+   * Automatically detects if user is vendor or agent and returns appropriate profile
+   * 
+   * AUTHORIZATION REQUIREMENTS:
+   * - Valid JWT token required in Authorization header
+   * - User must be authenticated
+   * 
+   * @returns {Promise<Object>} Response with success status and profile data based on user role
+   */
+  async getProfile() {
+    console.log('👤 [SELLIKO-CLIENT] getProfile called')
+
+    try {
+      // Get access token
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        throw new Error('No access token found')
+      }
+
+      const url = `${this.apiBase}functions/v1/getprofile`
+
+      console.log('📤 [SELLIKO-CLIENT] Submitting get profile request:', {
+        url: url,
+        method: 'GET',
+        hasToken: !!token
+      })
+
+      // Make API request
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Get profile response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
+      const result = await response.json()
+      
+      console.log('📥 [SELLIKO-CLIENT] Get profile result:', {
+        success: result.success,
+        userRole: result.user_role,
+        hasProfile: !!result.profile,
+        profileId: result.profile?.id,
+        profileName: result.profile?.name,
+        message: result.message,
+        error: result.error
+      })
+
+      // Log profile details based on role
+      if (result.success && result.profile) {
+        if (result.user_role === 'agent') {
+          console.log('🚚 [SELLIKO-CLIENT] Agent profile loaded:', {
+            agentId: result.profile.id,
+            agentCode: result.profile.agent_code,
+            name: result.profile.name,
+            email: result.profile.email,
+            city: result.profile.city,
+            workingPincodes: result.profile.working_pincodes ? 
+              result.profile.working_pincodes.split(',').length : 0
+          })
+        } else if (result.user_role === 'vendor') {
+          console.log('🏪 [SELLIKO-CLIENT] Vendor profile loaded:', {
+            vendorId: result.profile.id,
+            vendorCode: result.profile.vendor_code,
+            name: result.profile.name,
+            email: result.profile.email,
+            city: result.profile.city,
+            workingPincodes: result.profile.working_pincodes ? 
+              result.profile.working_pincodes.split(',').length : 0
+          })
+        }
+      } else {
+        console.log('ℹ️ [SELLIKO-CLIENT] No profile found or request failed')
+      }
+
+      return result
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] getProfile error:', error)
+      console.error('📋 [SELLIKO-CLIENT] Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      })
+      
+      return {
+        success: false,
+        error: error.message || 'Network error occurred',
+        profile: null,
+        user_role: null
+      }
+    }
+  }
+
   // 16. updateAgentProfile - update agent profile information (admin or agent themselves)
   /**
    * Updates an agent's profile information

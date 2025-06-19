@@ -600,11 +600,11 @@ export default function AgentDashboard() {
                   Start New Verification
                 </Link>
                 <Link
-                  href="/agent/profile"
+                  href="/agent/profile/update"
                   className="block w-full px-4 py-3 bg-gray-100 text-gray-700 text-center rounded-lg hover:bg-gray-200 transition-colors font-medium"
                 >
                   <UserGroupIcon className="w-5 h-5 inline mr-2" />
-                  View Profile
+                  Update Profile
                 </Link>
                 <Link
                   href="/agent/tasks"
