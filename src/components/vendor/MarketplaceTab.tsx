@@ -263,6 +263,22 @@ export function MarketplaceTab() {
       }
     }
     
+    // Handle order processing statuses
+    if (listing.status === 'agent_assigned') {
+      return <Badge className="bg-blue-500 text-white">👤 Agent Assigned</Badge>
+    }
+    if (listing.status === 'verification') {
+      return <Badge className="bg-yellow-500 text-white">🔍 Verifying</Badge>
+    }
+    if (listing.status === 'ready_for_pickup') {
+      return <Badge className="bg-purple-500 text-white">📦 Ready for Pickup</Badge>
+    }
+    if (listing.status === 'pickedup') {
+      return <Badge className="bg-orange-500 text-white">🚚 Picked Up</Badge>
+    }
+    if (listing.status === 'completed') {
+      return <Badge className="bg-green-600 text-white">🎉 Delivered</Badge>
+    }
     if (listing.status === 'bidding_ended') {
       return <Badge className="bg-gray-500 text-white">⏰ Bidding Ended</Badge>
     }
@@ -552,15 +568,33 @@ export function MarketplaceTab() {
                 </div>
                 
                 <div className="flex gap-2">
-                  {/* Check if this is a winning bid for current user */}
+                  {/* Check if this is a winning bid for current user and show appropriate button/status */}
                   {currentUser && listing.winningBid && listing.winningBid.vendor_id === currentUser.id ? (
-                    <Button 
-                      size="sm" 
-                      className="flex-1 bg-green-600 hover:bg-green-700"
-                      onClick={() => handleTrackOrder(listing)}
-                    >
-                      🚚 Track Order
-                    </Button>
+                    <>
+                      {/* Show DELIVERED text for completed status */}
+                      {listing.status === 'completed' ? (
+                        <div className="flex-1 text-center">
+                          <div className="text-2xl font-bold text-green-600 py-2">
+                            🎉 DELIVERED
+                          </div>
+                        </div>
+                      ) : (
+                        /* Show Track Order button for bid_accepted, agent_assigned, verification, ready_for_pickup, pickedup */
+                        (listing.status === 'bid_accepted' || 
+                         listing.status === 'agent_assigned' || 
+                         listing.status === 'verification' || 
+                         listing.status === 'ready_for_pickup' || 
+                         listing.status === 'pickedup') && (
+                          <Button 
+                            size="sm" 
+                            className="flex-1 bg-green-600 hover:bg-green-700"
+                            onClick={() => handleTrackOrder(listing)}
+                          >
+                            🚚 Track Order
+                          </Button>
+                        )
+                      )}
+                    </>
                   ) : (
                     <>
                       {/* Show Place Bid button when status is receiving_bids */}
@@ -590,6 +624,11 @@ export function MarketplaceTab() {
                       ) : (
                         <div className="flex-1 text-center text-sm text-gray-500 py-2">
                           {listing.status === 'bid_accepted' ? 'Sold' : 
+                           listing.status === 'agent_assigned' ? 'Agent Assigned' :
+                           listing.status === 'verification' ? 'Under Verification' :
+                           listing.status === 'ready_for_pickup' ? 'Ready for Pickup' :
+                           listing.status === 'pickedup' ? 'Picked Up' :
+                           listing.status === 'completed' ? 'Delivered' :
                            listing.status === 'bidding_ended' ? 'Bidding Ended' : 'Not Available'}
                         </div>
                       )}
