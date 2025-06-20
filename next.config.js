@@ -65,6 +65,16 @@ const nextConfig = {
         hostname: 's3.amazonaws.com',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: '*.vercel.app',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.vercel-storage.com',
+        pathname: '/**',
+      },
     ],
     dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
@@ -194,6 +204,12 @@ const nextConfig = {
 
   // Output configuration for deployment
   output: 'standalone',
+  
+  // Vercel-specific optimizations
+  swcMinify: true,
+  
+  // Generate source maps in production for better debugging
+  productionBrowserSourceMaps: process.env.NODE_ENV === 'development',
   
   // Compiler optimizations
   compiler: {

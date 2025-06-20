@@ -11,7 +11,13 @@
     "mock-server": "node mock-server.js",
     "dev:mock": "concurrently \"npm run mock-server\" \"npm run dev\"",
     "type-check": "tsc --noEmit",
-    "dev:with-turbo": "next dev --turbo"
+    "dev:with-turbo": "next dev --turbo",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
+    "postinstall": "prisma generate",
+    "vercel-build": "prisma generate && next build"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
