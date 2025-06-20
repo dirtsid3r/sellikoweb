@@ -13,6 +13,11 @@ import sellikoClient from '@/selliko-client'
 import { toast } from 'react-hot-toast'
 import Header from '@/components/layout/header'
 
+// Helper function to get user role from user object
+const getUserRole = (user: any): string => {
+  return (user?.user_role || user?.role || '').toString().toUpperCase()
+}
+
 // Searchable Dropdown Component
 function SearchableDropdown({ 
   options, 
@@ -1682,7 +1687,7 @@ function AgentManagement({ availableCities, configLoading }: {
       }
 
       // Only include agent_code if user is admin and agent_code has a value
-      const userRole = ((user as any)?.user_role || '').toUpperCase()
+      const userRole = getUserRole(user)
       if (userRole === 'ADMIN' && agentData.agent_code && agentData.agent_code.trim()) {
         updatePayload.agent_code = agentData.agent_code.trim()
         console.log('🔑 [AGENT-MGMT] Including agent_code in update (admin user)')
@@ -1767,7 +1772,7 @@ function AgentManagement({ availableCities, configLoading }: {
   }
 
   // Check if current user is admin for agent_code editing
-  const isCurrentUserAdmin = ((user as any)?.user_role || '').toUpperCase() === 'ADMIN'
+  const isCurrentUserAdmin = getUserRole(user) === 'ADMIN'
 
   return (
     <div className="space-y-6">
