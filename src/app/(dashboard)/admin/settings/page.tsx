@@ -1672,7 +1672,7 @@ function AgentManagement({ availableCities, configLoading }: {
       console.log('📝 [AGENT-MGMT] Updating agent:', selectedAgentId)
       
       // Prepare update payload - only include fields that can be updated
-      const updatePayload = {
+      const updatePayload: any = {
         name: agentData.name,
         email: agentData.email,
         number: agentData.number,
@@ -1706,7 +1706,7 @@ function AgentManagement({ availableCities, configLoading }: {
         isAdmin: userRole === 'ADMIN'
       })
 
-      const result = await sellikoClient.updateAgentProfile(agentData.agent_id, updatePayload)
+      const result = await sellikoClient.updateAgentProfile(agentData.agent_id as any, updatePayload) as any
       
       console.log('📥 [AGENT-MGMT] Update agent result:', {
         success: result.success,
