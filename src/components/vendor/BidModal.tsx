@@ -64,6 +64,20 @@ interface BidResult {
   [key: string]: any
 }
 
+// Interface for getBidsForListing API response
+interface BidsApiResponse {
+  success: boolean
+  bids?: Array<{
+    bid?: number
+    vendor_id?: string
+    bid_amnt?: number
+    creation_timestamp?: string
+    [key: string]: any
+  }>
+  error?: string
+  [key: string]: any
+}
+
 // Extended interface for detailed listing data from API
 interface DetailedListing {
   id: number
@@ -344,7 +358,7 @@ export function BidModal({ listing, open, onOpenChange, currentUserId }: BidModa
       try {
         console.log('🔄 [BID-MODAL] Fetching latest bids for listing:', currentListing.id)
         
-        const response = await sellikoClient.getBidsForListing(currentListing.id)
+        const response = await sellikoClient.getBidsForListing(currentListing.id) as BidsApiResponse
         
         if (response.success && response.bids && response.bids.length > 0) {
           console.log('📥 [BID-MODAL] Real-time bids received:', response.bids.length)
@@ -509,7 +523,7 @@ export function BidModal({ listing, open, onOpenChange, currentUserId }: BidModa
       try {
         console.log('🔄 [BID-MODAL] Fetching initial real-time bids for listing:', currentListing.id)
         
-        const response = await sellikoClient.getBidsForListing(currentListing.id)
+        const response = await sellikoClient.getBidsForListing(currentListing.id) as BidsApiResponse
         
         if (response.success && response.bids && response.bids.length > 0) {
           console.log('📥 [BID-MODAL] Initial real-time bids received:', response.bids.length)
@@ -742,7 +756,7 @@ export function BidModal({ listing, open, onOpenChange, currentUserId }: BidModa
                   <Card className="border-blue-200 bg-blue-50">
                     <CardContent className="p-4">
                       <div className="flex items-center gap-2 text-blue-800">
-                        <Icons.crown className="w-5 h-5" />
+                        <Icons.star className="w-5 h-5" />
                         <span className="font-medium">You have the highest bid!</span>
                       </div>
                       <p className="text-sm text-blue-700 mt-1">
