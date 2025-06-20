@@ -228,8 +228,8 @@ export function BidModal({ listing, open, onOpenChange, currentUserId }: BidModa
                 }
               })
               .filter((bid: BidHistory) => bid.amount > 0) // Only include bids with valid amounts
-              .sort((a, b) => b.amount - a.amount) // Sort by bid amount in descending order (highest first)
-              .map((bid, index) => ({ ...bid, isWinning: index === 0 })) // Mark the highest bid as winning
+              .sort((a: BidHistory, b: BidHistory) => b.amount - a.amount) // Sort by bid amount in descending order (highest first)
+              .map((bid: BidHistory, index: number) => ({ ...bid, isWinning: index === 0 })) // Mark the highest bid as winning
               
             console.log('✅ [BID-MODAL] Transformed bids:', transformedBids)
             setBidHistory(transformedBids)
@@ -359,8 +359,8 @@ export function BidModal({ listing, open, onOpenChange, currentUserId }: BidModa
               isWinning: false // Will be set after sorting
             }))
             .filter((bid: BidHistory) => bid.amount > 0) // Only include valid bids
-            .sort((a, b) => b.amount - a.amount) // Sort by amount descending
-            .map((bid, index) => ({ ...bid, isWinning: index === 0 })) // Mark highest as winning
+            .sort((a: BidHistory, b: BidHistory) => b.amount - a.amount) // Sort by amount descending
+            .map((bid: BidHistory, index: number) => ({ ...bid, isWinning: index === 0 })) // Mark highest as winning
 
           // Update bid history with real data
           setBidHistory(transformedBids)
@@ -449,8 +449,8 @@ export function BidModal({ listing, open, onOpenChange, currentUserId }: BidModa
         setBidHistory(prev => {
           const updatedBids = [winningBid, ...prev.map(bid => ({ ...bid, isWinning: false }))]
           return updatedBids
-            .sort((a, b) => b.amount - a.amount) // Sort by bid amount in descending order
-            .map((bid, index) => ({ ...bid, isWinning: index === 0 })) // Mark highest bid as winning
+            .sort((a: BidHistory, b: BidHistory) => b.amount - a.amount) // Sort by bid amount in descending order
+            .map((bid: BidHistory, index: number) => ({ ...bid, isWinning: index === 0 })) // Mark highest bid as winning
         })
         
         // Close auction
@@ -469,8 +469,8 @@ export function BidModal({ listing, open, onOpenChange, currentUserId }: BidModa
         setBidHistory(prev => {
           const updatedBids = [newBid, ...prev.map(bid => ({ ...bid, isWinning: false }))]
           return updatedBids
-            .sort((a, b) => b.amount - a.amount) // Sort by bid amount in descending order
-            .map((bid, index) => ({ ...bid, isWinning: index === 0 })) // Mark highest bid as winning
+            .sort((a: BidHistory, b: BidHistory) => b.amount - a.amount) // Sort by bid amount in descending order
+            .map((bid: BidHistory, index: number) => ({ ...bid, isWinning: index === 0 })) // Mark highest bid as winning
         })
       }
       
@@ -524,8 +524,8 @@ export function BidModal({ listing, open, onOpenChange, currentUserId }: BidModa
               isWinning: false // Will be set after sorting
             }))
             .filter((bid: BidHistory) => bid.amount > 0) // Only include valid bids
-            .sort((a, b) => b.amount - a.amount) // Sort by amount descending
-            .map((bid, index) => ({ ...bid, isWinning: index === 0 })) // Mark highest as winning
+            .sort((a: BidHistory, b: BidHistory) => b.amount - a.amount) // Sort by amount descending
+            .map((bid: BidHistory, index: number) => ({ ...bid, isWinning: index === 0 })) // Mark highest as winning
 
           // Update bid history with real data immediately
           setBidHistory(transformedBids)
