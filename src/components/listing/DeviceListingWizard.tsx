@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '@/lib/auth'
-import { ChevronLeftIcon, ChevronRightIcon, CheckIcon } from '@heroicons/react/24/outline'
+import { ChevronLeftIcon, ChevronRightIcon, CheckIcon, ChevronDownIcon } from '@heroicons/react/24/outline'
 import sellikoClient from '@/selliko-client'
 
 // Types from integrationguide.md
@@ -54,42 +54,154 @@ const KERALA_CITIES = [
   'Palakkad', 'Alappuzha', 'Kannur', 'Kottayam', 'Malappuram'
 ]
 
+// Searchable Dropdown Component
+function SearchableDropdown({ 
+  options, 
+  value, 
+  onChange, 
+  placeholder, 
+  disabled = false,
+  required = false,
+  className = ""
+}: {
+  options: string[]
+  value: string
+  onChange: (value: string) => void
+  placeholder: string
+  disabled?: boolean
+  required?: boolean
+  className?: string
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Filter options based on search term
+  const filteredOptions = options.filter(option =>
+    option.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+        setSearchTerm('')
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const handleSelect = (option: string) => {
+    onChange(option)
+    setIsOpen(false)
+    setSearchTerm('')
+  }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value)
+    if (!isOpen) setIsOpen(true)
+  }
+
+  const displayValue = value || searchTerm
+
+  return (
+    <div className={`relative ${className}`} ref={dropdownRef}>
+      <div className="relative">
+        <input
+          type="text"
+          value={displayValue}
+          onChange={handleInputChange}
+          onFocus={() => setIsOpen(true)}
+          placeholder={placeholder}
+          disabled={disabled}
+          required={required}
+          className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+          autoComplete="off"
+        />
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          disabled={disabled}
+          className="absolute inset-y-0 right-0 flex items-center px-2"
+        >
+          <ChevronDownIcon className={`h-4 w-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </button>
+      </div>
+
+      {isOpen && !disabled && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+          {filteredOptions.length > 0 ? (
+            filteredOptions.map((option, index) => (
+              <button
+                key={index}
+                type="button"
+                onClick={() => handleSelect(option)}
+                className={`w-full px-3 py-2 text-left hover:bg-blue-50 focus:bg-blue-50 focus:outline-none ${
+                  option === value ? 'bg-blue-100 text-blue-900' : 'text-gray-900'
+                }`}
+              >
+                {option}
+              </button>
+            ))
+          ) : (
+            <div className="px-3 py-2 text-gray-500 text-sm">
+              No options found
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function DeviceListingWizard() {
   const { user } = useAuth()
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [configLoading, setConfigLoading] = useState(true)
+  const [availableCities, setAvailableCities] = useState<string[]>([])
+  const [availableBrands, setAvailableBrands] = useState<string[]>([])
   const [formData, setFormData] = useState<Partial<DeviceListing>>({
-    // Test data for easier testing
-    brand: 'Apple',
-    model: 'iPhone 14 Pro',
-    storage: '256GB',
-    color: 'Space Black',
-    condition: 'Excellent',
-    imei1: '123456789012345',
-    imei2: '987654321098765',
-    batteryHealth: 95,
-    askingPrice: 85000,
-    description: 'Excellent condition iPhone, barely used, no scratches or damage. Comes with original box and charger.',
-    contactName: user?.name || 'John Doe',
+    contactName: user?.name || '',
     pickupAddress: {
-      streetAddress: '123 Main Street, Apartment 4B, Near City Mall',
-      city: 'Kochi',
+      streetAddress: '',
+      city: '',
       state: 'Kerala',
-      pincode: '682001',
-      landmark: 'Near City Mall'
+      pincode: '',
+      landmark: ''
     },
-    pickupTime: 'morning',
     devicePhotos: [],
-    hasWarranty: true,
-    warrantyType: 'Manufacturer',
-    warrantyExpiry: new Date('2025-12-31')
+    hasWarranty: false
   })
 
-  console.log('📝 [DEVICE-WIZARD] Component loaded with test data:', {
-    brand: formData.brand,
-    model: formData.model,
-    hasTestData: !!formData.imei1
-  })
+  // Fetch form configuration on component load
+  useEffect(() => {
+    const fetchFormConfig = async () => {
+      try {
+        const config = await sellikoClient.getUniversalFormConfig() as any
+        
+        if (config.success) {
+          setAvailableCities(config.cities || [])
+          setAvailableBrands(config.brands || [])
+        } else {
+          // Fallback to hardcoded values
+          setAvailableCities(KERALA_CITIES)
+          setAvailableBrands(DEVICE_BRANDS)
+        }
+      } catch (error) {
+        // Fallback to hardcoded values
+        setAvailableCities(KERALA_CITIES)
+        setAvailableBrands(DEVICE_BRANDS)
+      } finally {
+        setConfigLoading(false)
+      }
+    }
+
+    fetchFormConfig()
+  }, [])
 
   const updateFormData = (data: Partial<DeviceListing>) => {
     setFormData(prev => ({ ...prev, ...data }))
@@ -106,8 +218,6 @@ export default function DeviceListingWizard() {
   const handleSubmit = async () => {
     setIsSubmitting(true)
     try {
-      console.log('📝 [DEVICE-WIZARD] Starting submission...')
-      
       // Prepare data structure for selliko-client
       const listingData = {
         // Device Information - map from DeviceListingWizard to selliko-client format
@@ -137,17 +247,17 @@ export default function DeviceListingWizard() {
         warrantyStatus: formData.hasWarranty ? 'active' : 'none',
         warrantyType: formData.warrantyType || null,
         warrantyExpiry: formData.warrantyExpiry?.toISOString().split('T')[0] || null,
-        warrantyImage: null, // DeviceListingWizard doesn't have warranty image upload
+        warrantyImage: null,
         
         // Bill Information
         hasBill: !!formData.billPhoto,
-        purchaseDate: null, // DeviceListingWizard doesn't have purchase date
-        purchasePrice: null, // DeviceListingWizard doesn't have purchase price
+        purchaseDate: null,
+        purchasePrice: null,
         
         // Personal Details - map contactName to name, and create mobile from user data
         name: formData.contactName || '',
-        mobile: (user as any)?.phone || (user as any)?.mobile_number || '', // Use phone from user if available
-        email: (user as any)?.email || '', // Use email from user
+        mobile: (user as any)?.phone || (user as any)?.mobile_number || '',
+        email: (user as any)?.email || '',
         
         // Address Information - map from pickupAddress
         address: formData.pickupAddress?.streetAddress || '',
@@ -156,8 +266,8 @@ export default function DeviceListingWizard() {
         state: formData.pickupAddress?.state || 'Kerala',
         landmark: formData.pickupAddress?.landmark || null,
         
-        // Bank Details - DeviceListingWizard doesn't collect these, so use placeholders
-        accountNumber: '', // TODO: Add bank details step to wizard
+        // Bank Details
+        accountNumber: '',
         ifscCode: '',
         accountHolderName: formData.contactName || '',
         bankName: '',
@@ -168,36 +278,17 @@ export default function DeviceListingWizard() {
         pickupPincode: formData.pickupAddress?.pincode || '',
         preferredTime: formData.pickupTime || 'morning',
         
-        // Terms Agreement - DeviceListingWizard doesn't have explicit terms, so default to true
+        // Terms Agreement
         termsAccepted: true,
         privacyAccepted: true,
         whatsappConsent: true
       }
-
-      console.log('📋 [DEVICE-WIZARD] Mapped data:', listingData)
-
-      // Display JSON as alert (for debugging)
-      alert('JSON Request Data:\n\n' + JSON.stringify(listingData, null, 2))
 
       // Use sellikoClient to create the listing
       const result = await sellikoClient.createDeviceListing(listingData)
       
       if (result.success) {
         alert('Device listed successfully! It will be reviewed by our team within 24 hours.')
-        // DISABLED: Reset form or redirect - keeping user on current step
-        // setFormData({
-        //   contactName: user?.name || '',
-        //   pickupAddress: {
-        //     streetAddress: '',
-        //     city: '',
-        //     state: 'Kerala',
-        //     pincode: '',
-        //     landmark: ''
-        //   },
-        //   devicePhotos: [],
-        //   hasWarranty: false
-        // })
-        // setCurrentStep(1)
       } else {
         alert('Error submitting listing: ' + (result.error || 'Unknown error'))
       }
@@ -289,10 +380,10 @@ export default function DeviceListingWizard() {
 
       {/* Step Content */}
       <div className="bg-white rounded-xl shadow-sm p-6">
-        {currentStep === 1 && <Step1DeviceInfo formData={formData} updateFormData={updateFormData} />}
+        {currentStep === 1 && <Step1DeviceInfo formData={formData} updateFormData={updateFormData} availableBrands={availableBrands} configLoading={configLoading} />}
         {currentStep === 2 && <Step2TechnicalDetails formData={formData} updateFormData={updateFormData} />}
         {currentStep === 3 && <Step3PhotosDocuments formData={formData} updateFormData={updateFormData} />}
-        {currentStep === 4 && <Step4PickupDetails formData={formData} updateFormData={updateFormData} />}
+        {currentStep === 4 && <Step4PickupDetails formData={formData} updateFormData={updateFormData} availableCities={availableCities} configLoading={configLoading} />}
 
         {/* Navigation */}
         <div className="flex justify-between pt-6 mt-6 border-t border-gray-200">
@@ -329,9 +420,11 @@ export default function DeviceListingWizard() {
 }
 
 // Step 1: Device Information
-function Step1DeviceInfo({ formData, updateFormData }: {
+function Step1DeviceInfo({ formData, updateFormData, availableBrands, configLoading }: {
   formData: Partial<DeviceListing>
   updateFormData: (data: Partial<DeviceListing>) => void
+  availableBrands: string[]
+  configLoading: boolean
 }) {
   return (
     <div className="space-y-6">
@@ -344,17 +437,17 @@ function Step1DeviceInfo({ formData, updateFormData }: {
         {/* Brand */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Brand *</label>
-          <select
+          <SearchableDropdown
+            options={availableBrands}
             value={formData.brand || ''}
-            onChange={(e) => updateFormData({ brand: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            onChange={(value) => updateFormData({ brand: value })}
+            placeholder={configLoading ? "Loading brands..." : "Search and select brand"}
+            disabled={configLoading}
             required
-          >
-            <option value="">Select brand</option>
-            {DEVICE_BRANDS.map(brand => (
-              <option key={brand} value={brand}>{brand}</option>
-            ))}
-          </select>
+          />
+          {configLoading && (
+            <p className="text-xs text-gray-500 mt-1">Loading available brands...</p>
+          )}
         </div>
 
         {/* Model */}
@@ -751,9 +844,11 @@ function Step3PhotosDocuments({ formData, updateFormData }: {
 }
 
 // Step 4: Pickup Details
-function Step4PickupDetails({ formData, updateFormData }: {
+function Step4PickupDetails({ formData, updateFormData, availableCities, configLoading }: {
   formData: Partial<DeviceListing>
   updateFormData: (data: Partial<DeviceListing>) => void
+  availableCities: string[]
+  configLoading: boolean
 }) {
   const updateAddress = (field: string, value: string) => {
     const currentAddress = formData.pickupAddress || {
@@ -810,17 +905,17 @@ function Step4PickupDetails({ formData, updateFormData }: {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">City *</label>
-            <select
+            <SearchableDropdown
+              options={availableCities}
               value={formData.pickupAddress?.city || ''}
-              onChange={(e) => updateAddress('city', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              onChange={(value) => updateAddress('city', value)}
+              placeholder={configLoading ? "Loading cities..." : "Search and select city"}
+              disabled={configLoading}
               required
-            >
-              <option value="">Select city</option>
-              {KERALA_CITIES.map(city => (
-                <option key={city} value={city}>{city}</option>
-              ))}
-            </select>
+            />
+            {configLoading && (
+              <p className="text-xs text-gray-500 mt-1">Loading available cities...</p>
+            )}
           </div>
 
           <div>

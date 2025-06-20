@@ -4656,6 +4656,127 @@ class SellikoClient {
       }
     }
   }
+
+  // 27. getUniversalFormConfig - fetch universal form configuration data (cities, brands, etc.)
+  /**
+   * Retrieves universal form configuration data including cities and brands
+   * 
+   * AUTHORIZATION REQUIREMENTS:
+   * - Valid JWT token required in Authorization header
+   * - User must be authenticated (any role can access form config)
+   * 
+   * @returns {Promise<Object>} Response with success status and config data containing cities and brands
+   */
+  async getUniversalFormConfig() {
+    console.log('⚙️ [SELLIKO-CLIENT] getUniversalFormConfig called')
+
+    try {
+      // Get access token - authentication required
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        console.log('🔑 [SELLIKO-CLIENT] No access token found')
+        throw new Error('Authentication required to access form configuration')
+      }
+
+      // Use Supabase REST API endpoint directly
+      const url = `${this.apiBase}rest/v1/universal_form_config?select=*&order=key.asc`
+
+      console.log('📤 [SELLIKO-CLIENT] Submitting get universal form config request:', {
+        url: url,
+        method: 'GET',
+        hasToken: !!token
+      })
+
+      // Make API request using Supabase REST API
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'apikey': token, // Supabase also uses apikey header
+          'Prefer': 'return=representation'
+        }
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Get universal form config response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`HTTP ${response.status}: ${errorText}`)
+      }
+
+      const configData = await response.json()
+      
+      console.log('📥 [SELLIKO-CLIENT] Raw config data received:', {
+        isArray: Array.isArray(configData),
+        length: configData ? configData.length : 0,
+        keys: configData ? configData.map(item => item.key) : []
+      })
+
+      // Extract cities and brands from the configuration data
+      let cities = []
+      let brands = []
+
+      if (Array.isArray(configData)) {
+        configData.forEach(config => {
+          if (config.key === 'cities' && Array.isArray(config.values)) {
+            cities = config.values
+            console.log('🏙️ [SELLIKO-CLIENT] Cities found:', cities.length, 'entries')
+          } else if (config.key === 'brands' && Array.isArray(config.values)) {
+            brands = config.values
+            console.log('📱 [SELLIKO-CLIENT] Brands found:', brands.length, 'entries')
+          }
+        })
+      }
+
+      // Transform response to match expected format
+      const result = {
+        success: true,
+        cities: cities,
+        brands: brands,
+        rawConfig: configData,
+        message: 'Universal form configuration retrieved successfully'
+      }
+
+      console.log('✅ [SELLIKO-CLIENT] Get universal form config result:', {
+        success: result.success,
+        citiesCount: result.cities ? result.cities.length : 0,
+        brandsCount: result.brands ? result.brands.length : 0,
+        message: result.message
+      })
+
+      // Log sample data for debugging
+      if (result.cities && result.cities.length > 0) {
+        console.log('🏙️ [SELLIKO-CLIENT] Sample cities:', result.cities.slice(0, 5))
+      }
+      if (result.brands && result.brands.length > 0) {
+        console.log('📱 [SELLIKO-CLIENT] Sample brands:', result.brands.slice(0, 5))
+      }
+
+      return result
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] getUniversalFormConfig error:', error)
+      console.error('📋 [SELLIKO-CLIENT] Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      })
+      
+      return {
+        success: false,
+        error: error.message || 'Network error occurred',
+        cities: [],
+        brands: [],
+        rawConfig: []
+      }
+    }
+  }
 }
 
 // Export singleton instance

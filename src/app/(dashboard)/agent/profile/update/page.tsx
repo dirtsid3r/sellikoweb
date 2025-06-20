@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { Icons } from '@/components/ui/icons'
@@ -8,9 +8,113 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { ChevronDownIcon } from '@heroicons/react/24/outline'
 import sellikoClient from '@/selliko-client'
 import { toast } from 'react-hot-toast'
 import Header from '@/components/layout/header'
+
+// Searchable Dropdown Component
+function SearchableDropdown({ 
+  options, 
+  value, 
+  onChange, 
+  placeholder, 
+  disabled = false,
+  required = false,
+  className = ""
+}: {
+  options: string[]
+  value: string
+  onChange: (value: string) => void
+  placeholder: string
+  disabled?: boolean
+  required?: boolean
+  className?: string
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Filter options based on search term
+  const filteredOptions = options.filter(option =>
+    option.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+        setSearchTerm('')
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const handleSelect = (option: string) => {
+    onChange(option)
+    setIsOpen(false)
+    setSearchTerm('')
+  }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value)
+    if (!isOpen) setIsOpen(true)
+  }
+
+  const displayValue = value || searchTerm
+
+  return (
+    <div className={`relative ${className}`} ref={dropdownRef}>
+      <div className="relative">
+        <input
+          type="text"
+          value={displayValue}
+          onChange={handleInputChange}
+          onFocus={() => setIsOpen(true)}
+          placeholder={placeholder}
+          disabled={disabled}
+          required={required}
+          className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+          autoComplete="off"
+        />
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          disabled={disabled}
+          className="absolute inset-y-0 right-0 flex items-center px-2"
+        >
+          <ChevronDownIcon className={`h-4 w-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </button>
+      </div>
+
+      {isOpen && !disabled && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+          {filteredOptions.length > 0 ? (
+            filteredOptions.map((option, index) => (
+              <button
+                key={index}
+                type="button"
+                onClick={() => handleSelect(option)}
+                className={`w-full px-3 py-2 text-left hover:bg-blue-50 focus:bg-blue-50 focus:outline-none ${
+                  option === value ? 'bg-blue-100 text-blue-900' : 'text-gray-900'
+                }`}
+              >
+                {option}
+              </button>
+            ))
+          ) : (
+            <div className="px-3 py-2 text-gray-500 text-sm">
+              No options found
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function AgentProfileUpdate() {
   const { user, isLoading } = useAuth()
@@ -38,6 +142,10 @@ export default function AgentProfileUpdate() {
   const [isUpdatingAgent, setIsUpdatingAgent] = useState(false)
   const [isLoadingProfile, setIsLoadingProfile] = useState(true)
 
+  // Config state for cities
+  const [configLoading, setConfigLoading] = useState(true)
+  const [availableCities, setAvailableCities] = useState<string[]>([])
+
   // State for working pincodes tags
   const [workingPincodesArray, setWorkingPincodesArray] = useState<string[]>([])
   const [newPincode, setNewPincode] = useState('')
@@ -48,6 +156,35 @@ export default function AgentProfileUpdate() {
       loadCurrentAgentProfile()
     }
   }, [user, isLoading])
+
+  // Fetch form configuration on component load
+  useEffect(() => {
+    const fetchFormConfig = async () => {
+      try {
+        console.log('📋 [AGENT-PROFILE-UPDATE] Fetching form configuration...')
+        const config = await sellikoClient.getUniversalFormConfig() as any
+        
+        if (config.success) {
+          setAvailableCities(config.cities || [])
+          console.log('✅ [AGENT-PROFILE-UPDATE] Form config loaded:', {
+            cities: config.cities?.length || 0
+          })
+        } else {
+          console.error('❌ [AGENT-PROFILE-UPDATE] Failed to load form config:', config.error)
+          // Fallback to empty array
+          setAvailableCities([])
+        }
+      } catch (error) {
+        console.error('💥 [AGENT-PROFILE-UPDATE] Error fetching form config:', error)
+        // Fallback to empty array
+        setAvailableCities([])
+      } finally {
+        setConfigLoading(false)
+      }
+    }
+
+    fetchFormConfig()
+  }, [])
 
   // Load current agent's profile using getprofile function
   const loadCurrentAgentProfile = async () => {
@@ -444,11 +581,16 @@ export default function AgentProfileUpdate() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         City
                       </label>
-                      <Input
+                      <SearchableDropdown
+                        options={availableCities}
                         value={agentData.city}
-                        onChange={(e) => handleInputChange('city', e.target.value)}
-                        placeholder="Enter your city"
+                        onChange={(value) => handleInputChange('city', value)}
+                        placeholder={configLoading ? "Loading cities..." : "Search and select city"}
+                        disabled={configLoading}
                       />
+                      {configLoading && (
+                        <p className="text-xs text-gray-500 mt-1">Loading available cities...</p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
