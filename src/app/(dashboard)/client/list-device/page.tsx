@@ -478,7 +478,7 @@ function IMEIStep({ data, updateData }: { data: DeviceData, updateData: (field: 
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">IMEI Numbers</h3>
-        <p className="text-gray-600 mb-6">Enter both IMEI numbers of your device. You can find them in Settings > About Phone or by dialing *#06#</p>
+        <p className="text-gray-600 mb-6">Enter both IMEI numbers of your device. You can find them in Settings &gt; About Phone or by dialing *#06#</p>
       </div>
 
       <div className="space-y-4">
