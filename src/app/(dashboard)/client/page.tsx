@@ -250,6 +250,14 @@ export default function ClientDashboard() {
     loadListings()
   }, [isAuthChecking, isLoading])
 
+  // Redirect to list-device if no listings are found
+  useEffect(() => {
+    if (!isLoadingListings && !isAuthChecking && !isLoading && currentListings.length === 0) {
+      console.log('🔄 [CLIENT-DASH] No listings found, redirecting to list-device...')
+      router.push('/client/list-device')
+    }
+  }, [isLoadingListings, isAuthChecking, isLoading, currentListings.length, router])
+
   if (isLoading || isAuthChecking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-50">
