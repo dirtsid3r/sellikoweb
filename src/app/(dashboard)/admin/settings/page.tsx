@@ -1581,7 +1581,7 @@ function AgentManagement({ availableCities, configLoading }: {
       
       // Convert working_pincodes string to array for tag display
       const pincodes = mappedData.working_pincodes 
-        ? mappedData.working_pincodes.split(',').map((p) => p.trim()).filter((p) => p.length > 0)
+        ? mappedData.working_pincodes.split(',').map((p: string) => p.trim()).filter((p: string) => p.length > 0)
         : []
       setWorkingPincodesArray(pincodes)
       console.log('📍 [AGENT-MGMT] Working pincodes loaded:', pincodes)
@@ -1746,7 +1746,7 @@ function AgentManagement({ availableCities, configLoading }: {
           // Update working pincodes array if it was updated
           if (updatedProfile.working_pincodes !== undefined) {
             const updatedPincodes = updatedProfile.working_pincodes 
-              ? updatedProfile.working_pincodes.split(',').map((p) => p.trim()).filter((p) => p.length === 6)
+              ? updatedProfile.working_pincodes.split(',').map((p: string) => p.trim()).filter((p: string) => p.length === 6)
               : []
             setWorkingPincodesArray(updatedPincodes)
             console.log('📍 [AGENT-MGMT] Working pincodes updated:', updatedPincodes)
