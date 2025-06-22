@@ -252,9 +252,20 @@ export default function ClientDashboard() {
 
   // Redirect to list-device if no listings are found
   useEffect(() => {
+    console.log('🔍 [CLIENT-DASH] Redirection check:', {
+      isLoadingListings,
+      isAuthChecking,
+      isLoading,
+      currentListingsLength: currentListings.length,
+      shouldRedirect: !isLoadingListings && !isAuthChecking && !isLoading && currentListings.length === 0
+    })
+    
     if (!isLoadingListings && !isAuthChecking && !isLoading && currentListings.length === 0) {
       console.log('🔄 [CLIENT-DASH] No listings found, redirecting to list-device...')
-      router.push('/client/list-device')
+      setTimeout(() => {
+        console.log('🔄 [CLIENT-DASH] Executing redirect after timeout...')
+        router.replace('/client/list-device')
+      }, 500) // Small delay to ensure all states are settled
     }
   }, [isLoadingListings, isAuthChecking, isLoading, currentListings.length, router])
 
