@@ -3393,7 +3393,7 @@ class SellikoClient {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
-          'apikey': token, // Supabase also uses apikey header
+          'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'default-key',
           'Prefer': 'return=representation'
         }
       })
@@ -4693,7 +4693,7 @@ class SellikoClient {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
-          'apikey': token, // Supabase also uses apikey header
+          'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'default-key',
           'Prefer': 'return=representation'
         }
       })
