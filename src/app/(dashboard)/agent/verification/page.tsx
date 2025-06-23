@@ -102,6 +102,7 @@ interface DeviceInfo {
   pickupPincode?: string
   pickupTime?: string
   status?: string
+  pickup_otp?: string // Add pickup_otp field
 }
 
 interface ClientConfig {
@@ -243,6 +244,7 @@ interface ListingResponse {
     rejection_note?: string
     time_approved?: string
     bid_accepted?: string
+    pickup_otp?: string
     devices: Array<{
       id: string
       listing_id: number
@@ -433,35 +435,24 @@ export default function AgentVerification() {
         console.log('⚙️ [AGENT-VERIFICATION] Fetching client configs checklist...')
         
         const response = await sellikoClient.getClientConfigsChecklist() as ClientConfigsResponse
-
+        
         if (response.success && response.configs) {
-          console.log('✅ [AGENT-VERIFICATION] Client configs loaded successfully:', response.configs)
+          console.log('✅ [AGENT-VERIFICATION] Client configs fetched successfully:', response.configs.length, 'items')
           setClientConfigs(response.configs)
           
           // Transform configs to verification steps
           const verificationSteps = transformConfigsToSteps(response.configs)
+          console.log('🔄 [AGENT-VERIFICATION] Transformed to verification steps:', verificationSteps.length, 'steps')
           setSteps(verificationSteps)
-
-          // Generate random test data for verification steps
-          const randomTestData = generateRandomTestData(verificationSteps)
-          setSteps(randomTestData)
-
-          // Add random verification notes for testing
-          const testNotes = [
-            'Device is in good overall condition. All major functions working properly.',
-            'Minor cosmetic wear visible but does not affect functionality. Screen is clear and responsive.',
-            'Battery health is acceptable. Device has been well maintained by the owner.',
-            'Some signs of normal usage but no major issues found during verification process.',
-            'Excellent condition device. Owner has taken good care of it. All features tested and working.'
-          ]
-          setVerificationNotes(testNotes[Math.floor(Math.random() * testNotes.length)])
         } else {
           console.error('❌ [AGENT-VERIFICATION] Failed to fetch client configs:', response.error)
-          setConfigsError(response.error || 'Failed to load client configurations')
+          setConfigsError(response.error || 'Failed to load verification checklist')
+          toast.error('Failed to load verification checklist')
         }
       } catch (error) {
         console.error('💥 [AGENT-VERIFICATION] Error fetching client configs:', error)
-        setConfigsError('Network error occurred while loading configurations')
+        setConfigsError('Network error occurred')
+        toast.error('Network error while loading verification checklist')
       } finally {
         setIsLoadingConfigs(false)
       }
@@ -469,6 +460,14 @@ export default function AgentVerification() {
 
     fetchClientConfigs()
   }, [])
+
+  // Prefill pickup OTP when device info is loaded
+  useEffect(() => {
+    if (deviceInfo?.pickup_otp && deviceInfo.status === 'ready_for_pickup') {
+      console.log('🔑 [AGENT-VERIFICATION] Prefilling pickup OTP from API response')
+      setPickupOtp(deviceInfo.pickup_otp)
+    }
+  }, [deviceInfo])
 
   // Fetch listing data when component mounts
   useEffect(() => {
@@ -555,7 +554,8 @@ export default function AgentVerification() {
             pickupAddress: pickupAddress?.address || clientAddress.address,
             pickupPincode: pickupAddress?.pincode || clientAddress.pincode,
             pickupTime: pickupAddress?.pickup_time || 'To be confirmed',
-            status: listing.status
+            status: listing.status,
+            pickup_otp: listing.pickup_otp // Extract pickup_otp from listing object
           }
 
           setDeviceInfo(transformedDeviceInfo)
@@ -1608,6 +1608,11 @@ export default function AgentVerification() {
                 <div>
                   <label htmlFor="pickup-otp" className="block text-sm font-medium text-gray-700 mb-2">
                     Pickup OTP
+                    {deviceInfo?.pickup_otp && (
+                      <span className="ml-2 text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+                        Auto-filled from system
+                      </span>
+                    )}
                   </label>
                   <input
                     id="pickup-otp"
@@ -1624,6 +1629,11 @@ export default function AgentVerification() {
                   />
                   {pickupError && (
                     <p className="mt-2 text-sm text-red-600">{pickupError}</p>
+                  )}
+                  {deviceInfo?.pickup_otp && pickupOtp === deviceInfo.pickup_otp && (
+                    <p className="mt-2 text-sm text-green-600">
+                      ✅ OTP pre-filled from system - ready to confirm pickup
+                    </p>
                   )}
                 </div>
               </div>
