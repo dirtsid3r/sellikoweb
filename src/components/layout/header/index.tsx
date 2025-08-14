@@ -132,6 +132,20 @@ export default function Header({
           </div>
           
           {/* Right side - User info and logout */}
+<style jsx>{`
+  .notification-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
+    border-radius: 0.375rem;
+    transition: background-color 0.2s;
+  }
+
+  .notification-button:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+`}</style>
           <div className="flex items-center space-x-2 sm:space-x-4">
             <NotificationButton hasNewNotifications={true} />
             <div className="text-right hidden sm:block">

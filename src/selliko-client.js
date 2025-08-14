@@ -1,3 +1,4 @@
+import { createClient } from '@supabase/supabase-js';
 // IMPORTANT: All API requests must use the field name mobile_number (never mobile) for phone numbers, as required by the server.
 // SELLIKO Client Integration Layer
 // This file will handle all Supabase API interactions
@@ -4776,6 +4777,118 @@ class SellikoClient {
         rawConfig: []
       }
     }
+  }
+
+  // Get notifications using Supabase REST API to query notifications table directly
+  async listenToNotifications() {
+      console.log('🔔 [SELLIKO-CLIENT] listenToNotifications called');
+      
+      try {
+          // Get current user to ensure authenticated
+          const user = await this.getCurrentUser();
+          if (!user) {
+              console.error('❌ [SELLIKO-CLIENT] User not authenticated for notifications');
+              return {
+                  success: false,
+                  error: 'Authentication required',
+                  notifications: []
+              };
+          }
+
+          console.log('👤 [SELLIKO-CLIENT] Current user validation:', {
+              userId: user.id,
+              userRole: user.user_role
+          });
+
+          // Get access token for authentication
+          const token = localStorage.getItem('selliko_access_token');
+          if (!token) {
+              console.error('❌ [SELLIKO-CLIENT] No access token found for notifications');
+              return {
+                  success: false,
+                  error: 'Authentication required',
+                  notifications: []
+              };
+          }
+
+          console.log('📤 [SELLIKO-CLIENT] Fetching notifications from Supabase table');
+
+          // Use Supabase REST API to query notifications table directly
+          const url = `${this.apiBase}rest/v1/notifications?user_id=eq.${user.id}&select=*&order=created_at.desc&limit=50`;
+
+          const response = await fetch(url, {
+              method: 'GET',
+              headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json',
+                  'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'default-key',
+                  'Prefer': 'return=representation'
+              }
+          });
+
+          console.log('🌐 [SELLIKO-CLIENT] Notifications response:', {
+              status: response.status,
+              statusText: response.statusText,
+              ok: response.ok,
+              headers: Object.fromEntries(response.headers.entries())
+          });
+
+          if (!response.ok) {
+              const errorText = await response.text();
+              console.error('❌ [SELLIKO-CLIENT] Notifications table query error:', errorText);
+              return {
+                  success: false,
+                  error: `Failed to fetch notifications: ${response.status} ${response.statusText}`,
+                  notifications: []
+              };
+          }
+
+          const notifications = await response.json();
+          
+          console.log('📥 [SELLIKO-CLIENT] Notifications result:', {
+              success: true,
+              notificationCount: notifications ? notifications.length : 0,
+              isArray: Array.isArray(notifications)
+          });
+
+          // Log notification details if available
+          if (Array.isArray(notifications) && notifications.length > 0) {
+              console.log(`✅ [SELLIKO-CLIENT] Found ${notifications.length} notifications`);
+              notifications.slice(0, 3).forEach((notification, index) => {
+                  console.log(`🔔 [SELLIKO-CLIENT] Notification ${index + 1}:`, {
+                      id: notification.id,
+                      title: notification.title,
+                      message: notification.message,
+                      type: notification.type,
+                      created_at: notification.created_at,
+                      read: notification.read,
+                      user_id: notification.user_id
+                  });
+              });
+          } else {
+              console.log('ℹ️ [SELLIKO-CLIENT] No notifications found for current user');
+          }
+
+          return {
+              success: true,
+              notifications: Array.isArray(notifications) ? notifications : [],
+              error: null
+          };
+          
+      } catch (error) {
+          console.error('💥 [SELLIKO-CLIENT] listenToNotifications error:', error);
+          console.error('📋 [SELLIKO-CLIENT] Error details:', {
+              name: error.name,
+              message: error.message,
+              stack: error.stack
+          });
+          
+          return {
+              success: false,
+              error: error.message || 'Network error occurred',
+              notifications: []
+          };
+      }
   }
 }
 
