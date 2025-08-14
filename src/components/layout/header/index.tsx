@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Icons } from '@/components/ui/icons'
 import { useAuth } from '@/lib/auth'
+import NotificationButton from '@/components/shared/notifications/NotificationButton'
 
 interface HeaderProps {
   variant?: 'client' | 'admin' | 'vendor' | 'agent'
@@ -132,6 +133,7 @@ export default function Header({
           
           {/* Right side - User info and logout */}
           <div className="flex items-center space-x-2 sm:space-x-4">
+            <NotificationButton hasNewNotifications={true} />
             <div className="text-right hidden sm:block">
               <p className="text-sm font-semibold text-gray-900">
                 {user?.name || 
