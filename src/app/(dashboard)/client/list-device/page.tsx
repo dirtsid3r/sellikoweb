@@ -226,7 +226,7 @@ export default function ListDevice() {
       case 0: // Device Images
         return Object.values(data.images).filter(Boolean).length >= 2
       case 1: // IMEI Numbers
-        return data.imei1.length >= 10 && data.imei2.length >= 10
+        return data.imei1.length >= 10
       case 2: // Device Details
         return data.brand && data.model && data.storage && data.condition
       case 3: // Warranty Info
@@ -240,7 +240,7 @@ export default function ListDevice() {
       case 7: // Address
         return data.address && data.city && data.pincode
       case 8: // Bank Details
-        return data.accountNumber && data.ifscCode && data.accountHolderName
+        return true
       case 9: // Pickup Address
         return data.pickupAddress && data.pickupCity && data.pickupPincode
       case 10: // Terms
@@ -478,7 +478,7 @@ function IMEIStep({ data, updateData }: { data: DeviceData, updateData: (field: 
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">IMEI Numbers</h3>
-        <p className="text-gray-600 mb-6">Enter both IMEI numbers of your device. You can find them in Settings &gt; About Phone or by dialing *#06#</p>
+        <p className="text-gray-600 mb-6">Enter the IMEI number for your device. If it has a second IMEI, you can enter that as well. You can find them in Settings &gt; About Phone or by dialing *#06#</p>
       </div>
 
       <div className="space-y-4">
@@ -495,7 +495,7 @@ function IMEIStep({ data, updateData }: { data: DeviceData, updateData: (field: 
         </div>
 
         <div>
-          <Label htmlFor="imei2">IMEI 2 *</Label>
+          <Label htmlFor="imei2">IMEI 2 (Optional)</Label>
           <Input
             id="imei2"
             type="text"
@@ -946,13 +946,13 @@ function BankDetailsStep({ data, updateData }: { data: DeviceData, updateData: (
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Bank Account Details</h3>
-        <p className="text-gray-600 mb-6">Payment will be transferred to this account after successful transaction</p>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Bank Account Details (Optional)</h3>
+        <p className="text-gray-600 mb-6">You can provide your bank details now for faster payment, or add them later from your dashboard.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="accountHolderName">Account Holder Name *</Label>
+          <Label htmlFor="accountHolderName">Account Holder Name</Label>
           <Input
             id="accountHolderName"
             type="text"
@@ -976,7 +976,7 @@ function BankDetailsStep({ data, updateData }: { data: DeviceData, updateData: (
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="accountNumber">Account Number *</Label>
+          <Label htmlFor="accountNumber">Account Number</Label>
           <Input
             id="accountNumber"
             type="text"
@@ -987,7 +987,7 @@ function BankDetailsStep({ data, updateData }: { data: DeviceData, updateData: (
         </div>
 
         <div>
-          <Label htmlFor="ifscCode">IFSC Code *</Label>
+          <Label htmlFor="ifscCode">IFSC Code</Label>
           <Input
             id="ifscCode"
             type="text"
