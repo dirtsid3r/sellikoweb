@@ -37,7 +37,7 @@ interface DeviceData {
   condition: string
   description: string
   // Step 4: Warranty Information
-  warrantyStatus: 'active' | 'expired' | 'none'
+  warrantyStatus: 'active' | 'expired'
   warrantyExpiry: string
   warrantyImage?: File | null
   // Step 5: Bill Information
@@ -82,7 +82,7 @@ const initialData: DeviceData = {
   color: '',
   condition: '',
   description: '',
-  warrantyStatus: 'none',
+  warrantyStatus: 'active',
   warrantyExpiry: '',
   hasBill: false,
   purchaseDate: '',
@@ -238,9 +238,9 @@ export default function ListDevice() {
     const fetchConfig = async () => {
       setIsConfigLoading(true)
       try {
-        const config = await sellikoClient.getAppConfig() as any
-        if (config.success && config.data && config.data.available_cities) {
-          setAvailableCities(config.data.available_cities)
+        const config = await sellikoClient.getUniversalFormConfig() as any
+        if (config.success && config.cities) {
+          setAvailableCities(config.cities)
         } else {
           toast.error(config.error || 'Failed to load configuration')
         }
@@ -355,7 +355,7 @@ export default function ListDevice() {
       case 2: // Device Details
         return data.brand && data.model && data.storage && data.condition
       case 3: // Warranty Info
-        return data.warrantyStatus !== 'none'
+        return data.warrantyStatus === 'active' || data.warrantyStatus === 'expired'
       case 4: // Bill Details
         return data.hasBill !== undefined
       case 5: // Pricing
@@ -686,6 +686,7 @@ function DeviceDetailsStep({ data, updateData }: { data: DeviceData, updateData:
             placeholder="e.g., iPhone 14 Pro Max"
             value={data.model}
             onChange={(e) => updateData('model', e.target.value)}
+            maxLength={32}
           />
         </div>
 
@@ -718,6 +719,7 @@ function DeviceDetailsStep({ data, updateData }: { data: DeviceData, updateData:
             placeholder="e.g., Space Gray"
             value={data.color}
             onChange={(e) => updateData('color', e.target.value)}
+            maxLength={32}
           />
         </div>
       </div>
@@ -746,6 +748,7 @@ function DeviceDetailsStep({ data, updateData }: { data: DeviceData, updateData:
           value={data.description}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateData('description', e.target.value)}
           rows={3}
+          maxLength={1000}
         />
       </div>
     </div>
@@ -765,7 +768,7 @@ function WarrantyStep({ data, updateData, updateImages }: { data: DeviceData, up
       <div>
         <Label>Warranty Status *</Label>
         <div className="mt-2 space-y-2">
-          {['active', 'expired', 'none'].map((status) => (
+          {['active', 'expired'].map((status) => (
             <label key={status} className="flex items-center">
               <input
                 type="radio"
@@ -775,7 +778,7 @@ function WarrantyStep({ data, updateData, updateImages }: { data: DeviceData, up
                 onChange={(e) => updateData('warrantyStatus', e.target.value)}
                 className="mr-2"
               />
-              <span className="capitalize">{status === 'none' ? 'No Warranty' : status} Warranty</span>
+              <span className="capitalize">{status} Warranty</span>
             </label>
           ))}
         </div>
@@ -887,6 +890,7 @@ function BillDetailsStep({ data, updateData, updateImages }: { data: DeviceData,
                 placeholder="e.g., 75000"
                 value={data.purchasePrice}
                 onChange={(e) => updateData('purchasePrice', e.target.value)}
+                maxLength={5}
               />
             </div>
           </div>
@@ -945,6 +949,7 @@ function PricingStep({ data, updateData }: { data: DeviceData, updateData: (fiel
             value={data.expectedPrice}
             onChange={(e) => updateData('expectedPrice', e.target.value)}
             className="pl-8"
+            maxLength={5}
           />
         </div>
       </div>
@@ -984,17 +989,19 @@ function PersonalInfoStep({ data, updateData }: { data: DeviceData, updateData: 
             placeholder="Enter your full name"
             value={data.name}
             onChange={(e) => updateData('name', e.target.value)}
+            maxLength={32}
           />
         </div>
 
         <div>
-          <Label htmlFor="mobile">Mobile Number *</Label>
+          <Label htmlFor="mobile">Alternate Number *</Label>
           <Input
             id="mobile"
             type="tel"
             placeholder="Enter mobile number"
             value={data.mobile}
             onChange={(e) => updateData('mobile', e.target.value)}
+            maxLength={10}
           />
         </div>
       </div>
@@ -1007,6 +1014,7 @@ function PersonalInfoStep({ data, updateData }: { data: DeviceData, updateData: 
           placeholder="Enter email address"
           value={data.email}
           onChange={(e) => updateData('email', e.target.value)}
+          maxLength={32}
         />
       </div>
     </div>
@@ -1029,6 +1037,7 @@ function AddressStep({ data, updateData, availableCities, isConfigLoading }: { d
           value={data.address}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateData('address', e.target.value)}
           rows={2}
+          maxLength={100}
         />
       </div>
 
@@ -1088,6 +1097,7 @@ function BankDetailsStep({ data, updateData }: { data: DeviceData, updateData: (
             placeholder="Enter account holder name"
             value={data.accountHolderName}
             onChange={(e) => updateData('accountHolderName', e.target.value)}
+            maxLength={32}
           />
         </div>
 
@@ -1099,6 +1109,7 @@ function BankDetailsStep({ data, updateData }: { data: DeviceData, updateData: (
             placeholder="Enter bank name"
             value={data.bankName}
             onChange={(e) => updateData('bankName', e.target.value)}
+            maxLength={32}
           />
         </div>
       </div>
@@ -1112,6 +1123,7 @@ function BankDetailsStep({ data, updateData }: { data: DeviceData, updateData: (
             placeholder="Enter account number"
             value={data.accountNumber}
             onChange={(e) => updateData('accountNumber', e.target.value)}
+            maxLength={20}
           />
         </div>
 
@@ -1187,6 +1199,7 @@ function PickupAddressStep({ data, updateData, availableCities, isConfigLoading 
           value={data.pickupAddress}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateData('pickupAddress', e.target.value)}
           rows={2}
+          maxLength={100}
         />
       </div>
 
