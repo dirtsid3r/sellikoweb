@@ -14,6 +14,7 @@ import React from 'react'
 import { useAuth } from '@/lib/auth'
 import sellikoClient from '@/selliko-client'
 import Header from '@/components/layout/header'
+import { ChevronDownIcon } from '@heroicons/react/24/outline'
 
 interface DeviceImages {
   front?: File | null
@@ -121,12 +122,136 @@ const steps = [
   { title: 'Terms & Agreement', description: 'Final confirmation' }
 ]
 
+// Searchable Dropdown Component
+function SearchableDropdown({ 
+  options, 
+  value, 
+  onChange, 
+  placeholder, 
+  disabled = false,
+  required = false,
+  className = ""
+}: {
+  options: string[]
+  value: string
+  onChange: (value: string) => void
+  placeholder: string
+  disabled?: boolean
+  required?: boolean
+  className?: string
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Filter options based on search term
+  const filteredOptions = options.filter(option =>
+    option.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+        setSearchTerm('')
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const handleSelect = (option: string) => {
+    onChange(option)
+    setIsOpen(false)
+    setSearchTerm('')
+  }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value)
+    if (!isOpen) setIsOpen(true)
+  }
+
+  const displayValue = value || searchTerm
+
+  return (
+    <div className={`relative ${className}`} ref={dropdownRef}>
+      <div className="relative">
+        <input
+          type="text"
+          value={displayValue}
+          onChange={handleInputChange}
+          onFocus={() => setIsOpen(true)}
+          placeholder={placeholder}
+          disabled={disabled}
+          required={required}
+          className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+          autoComplete="off"
+        />
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          disabled={disabled}
+          className="absolute inset-y-0 right-0 flex items-center px-2"
+        >
+          <ChevronDownIcon className={`h-4 w-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </button>
+      </div>
+
+      {isOpen && !disabled && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+          {filteredOptions.length > 0 ? (
+            filteredOptions.map((option, index) => (
+              <button
+                key={index}
+                type="button"
+                onClick={() => handleSelect(option)}
+                className={`w-full px-3 py-2 text-left hover:bg-blue-50 focus:bg-blue-50 focus:outline-none ${
+                  option === value ? 'bg-blue-100 text-blue-900' : 'text-gray-900'
+                }`}
+              >
+                {option}
+              </button>
+            ))
+          ) : (
+            <div className="px-3 py-2 text-gray-500 text-sm">
+              No options found
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function ListDevice() {
   const { user, logout, isLoading } = useAuth()
   const [currentStep, setCurrentStep] = useState(0)
   const [data, setData] = useState<DeviceData>(initialData)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const router = useRouter()
+  const [availableCities, setAvailableCities] = useState<string[]>([])
+  const [isConfigLoading, setIsConfigLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      setIsConfigLoading(true)
+      try {
+        const config = await sellikoClient.getAppConfig() as any
+        if (config.success && config.data && config.data.available_cities) {
+          setAvailableCities(config.data.available_cities)
+        } else {
+          toast.error(config.error || 'Failed to load configuration')
+        }
+      } catch (error) {
+        toast.error('Network error while fetching configuration')
+      } finally {
+        setIsConfigLoading(false)
+      }
+    }
+    fetchConfig()
+  }, [])
 
   // Authentication and role check
   useEffect(() => {
@@ -267,11 +392,11 @@ export default function ListDevice() {
       case 6:
         return <PersonalInfoStep data={data} updateData={updateData} />
       case 7:
-        return <AddressStep data={data} updateData={updateData} />
+        return <AddressStep data={data} updateData={updateData} availableCities={availableCities} isConfigLoading={isConfigLoading} />
       case 8:
         return <BankDetailsStep data={data} updateData={updateData} />
       case 9:
-        return <PickupAddressStep data={data} updateData={updateData} />
+        return <PickupAddressStep data={data} updateData={updateData} availableCities={availableCities} isConfigLoading={isConfigLoading} />
       case 10:
         return <TermsStep data={data} updateData={updateData} />
       default:
@@ -565,19 +690,23 @@ function DeviceDetailsStep({ data, updateData }: { data: DeviceData, updateData:
         </div>
 
         <div>
-          <Label htmlFor="storage">Storage *</Label>
+          <Label htmlFor="storage">(RAM) -</Label>
           <select
             id="storage"
             value={data.storage}
             onChange={(e) => updateData('storage', e.target.value)}
             className="w-full p-2 border border-gray-300 rounded-md"
           >
-            <option value="">Select Storage</option>
-            <option value="64GB">64GB</option>
-            <option value="128GB">128GB</option>
-            <option value="256GB">256GB</option>
-            <option value="512GB">512GB</option>
-            <option value="1TB">1TB</option>
+            <option value="">Select RAM</option>
+            <option value="2GB">2GB</option>
+            <option value="3GB">3GB</option>
+            <option value="4GB">4GB</option>
+            <option value="6GB">6GB</option>
+            <option value="8GB">8GB</option>
+            <option value="10GB">10GB</option>
+            <option value="12GB">12GB</option>
+            <option value="16GB">16GB</option>
+            <option value="20GB">20GB</option>
           </select>
         </div>
 
@@ -884,7 +1013,7 @@ function PersonalInfoStep({ data, updateData }: { data: DeviceData, updateData: 
   )
 }
 
-function AddressStep({ data, updateData }: { data: DeviceData, updateData: (field: keyof DeviceData, value: any) => void }) {
+function AddressStep({ data, updateData, availableCities, isConfigLoading }: { data: DeviceData, updateData: (field: keyof DeviceData, value: any) => void, availableCities: string[], isConfigLoading: boolean }) {
   return (
     <div className="space-y-6">
       <div>
@@ -906,12 +1035,12 @@ function AddressStep({ data, updateData }: { data: DeviceData, updateData: (fiel
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <Label htmlFor="city">City *</Label>
-          <Input
-            id="city"
-            type="text"
-            placeholder="Enter city"
+          <SearchableDropdown
+            options={availableCities}
             value={data.city}
-            onChange={(e) => updateData('city', e.target.value)}
+            onChange={(value) => updateData('city', value)}
+            placeholder={isConfigLoading ? "Loading cities..." : "Search and select city"}
+            disabled={isConfigLoading}
           />
         </div>
 
@@ -1014,7 +1143,7 @@ function BankDetailsStep({ data, updateData }: { data: DeviceData, updateData: (
   )
 }
 
-function PickupAddressStep({ data, updateData }: { data: DeviceData, updateData: (field: keyof DeviceData, value: any) => void }) {
+function PickupAddressStep({ data, updateData, availableCities, isConfigLoading }: { data: DeviceData, updateData: (field: keyof DeviceData, value: any) => void, availableCities: string[], isConfigLoading: boolean }) {
   return (
     <div className="space-y-6">
       <div>
@@ -1064,12 +1193,12 @@ function PickupAddressStep({ data, updateData }: { data: DeviceData, updateData:
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <Label htmlFor="pickupCity">City *</Label>
-          <Input
-            id="pickupCity"
-            type="text"
-            placeholder="Enter city"
+          <SearchableDropdown
+            options={availableCities}
             value={data.pickupCity}
-            onChange={(e) => updateData('pickupCity', e.target.value)}
+            onChange={(value) => updateData('pickupCity', value)}
+            placeholder={isConfigLoading ? "Loading cities..." : "Search and select city"}
+            disabled={isConfigLoading}
           />
         </div>
 
@@ -1174,4 +1303,4 @@ function TermsStep({ data, updateData }: { data: DeviceData, updateData: (field:
       </div>
     </div>
   )
-} 
+}
