@@ -776,7 +776,8 @@ function VendorManagement({ availableCities, configLoading }: {
     working_pincodes: '',
     user_id: '',
     user_name: '',
-    user_mobile: ''
+    user_mobile: '',
+    base_price: '' // Add base_price field
   })
   const [isUpdatingVendor, setIsUpdatingVendor] = useState(false)
 
@@ -859,7 +860,8 @@ function VendorManagement({ availableCities, configLoading }: {
         working_pincodes: '',
         user_id: '',
         user_name: '',
-        user_mobile: ''
+        user_mobile: '',
+        base_price: '' // Initialize base_price
       })
       setWorkingPincodesArray([])
       setNewPincode('')
@@ -899,7 +901,8 @@ function VendorManagement({ availableCities, configLoading }: {
         working_pincodes: profile?.working_pincodes || '',
         user_id: selectedVendor.id || '',
         user_name: selectedVendor.name || '',
-        user_mobile: selectedVendor.phone || ''
+        user_mobile: selectedVendor.phone || '',
+        base_price: profile?.base_price !== undefined ? String(profile.base_price) : '' // Add base_price
       }
       
       setVendorData(mappedData)
@@ -1010,7 +1013,8 @@ function VendorManagement({ availableCities, configLoading }: {
         landmark: vendorData.landmark,
         contact_person: vendorData.contact_person,
         contact_person_phone: vendorData.contact_person_phone,
-        working_pincodes: vendorData.working_pincodes
+        working_pincodes: vendorData.working_pincodes,
+        base_price: parseFloat(vendorData.base_price) || 0 // Include base_price, convert to number
       }
 
       console.log('📤 [VENDOR-MGMT] Update payload:', {
@@ -1075,7 +1079,8 @@ function VendorManagement({ availableCities, configLoading }: {
             landmark: updatedProfile.landmark || prev.landmark,
             contact_person: updatedProfile.contact_person || prev.contact_person,
             contact_person_phone: updatedProfile.contact_person_phone || prev.contact_person_phone,
-            working_pincodes: updatedProfile.working_pincodes || prev.working_pincodes
+            working_pincodes: updatedProfile.working_pincodes || prev.working_pincodes,
+            base_price: updatedProfile.base_price !== undefined ? String(updatedProfile.base_price) : prev.base_price
           }))
           
           // Update working pincodes array if it was updated
@@ -1240,6 +1245,18 @@ function VendorManagement({ availableCities, configLoading }: {
                   value={vendorData.contact_person_phone}
                   onChange={(e) => handleInputChange('contact_person_phone', e.target.value)}
                   placeholder="Enter contact person phone"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Base Price
+                </label>
+                <Input
+                  type="number"
+                  value={vendorData.base_price}
+                  onChange={(e) => handleInputChange('base_price', e.target.value)}
+                  placeholder="Enter base price"
                 />
               </div>
 
