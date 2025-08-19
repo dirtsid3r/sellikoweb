@@ -4916,31 +4916,30 @@ class SellikoClient {
         }
       }
 
-      const requestBody = {}
+      const queryParams = new URLSearchParams();
       if (options.user_id) {
-        requestBody.user_id = options.user_id
+        queryParams.append('user_id', options.user_id);
       }
       if (options.listing_id) {
-        requestBody.listing_id = options.listing_id
+        queryParams.append('listing_id', options.listing_id);
       }
 
-      const url = `${this.apiBase}functions/v1/get-events`
+      const url = `${this.apiBase}functions/v1/get-events?${queryParams.toString()}`;
       
       console.log('📤 [SELLIKO-CLIENT] Making get-events request:', {
         url: url,
-        method: 'POST',
+        method: 'GET',
         hasToken: !!token,
-        body: requestBody
-      })
+        queryParams: Object.fromEntries(queryParams)
+      });
 
       const response = await fetch(url, {
-        method: 'POST',
+        method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody)
-      })
+        }
+      });
 
       console.log('🌐 [SELLIKO-CLIENT] Get-events response:', {
         status: response.status,

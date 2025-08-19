@@ -9,7 +9,6 @@ import { toast } from 'react-hot-toast'
 
 interface Activity {
   id: string
-  type: 'new_listing' | 'bid_won' | 'device_delivered' | 'bid_outbid' | 'bid_placed' | 'listing_approved'
   message: string
   timestamp: string
   icon: string
@@ -24,28 +23,24 @@ interface RecentActivityProps {
 const dummyActivity: Activity[] = [
   {
     id: '1',
-    type: 'new_listing',
     message: 'New listing: iPhone 14 Pro - ₹55,000',
     timestamp: '2 mins ago',
     icon: 'smartphone'
   },
   {
-    id: '2', 
-    type: 'bid_won',
+    id: '2',
     message: 'Your bid accepted: Samsung S21 - ₹35,000',
     timestamp: '1 hour ago',
     icon: 'check'
   },
   {
     id: '3',
-    type: 'device_delivered',
     message: 'Device delivered: OnePlus 9 - Order complete',
     timestamp: '3 hours ago',
     icon: 'package'
   },
   {
     id: '4',
-    type: 'bid_outbid',
     message: 'You were outbid on: Google Pixel 7',
     timestamp: '5 hours ago',
     icon: 'x'
@@ -70,7 +65,7 @@ const ActivityIcon = ({ icon }: { icon: string }) => {
 }
 
 const transformEventToActivity = (event: any): Activity | null => {
-    const { id, created_at, event_type, listing_id, payload } = event;
+    const { id, created_at, title, message, type } = event;
   
     const timeAgo = (dateString: string) => {
       const date = new Date(dateString);
@@ -99,63 +94,35 @@ const transformEventToActivity = (event: any): Activity | null => {
     };
   
     const timestamp = timeAgo(created_at);
-  
-    switch (event_type) {
-      case 'listing_created':
-        return {
-          id,
-          type: 'new_listing',
-          message: `New listing: ${payload.title} - ₹${payload.price}`,
-          timestamp,
-          icon: 'smartphone',
-        };
-      case 'bid_placed':
-        return {
-          id,
-          type: 'bid_placed',
-          message: `Bid of ₹${payload.bid_amount} on listing ${listing_id}`,
-          timestamp,
-          icon: 'trendingUp',
-        };
-      case 'item_delivered':
-        return {
-          id,
-          type: 'device_delivered',
-          message: `Item delivered for listing ${listing_id}`,
-          timestamp,
-          icon: 'package',
-        };
-      case 'bid_won':
-        return {
-          id,
-          type: 'bid_won',
-          message: `You won the bid for listing ${listing_id}`,
-          timestamp,
-          icon: 'check',
-        };
-      case 'bid_outbid':
-        return {
-          id,
-          type: 'bid_outbid',
-          message: `You were outbid on listing ${listing_id}`,
-          timestamp,
-          icon: 'x',
-        };
-      case 'listing_approved':
-          return {
-              id,
-              type: 'listing_approved',
-              message: `Listing ${listing_id} has been approved.`,
-              timestamp,
-              icon: 'check'
-          }
-      default:
-        console.warn(`[ACTIVITY] Unknown event type: ${event_type}`)
-        return null;
+    let icon = 'bell'; // Default icon
+
+    // Determine icon based on the incoming 'type' or 'title'
+    if (type === 'success') {
+        icon = 'check';
+    } else if (type === 'info') {
+        if (title && title.includes('New Listing')) {
+            icon = 'smartphone';
+        } else {
+            icon = 'bell'; // General info
+        }
     }
+
+    // Override if title is more specific
+    if (title && title.includes('User Registered')) {
+        icon = 'check';
+    } else if (title && title.includes('New Listing')) {
+        icon = 'smartphone';
+    }
+  
+    return {
+      id: String(id),
+      message: message || title || 'No message', // Use message, fallback to title, then generic
+      timestamp,
+      icon,
+    };
   };
 
-export function RecentActivity({ user_id, listing_id, limit = 5 }: RecentActivityProps) {
+export function RecentActivity({ user_id, listing_id, limit = 25 }: RecentActivityProps) {
   const [activity, setActivity] = useState<Activity[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
