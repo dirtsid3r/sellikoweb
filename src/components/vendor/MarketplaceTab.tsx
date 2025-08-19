@@ -567,7 +567,7 @@ export function MarketplaceTab() {
                   )}
                 </div>
                 
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2">
                   {/* Check if this is a winning bid for current user and show appropriate button/status */}
                   {currentUser && listing.winningBid && listing.winningBid.vendor_id === currentUser.id ? (
                     <>
@@ -603,7 +603,18 @@ export function MarketplaceTab() {
                           <Button 
                             size="sm" 
                             variant="outline" 
-                            className="flex-1"
+                            className="w-full" 
+                            onClick={() => {
+                              console.log('View Details clicked for listing:', listing.id);
+                              toast.info('View Details functionality coming soon!');
+                            }}
+                          >
+                            View Details
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="w-full"
                             onClick={() => handlePlaceBid(listing)}
                             disabled={currentUser && listing.currentBidInfo && listing.currentBidInfo.vendor_id === currentUser.id}
                           >
@@ -614,7 +625,7 @@ export function MarketplaceTab() {
                           {listing.isInstantWin && !(currentUser && listing.currentBidInfo && listing.currentBidInfo.vendor_id === currentUser.id) && (
                             <Button 
                               size="sm" 
-                              className="flex-1 bg-orange-600 hover:bg-orange-700"
+                              className="w-full bg-orange-600 hover:bg-orange-700"
                               onClick={() => handleInstantWin(listing)}
                             >
                               Buy Now
