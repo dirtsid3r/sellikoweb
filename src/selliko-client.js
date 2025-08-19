@@ -4890,6 +4890,89 @@ class SellikoClient {
           };
       }
   }
+
+  // 12. getEvents - fetch events for a user and/or listing
+  /**
+   * Fetches events based on specified criteria.
+   * Can fetch for a specific user and listing, for the current user, or for a specific listing.
+   * 
+   * @param {Object} options - Query options
+   * @param {string} options.user_id - Filter by user ID (optional)
+   * @param {string} options.listing_id - Filter by listing ID (optional)
+   * 
+   * @returns {Promise<Object>} Response with events array
+   */
+  async getEvents(options = {}) {
+    console.log('🗓️ [SELLIKO-CLIENT] getEvents called with options:', options)
+
+    try {
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        console.error('❌ [SELLIKO-CLIENT] No access token found for getEvents')
+        return {
+          success: false,
+          error: 'Authentication required',
+          events: []
+        }
+      }
+
+      const requestBody = {}
+      if (options.user_id) {
+        requestBody.user_id = options.user_id
+      }
+      if (options.listing_id) {
+        requestBody.listing_id = options.listing_id
+      }
+
+      const url = `${this.apiBase}functions/v1/get-events`
+      
+      console.log('📤 [SELLIKO-CLIENT] Making get-events request:', {
+        url: url,
+        method: 'POST',
+        hasToken: !!token,
+        body: requestBody
+      })
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Get-events response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      })
+
+      const data = await response.json()
+      
+      console.log('📥 [SELLIKO-CLIENT] Get-events data received:', {
+        success: data.success,
+        eventsCount: data.events ? data.events.length : 0,
+        error: data.error
+      })
+
+      return data
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] getEvents error:', error)
+      console.error('📋 [SELLIKO-CLIENT] Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      })
+      
+      return {
+        success: false,
+        error: error.message || 'Network error occurred',
+        events: []
+      }
+    }
+  }
 }
 
 // Export singleton instance
