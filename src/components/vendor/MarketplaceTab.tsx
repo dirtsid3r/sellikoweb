@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation' // Import useRouter
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -75,6 +76,7 @@ interface MarketplaceListing {
 }
 
 export function MarketplaceTab() {
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFilter, setSelectedFilter] = useState('all')
   const [listings, setListings] = useState<MarketplaceListing[]>([])
@@ -246,6 +248,11 @@ export function MarketplaceTab() {
   }
 
   const getStatusBadge = (listing: MarketplaceListing) => {
+    // New: accepting_bids (receiving_bids)
+    if (listing.status === 'receiving_bids') {
+      return <Badge className="bg-orange-500 text-white">⏳ Accepting Bids</Badge>
+    }
+
     // Handle bid_accepted status with win/loss logic
     if (listing.status === 'bid_accepted' && listing.winningBid && currentUser) {
       const isMyWinningBid = listing.winningBid.vendor_id === currentUser.id
@@ -253,17 +260,22 @@ export function MarketplaceTab() {
       if (isMyWinningBid) {
         // Show won badge based on instant_win flag
         if (listing.winningBid.instant_win) {
-          return <Badge className="bg-green-500 text-white">⚡ Instant Won!</Badge>
+          return <Badge className="bg-green-500 text-white">⚡ Instant Won!</Badge> // Green for won
         } else {
-          return <Badge className="bg-green-500 text-white">🏆 You Won!</Badge>
+          return <Badge className="bg-green-500 text-white">🏆 You Won!</Badge> // Green for won
         }
       } else {
         // Show lost badge for other users
-        return <Badge className="bg-red-500 text-white">😔 You Lost</Badge>
+        return <Badge className="bg-red-500 text-white">😔 You Lost</Badge> // Red for lost
       }
     }
     
-    // Handle order processing statuses
+    // New: bidded (if not receiving_bids, but has bids)
+    if (listing.totalBids > 0 && listing.status !== 'receiving_bids') {
+      return <Badge className="bg-blue-500 text-white">📈 Bidded</Badge>
+    }
+
+    // Existing order processing statuses
     if (listing.status === 'agent_assigned') {
       return <Badge className="bg-blue-500 text-white">👤 Agent Assigned</Badge>
     }
@@ -502,7 +514,7 @@ export function MarketplaceTab() {
                     🏆 Highest Bid
                   </Badge>
                 ) : listing.isHot && (
-                  <Badge className="absolute top-2 left-2 bg-red-500 text-white">
+                  <Badge className="absolute top-2 left-2 bg-purple-500 text-white">
                     🔥 HOT
                   </Badge>
                 )}
@@ -606,7 +618,7 @@ export function MarketplaceTab() {
                             className="w-full" 
                             onClick={() => {
                               console.log('View Details clicked for listing:', listing.id);
-                              toast.info('View Details functionality coming soon!');
+                              router.push(`/vendor/device/${listing.id}`);
                             }}
                           >
                             View Details
