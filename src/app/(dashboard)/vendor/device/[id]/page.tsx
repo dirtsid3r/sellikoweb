@@ -11,6 +11,7 @@ import { useRouter, useParams } from 'next/navigation'
 import sellikoClient from '@/selliko-client'
 import { toast } from 'react-hot-toast'
 import Header from '@/components/layout/header'
+import { RecentActivity } from '@/components/shared/RecentActivity'
 
 export default function VendorDeviceDetailPage() {
   const { user } = useAuth()
@@ -491,6 +492,9 @@ export default function VendorDeviceDetailPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Recent Activity */}
+            <RecentActivity listing_id={deviceId} user_id={user.id} />
           </div>
 
           {/* Right Column - Status & Actions */}
