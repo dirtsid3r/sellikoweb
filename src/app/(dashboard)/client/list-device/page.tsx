@@ -394,10 +394,8 @@ export default function ListDevice() {
       case 7:
         return <AddressStep data={data} updateData={updateData} availableCities={availableCities} isConfigLoading={isConfigLoading} />
       case 8:
-        return <BankDetailsStep data={data} updateData={updateData} />
-      case 9:
         return <PickupAddressStep data={data} updateData={updateData} availableCities={availableCities} isConfigLoading={isConfigLoading} />
-      case 10:
+      case 9:
         return <TermsStep data={data} updateData={updateData} />
       default:
         return null
