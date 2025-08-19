@@ -326,10 +326,32 @@ export function BidModal({ listing, open, onOpenChange, currentUserId }: BidModa
   const isInstantWin = bidAmount && parseInt(bidAmount) >= currentListing.askingPrice
   const isValidBid = bidAmount && parseInt(bidAmount) >= minimumBid
   
+  // Helper function to check if user's last bid was more than 2 hours ago
+  const canRebidAfterTimeLimit = () => {
+    if (!detailedListing?.bids || !currentUserId) return false
+    
+    // Find the most recent bid by the current user
+    const userBids = detailedListing.bids
+      .filter(bid => bid.vendor_id === currentUserId)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    
+    if (userBids.length === 0) return false
+    
+    const lastUserBid = userBids[0]
+    const lastBidTime = new Date(lastUserBid.created_at).getTime()
+    const currentTime = new Date().getTime()
+    const twoHoursInMs = 2 * 60 * 60 * 1000 // 2 hours in milliseconds
+    
+    return (currentTime - lastBidTime) >= twoHoursInMs
+  }
+
   // Check if user already has the highest bid
-  const hasHighestBid = detailedListing?.highest_bid && 
-                       detailedListing.bids.length > 0 && 
-                       detailedListing.bids[0]?.vendor_id === currentUserId
+  const userHasHighestBid = detailedListing?.highest_bid &&
+                           detailedListing.bids.length > 0 &&
+                           detailedListing.bids[0]?.vendor_id === currentUserId
+
+  // User can bid if they don't have highest bid OR if they have highest bid but last bid was 2+ hours ago
+  const hasHighestBid = userHasHighestBid && !canRebidAfterTimeLimit()
 
   // Real-time timer countdown
   useEffect(() => {
@@ -422,14 +444,13 @@ export function BidModal({ listing, open, onOpenChange, currentUserId }: BidModa
   }
 
   const handleSubmitBid = async () => {
-    // Check if user already has highest bid
-    const hasHighestBid = detailedListing?.highest_bid && 
-                         detailedListing.bids.length > 0 && 
-                         detailedListing.bids[0]?.vendor_id === currentUserId
-    
+    // Check if user already has highest bid (reusing the logic from above)
     if (hasHighestBid) {
-      toast.error('You already have the highest bid on this listing')
-      return
+      const canRebid = canRebidAfterTimeLimit()
+      if (!canRebid) {
+        toast.error('You already have the highest bid on this listing. You can place a new bid after 2 hours from your last bid.')
+        return
+      }
     }
 
     if (!isValidBid || !agreedToTerms || timeRemaining <= 0) return
@@ -760,8 +781,37 @@ export function BidModal({ listing, open, onOpenChange, currentUserId }: BidModa
                         <span className="font-medium">You have the highest bid!</span>
                       </div>
                       <p className="text-sm text-blue-700 mt-1">
-                        You cannot place another bid while you're leading. Wait for others to outbid you.
+                        You cannot place another bid while you're leading. You can place a new bid after 2 hours from your last bid, or wait for others to outbid you.
                       </p>
+                      {detailedListing?.bids && currentUserId && (() => {
+                        const userBids = detailedListing.bids
+                          .filter(bid => bid.vendor_id === currentUserId)
+                          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                        
+                        if (userBids.length > 0) {
+                          const lastBidTime = new Date(userBids[0].created_at)
+                          const twoHoursLater = new Date(lastBidTime.getTime() + (2 * 60 * 60 * 1000))
+                          const timeRemaining = Math.max(0, twoHoursLater.getTime() - new Date().getTime())
+                          
+                          if (timeRemaining > 0) {
+                            const hoursLeft = Math.floor(timeRemaining / (60 * 60 * 1000))
+                            const minutesLeft = Math.floor((timeRemaining % (60 * 60 * 1000)) / (60 * 1000))
+                            
+                            return (
+                              <p className="text-xs text-blue-600 mt-2">
+                                ⏰ You can bid again in {hoursLeft > 0 ? `${hoursLeft}h ` : ''}{minutesLeft}m
+                              </p>
+                            )
+                          } else {
+                            return (
+                              <p className="text-xs text-green-600 mt-2">
+                                ✅ You can now place a new bid!
+                              </p>
+                            )
+                          }
+                        }
+                        return null
+                      })()}
                     </CardContent>
                   </Card>
                 ) : (
