@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation'
 import { MarketplaceTab } from '@/components/vendor/MarketplaceTab'
 import { MyBidsTab } from '@/components/vendor/MyBidsTab'
 import { NotificationsTab } from '@/components/vendor/NotificationsTab'
+import { RecentActivity } from '@/components/shared/RecentActivity'
 import sellikoClient from '@/selliko-client'
 import { toast } from 'react-hot-toast'
 import Header from '@/components/layout/header'
@@ -59,29 +60,7 @@ export default function VendorDashboard() {
   const [isLoadingStats, setIsLoadingStats] = useState(true)
   const [statsError, setStatsError] = useState<string | null>(null)
 
-  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([
-    {
-      id: '1',
-      type: 'new_listing',
-      message: 'New listing: iPhone 14 Pro - ₹55,000',
-      timestamp: '2 mins ago',
-      icon: 'smartphone'
-    },
-    {
-      id: '2', 
-      type: 'bid_won',
-      message: 'Your bid accepted: Samsung S21 - ₹35,000',
-      timestamp: '1 hour ago',
-      icon: 'check'
-    },
-    {
-      id: '3',
-      type: 'device_delivered',
-      message: 'Device delivered: OnePlus 9 - Order complete',
-      timestamp: '3 hours ago',
-      icon: 'package'
-    }
-  ])
+  
 
   useEffect(() => {
     const checkAuthAndRole = async () => {
@@ -306,32 +285,7 @@ export default function VendorDashboard() {
                 </div>
               )}
             </div>
-
-
-
-            {/* Recent Activity */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
-              <Card>
-                <CardContent className="p-6">
-                  <div className="space-y-4">
-                    {recentActivity.map((activity) => (
-                      <div key={activity.id} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
-                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                          {activity.icon === 'smartphone' && <Icons.smartphone className="w-4 h-4 text-blue-600" />}
-                          {activity.icon === 'check' && <Icons.check className="w-4 h-4 text-green-600" />}
-                          {activity.icon === 'package' && <Icons.package className="w-4 h-4 text-purple-600" />}
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">{activity.message}</p>
-                          <p className="text-xs text-gray-500">{activity.timestamp}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <RecentActivity />
           </TabsContent>
 
           {/* Marketplace Tab */}
