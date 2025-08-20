@@ -121,6 +121,7 @@ interface PendingDelivery {
   seller: string
   time: string
   deliver_to: PickupDeliverTo
+  delivery_otp: string
 }
 
 interface PickupsResponse {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -35,6 +35,7 @@ interface PendingDelivery {
   seller: string
   time: string
   deliver_to: PickupDeliverTo
+  delivery_otp: string
 }
 
 interface DeliveryModalProps {
@@ -54,6 +55,16 @@ export default function DeliveryModal({
 }: DeliveryModalProps) {
   const [otp, setOtp] = useState(['', '', '', ''])
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Auto-populate OTP when delivery changes
+  useEffect(() => {
+    if (delivery?.delivery_otp) {
+      const otpDigits = delivery.delivery_otp.toString().padStart(4, '0').split('').slice(0, 4)
+      setOtp(otpDigits)
+    } else {
+      setOtp(['', '', '', ''])
+    }
+  }, [delivery])
 
   const handleOtpChange = (index: number, value: string) => {
     if (value.length > 1) return // Only allow single digit
