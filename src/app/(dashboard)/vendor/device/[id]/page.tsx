@@ -494,7 +494,7 @@ export default function VendorDeviceDetailPage() {
             </Card>
 
             {/* Recent Activity */}
-            <RecentActivity listing_id={deviceId} user_id={user.id} />
+            {user && <RecentActivity listing_id={deviceId} user_id={user.id} />}
           </div>
 
           {/* Right Column - Status & Actions */}
