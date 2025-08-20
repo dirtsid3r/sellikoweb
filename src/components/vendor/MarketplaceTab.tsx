@@ -117,7 +117,8 @@ export function MarketplaceTab() {
         // Add legacy compatibility fields for existing UI components
         const transformedListings: MarketplaceListing[] = response.listings.map((item: MarketplaceListing) => ({
           ...item,
-          currentBidInfo: item.currentBid || null, // <-- Map API's currentBid to currentBidInfo
+          // Ensure currentBidInfo is properly typed - should already be BidInfo | null from API
+          currentBidInfo: item.currentBidInfo || null,
           // Legacy compatibility fields derived from new structure
           model: item.device || item.brand, // Use device as model fallback
           timeLeftMinutes: parseTimeLeftToMinutes(item.timeLeft) || 60, // Ensure it's always a number
