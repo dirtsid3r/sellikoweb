@@ -855,7 +855,8 @@ export default function AgentVerification() {
         amount: deduction.amount,
         severity: deduction.severity
       })),
-      offer_value: finalOfferValue
+      offer_value: finalOfferValue,
+      bank_details: bankDetails
     }
 
     console.log('🚀 [VERIFICATION-COMPLETE] Collected Form Data:', JSON.stringify(collectedData, null, 2))
@@ -890,8 +891,7 @@ export default function AgentVerification() {
         verificationData.verification_data,
         verificationData.verification_note,
         verificationData.deductions,
-        verificationData.offer_value,
-        verificationData.bank_details
+        verificationData.offer_value
       ) as { success: boolean; error?: string; message?: string }
 
       if (result.success) {
