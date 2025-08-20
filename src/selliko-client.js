@@ -1258,15 +1258,14 @@ class SellikoClient {
         throw new Error('You can only update your own listings')
       }
 
-      // Validate listing status (allow multiple statuses that can be updated)
+      // Validate listing status (allow only 'rejected' status for editing)
       console.log('📋 [SELLIKO-CLIENT] Status validation:', {
         currentStatus: originalData.status,
-        allowedStatuses: ['pending', 'pending_approval', 'draft'],
-        isAllowed: ['pending', 'pending_approval', 'draft'].includes(originalData.status)
+        allowedStatus: 'rejected',
+        isAllowed: originalData.status === 'rejected'
       })
-      const allowedStatuses = ['pending', 'pending_approval', 'draft']
-      if (!allowedStatuses.includes(originalData.status)) {
-        throw new Error(`Only listings with status ${allowedStatuses.join(', ')} can be updated. Current status: ${originalData.status}`)
+      if (originalData.status !== 'rejected') {
+        throw new Error('Only listings with status "rejected" can be edited/resubmitted. Current status: ' + originalData.status)
       }
 
       console.log('✅ [SELLIKO-CLIENT] Validation passed - proceeding with update')

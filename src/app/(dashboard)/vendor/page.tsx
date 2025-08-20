@@ -9,7 +9,7 @@ import { Icons } from '@/components/ui/icons'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { MarketplaceTab } from '@/components/vendor/MarketplaceTab'
 import { MyBidsTab } from '@/components/vendor/MyBidsTab'
 import { NotificationsTab } from '@/components/vendor/NotificationsTab'
@@ -48,6 +48,7 @@ export default function VendorDashboard() {
   const { user, logout, isLoading } = useAuth()
   const { instanceId } = useInstanceId()
   const router = useRouter()
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [activeTab, setActiveTab] = useState('dashboard')
   const [stats, setStats] = useState<VendorStats>({
@@ -63,6 +64,14 @@ export default function VendorDashboard() {
   
 
   useEffect(() => {
+    // Set tab from query param if present
+    if (searchParams) {
+      const tabParam = searchParams.get('tab');
+      if (tabParam && ['dashboard', 'marketplace', 'my-bids', 'notifications'].includes(tabParam)) {
+        setActiveTab(tabParam);
+      }
+    }
+
     const checkAuthAndRole = async () => {
       console.log('🔒 [VENDOR-DASH] Checking authentication and role...')
       try {

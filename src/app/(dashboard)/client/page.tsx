@@ -184,7 +184,7 @@ export default function ClientDashboard() {
       id: apiListing.id,
       device: deviceName,
       status: apiListing.status === 'pending' ? 'pending_approval' : apiListing.status,
-      currentBid: apiListing.highest_bid || 0,
+      currentBid: apiListing.highest_bid_value || 0,
       askingPrice: apiListing.asking_price || apiListing.expected_price || 0,
       bidsCount: Array.isArray(apiListing.bids) ? apiListing.bids.length : 0,
       timeLeft: calculateTimeRemaining(apiListing.time_approved, apiListing.status),

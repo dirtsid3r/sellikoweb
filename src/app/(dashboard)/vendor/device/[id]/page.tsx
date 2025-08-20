@@ -521,7 +521,7 @@ export default function VendorDeviceDetailPage() {
               <CardContent className="space-y-3">
                 {/* Back to Marketplace */}
                 <Button 
-                  onClick={() => router.push('/vendor/marketplace')}
+                  onClick={() => router.push('/vendor/?tab=marketplace')}
                   variant="outline"
                   className="w-full"
                   size="lg"

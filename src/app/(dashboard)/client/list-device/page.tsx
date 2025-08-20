@@ -117,7 +117,6 @@ const steps = [
   { title: 'Set Price', description: 'Your asking price' },
   { title: 'Personal Info', description: 'Your contact details' },
   { title: 'Address', description: 'Your current address' },
-  { title: 'Bank Details', description: 'Payment account information' },
   { title: 'Pickup Address', description: 'Device collection details' },
   { title: 'Terms & Agreement', description: 'Final confirmation' }
 ]
@@ -364,11 +363,9 @@ export default function ListDevice() {
         return data.name && data.mobile && data.email
       case 7: // Address
         return data.address && data.city && data.pincode
-      case 8: // Bank Details
-        return true
-      case 9: // Pickup Address
+      case 8: // Pickup Address
         return data.pickupAddress && data.pickupCity && data.pickupPincode
-      case 10: // Terms
+      case 9: // Terms
         return data.termsAccepted && data.privacyAccepted && data.whatsappConsent
       default:
         return true

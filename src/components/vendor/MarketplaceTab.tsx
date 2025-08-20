@@ -117,6 +117,7 @@ export function MarketplaceTab() {
         // Add legacy compatibility fields for existing UI components
         const transformedListings: MarketplaceListing[] = response.listings.map((item: MarketplaceListing) => ({
           ...item,
+          currentBidInfo: item.currentBid || null, // <-- Map API's currentBid to currentBidInfo
           // Legacy compatibility fields derived from new structure
           model: item.device || item.brand, // Use device as model fallback
           timeLeftMinutes: parseTimeLeftToMinutes(item.timeLeft) || 60, // Ensure it's always a number
@@ -222,10 +223,15 @@ export function MarketplaceTab() {
     
     if (selectedFilter === 'all') return matchesSearch
     if (selectedFilter === 'instant-win') return matchesSearch && listing.isInstantWin
-    if (selectedFilter === 'ending-soon') return matchesSearch && listing.timeLeftMinutes && listing.timeLeftMinutes <= 360 // 6 hours
-    if (selectedFilter === 'apple') return matchesSearch && listing.brand.toLowerCase() === 'apple'
-    if (selectedFilter === 'samsung') return matchesSearch && listing.brand.toLowerCase() === 'samsung'
-    
+    if (selectedFilter === 'won') {
+      return matchesSearch && currentUser && listing.winningBid && listing.winningBid.vendor_id === currentUser.id
+    }
+    if (selectedFilter === 'lost') {
+      // User has bidded but is not the winner
+      const userHasBid = currentUser && listing.bids && listing.bids.some(bid => bid.vendor_id === currentUser.id)
+      const isWinner = currentUser && listing.winningBid && listing.winningBid.vendor_id === currentUser.id
+      return matchesSearch && userHasBid && !isWinner
+    }
     return matchesSearch
   })
 
@@ -270,12 +276,13 @@ export function MarketplaceTab() {
       }
     }
     
-    // New: bidded (if not receiving_bids, but has bids)
-    if (listing.totalBids > 0 && listing.status !== 'receiving_bids') {
-      return <Badge className="bg-blue-500 text-white">📈 Bidded</Badge>
+    // Existing order processing statuses (move these above the bidded check)
+    if (listing.status === 'pickedup') {
+      return <Badge className="bg-orange-500 text-white">🚚 Picked Up</Badge>
     }
-
-    // Existing order processing statuses
+    if (listing.status === 'completed') {
+      return <Badge className="bg-green-600 text-white">🎉 Delivered</Badge>
+    }
     if (listing.status === 'agent_assigned') {
       return <Badge className="bg-blue-500 text-white">👤 Agent Assigned</Badge>
     }
@@ -284,12 +291,6 @@ export function MarketplaceTab() {
     }
     if (listing.status === 'ready_for_pickup') {
       return <Badge className="bg-purple-500 text-white">📦 Ready for Pickup</Badge>
-    }
-    if (listing.status === 'pickedup') {
-      return <Badge className="bg-orange-500 text-white">🚚 Picked Up</Badge>
-    }
-    if (listing.status === 'completed') {
-      return <Badge className="bg-green-600 text-white">🎉 Delivered</Badge>
     }
     if (listing.status === 'bidding_ended') {
       return <Badge className="bg-gray-500 text-white">⏰ Bidding Ended</Badge>
@@ -303,6 +304,12 @@ export function MarketplaceTab() {
     if (listing.isInstantWin) {
       return <Badge className="bg-orange-100 text-orange-800 border-orange-200">⚡ Instant Win</Badge>
     }
+
+    // New: bidded (if not receiving_bids, but has bids)
+    if (listing.totalBids > 0 && listing.status !== 'receiving_bids') {
+      return <Badge className="bg-blue-500 text-white">📈 Bidded</Badge>
+    }
+
     return null
   }
 
@@ -455,9 +462,8 @@ export function MarketplaceTab() {
               {[
                 { key: 'all', label: 'All' },
                 { key: 'instant-win', label: 'Instant Win' },
-                { key: 'ending-soon', label: 'Ending Soon' },
-                { key: 'apple', label: 'Apple' },
-                { key: 'samsung', label: 'Samsung' }
+                { key: 'won', label: 'Won' },
+                { key: 'lost', label: 'Lost' }
               ].map((filter) => (
                 <Button
                   key={filter.key}
@@ -580,6 +586,18 @@ export function MarketplaceTab() {
                 </div>
                 
                 <div className="flex flex-col gap-2">
+                  {/* Always show View Details button */}
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="w-full" 
+                    onClick={() => {
+                      console.log('View Details clicked for listing:', listing.id);
+                      router.push(`/vendor/device/${listing.id}`);
+                    }}
+                  >
+                    View Details
+                  </Button>
                   {/* Check if this is a winning bid for current user and show appropriate button/status */}
                   {currentUser && listing.winningBid && listing.winningBid.vendor_id === currentUser.id ? (
                     <>
@@ -612,17 +630,6 @@ export function MarketplaceTab() {
                       {/* Show Place Bid button when status is receiving_bids */}
                       {listing.status === 'receiving_bids' ? (
                         <>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="w-full" 
-                            onClick={() => {
-                              console.log('View Details clicked for listing:', listing.id);
-                              router.push(`/vendor/device/${listing.id}`);
-                            }}
-                          >
-                            View Details
-                          </Button>
                           <Button 
                             size="sm" 
                             variant="outline" 

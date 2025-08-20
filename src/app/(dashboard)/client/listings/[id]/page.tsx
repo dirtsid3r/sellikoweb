@@ -435,11 +435,11 @@ export default function ListingDetailPage() {
         // Store the accepted bid details for success modal
         const winningBid = (result as any).listing?.bids?.find((bid: any) => bid.status === 'won')
         setAcceptedBidDetails({
-          bidAmount: (result as any).listing?.highest_bid || 0,
+          bidAmount: winningBid?.bid_amount || 0,
           vendorName: winningBid?.vendor_profile?.name || 'Vendor',
-          vendorLocation: winningBid?.vendor_profile ? 
-            `${winningBid.vendor_profile.city}, ${winningBid.vendor_profile.state}` : 
-            'Location not available',
+          vendorLocation: winningBid?.vendor_profile
+            ? `${winningBid.vendor_profile.city || 'City not provided'}, ${winningBid.vendor_profile.state || 'State not provided'}`
+            : 'Location not available',
           listingStatus: (result as any).listing?.status || 'bid_accepted'
         })
         
@@ -896,7 +896,7 @@ export default function ListingDetailPage() {
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                       <p className="text-sm font-medium text-green-800">Highest Bid</p>
                       <p className="text-2xl font-bold text-green-900">₹{highestBidAmount.toLocaleString()}</p>
-                      <p className="text-sm text-green-700">Selliko Bid #{generateVendorCode(highestBid.vendorId)}</p>
+                      <p className="text-sm text-green-700">Selliko Bid #{generateVendorCode(highestBid.vendor_profile?.vendor_id || highestBid.vendorId)}</p>
                       {highestBid.isNew && (
                         <Badge className="bg-orange-100 text-orange-800 text-xs mt-2">New!</Badge>
                       )}
