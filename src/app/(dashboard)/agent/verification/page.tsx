@@ -400,6 +400,13 @@ export default function AgentVerification() {
   const [isStartingVerification, setIsStartingVerification] = useState(false)
   const [startVerificationError, setStartVerificationError] = useState<string | null>(null)
 
+  const [bankDetails, setBankDetails] = useState({
+    bankName: '',
+    ifscCode: '',
+    accountNumber: '',
+    accountHolderName: '',
+  });
+
   // Constants for batch processing
   const STEPS_PER_BATCH = 5
 
@@ -858,6 +865,11 @@ export default function AgentVerification() {
   const completeDeductionsAndMakeOffer = async () => {
     if (isSubmittingVerification) return
 
+    if (!bankDetails.bankName || !bankDetails.ifscCode || !bankDetails.accountNumber || !bankDetails.accountHolderName) {
+      toast.error('Please fill out all bank information fields.');
+      return;
+    }
+
     setIsSubmittingVerification(true)
     
     try {
@@ -878,7 +890,8 @@ export default function AgentVerification() {
         verificationData.verification_data,
         verificationData.verification_note,
         verificationData.deductions,
-        verificationData.offer_value
+        verificationData.offer_value,
+        verificationData.bank_details
       ) as { success: boolean; error?: string; message?: string }
 
       if (result.success) {
@@ -1190,6 +1203,57 @@ export default function AgentVerification() {
                     </div>
                   ))
                 )}
+              </div>
+            </div>
+
+            {/* Bank Information Form */}
+            <div className="mb-6">
+              <h3 className="font-semibold text-gray-900 mb-4">Enter Bank Information</h3>
+              <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Bank Name</label>
+                  <input
+                    type="text"
+                    value={bankDetails.bankName}
+                    onChange={(e) => setBankDetails({ ...bankDetails, bankName: e.target.value })}
+                    placeholder="Enter bank name"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">IFSC Code</label>
+                  <input
+                    type="text"
+                    value={bankDetails.ifscCode}
+                    onChange={(e) => setBankDetails({ ...bankDetails, ifscCode: e.target.value })}
+                    placeholder="Enter IFSC code"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+                  <input
+                    type="text"
+                    value={bankDetails.accountNumber}
+                    onChange={(e) => setBankDetails({ ...bankDetails, accountNumber: e.target.value })}
+                    placeholder="Enter account number"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Account Holder Name</label>
+                  <input
+                    type="text"
+                    value={bankDetails.accountHolderName}
+                    onChange={(e) => setBankDetails({ ...bankDetails, accountHolderName: e.target.value })}
+                    placeholder="Enter account holder name"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    required
+                  />
+                </div>
               </div>
             </div>
 
