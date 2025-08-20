@@ -46,6 +46,8 @@ import {
   Info,
   AlertTriangle,
   Lightbulb,
+  Image,
+  Truck,
 } from "lucide-react"
 
 export const Icons = {
@@ -96,4 +98,6 @@ export const Icons = {
   info: Info,
   exclamationTriangle: AlertTriangle,
   lightBulb: Lightbulb,
+  image: Image,
+  truck: Truck,
 } 
