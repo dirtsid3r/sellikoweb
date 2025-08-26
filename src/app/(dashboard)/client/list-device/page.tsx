@@ -33,6 +33,7 @@ interface DeviceData {
   brand: string
   model: string
   storage: string
+  ram: string // <-- Added RAM field
   color: string
   condition: string
   description: string
@@ -79,6 +80,7 @@ const initialData: DeviceData = {
   brand: '',
   model: '',
   storage: '',
+  ram: '', // <-- Added RAM field
   color: '',
   condition: '',
   description: '',
@@ -352,7 +354,7 @@ export default function ListDevice() {
       case 1: // IMEI Numbers
         return data.imei1.length >= 10
       case 2: // Device Details
-        return data.brand && data.model && data.storage && data.condition
+        return data.brand && data.model && data.storage && data.ram && data.condition
       case 3: // Warranty Info
         return data.warrantyStatus === 'active' || data.warrantyStatus === 'expired'
       case 4: // Bill Details
@@ -686,11 +688,34 @@ function DeviceDetailsStep({ data, updateData }: { data: DeviceData, updateData:
         </div>
 
         <div>
-          <Label htmlFor="storage">(RAM) -</Label>
+          <Label htmlFor="storage">Storage (ROM) *</Label>
           <select
             id="storage"
             value={data.storage}
             onChange={(e) => updateData('storage', e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded-md"
+          >
+            <option value="">Select Storage</option>
+            <option value="4GB">4GB</option>
+            <option value="6GB">6GB</option>
+            <option value="8GB">8GB</option>
+            <option value="10GB">10GB</option>
+            <option value="12GB">12GB</option>
+            <option value="16GB">16GB</option>
+            <option value="32GB">32GB</option>
+            <option value="64GB">64GB</option>
+            <option value="128GB">128GB</option>
+            <option value="256GB">256GB</option>
+            <option value="512GB">512GB</option>
+          </select>
+        </div>
+
+        <div>
+          <Label htmlFor="ram">RAM *</Label>
+          <select
+            id="ram"
+            value={data.ram}
+            onChange={(e) => updateData('ram', e.target.value)}
             className="w-full p-2 border border-gray-300 rounded-md"
           >
             <option value="">Select RAM</option>
@@ -699,10 +724,13 @@ function DeviceDetailsStep({ data, updateData }: { data: DeviceData, updateData:
             <option value="4GB">4GB</option>
             <option value="6GB">6GB</option>
             <option value="8GB">8GB</option>
-            <option value="10GB">10GB</option>
             <option value="12GB">12GB</option>
             <option value="16GB">16GB</option>
-            <option value="20GB">20GB</option>
+            <option value="32GB">32GB</option>
+            <option value="64GB">64GB</option>
+            <option value="128GB">128GB</option>
+            <option value="256GB">256GB</option>
+            <option value="512GB">512GB</option>
           </select>
         </div>
 
