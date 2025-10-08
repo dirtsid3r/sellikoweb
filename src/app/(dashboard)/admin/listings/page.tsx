@@ -73,7 +73,7 @@ export default function AdminListingsPage() {
     try {
       const response = await sellikoClient.getListings({
         search: search || '',
-        status: null,
+        status: '',
         page: 1,
         limit: 100,
         include_images: true
