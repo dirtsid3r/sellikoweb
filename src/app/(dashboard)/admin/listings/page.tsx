@@ -86,7 +86,7 @@ export default function AdminListingsPage() {
         limit: 100,
         include_images: true,
         my_listings_only: false,
-      })
+      }) as any;
       if (response.success && response.listings) {
         const transformedListings: MarketplaceListing[] = response.listings.map((item: any) => ({
           ...item,
