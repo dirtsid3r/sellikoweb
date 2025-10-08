@@ -72,11 +72,20 @@ export default function AdminListingsPage() {
     setError(null)
     try {
       const response = await sellikoClient.getListings({
-        search: search || '',
+        user_id: '',
         status: '',
+        brand: '',
+        model: '',
+        min_price: 0,
+        max_price: 0,
+        condition: '',
+        search: search || '',
+        sort_by: 'created_at',
+        sort_order: 'desc',
         page: 1,
         limit: 100,
-        include_images: true
+        include_images: true,
+        my_listings_only: false,
       })
       if (response.success && response.listings) {
         const transformedListings: MarketplaceListing[] = response.listings.map((item: any) => ({
