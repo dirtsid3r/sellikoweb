@@ -52,7 +52,7 @@ export default async function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-gray-900">selliko</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Sellikko</h1>
             </div>
             <nav className="hidden md:flex items-center space-x-8">
               <Link href="/" className="text-gray-600 hover:text-gray-900 transition-colors">Home</Link>
@@ -129,7 +129,7 @@ export default async function HomePage() {
               <div className="relative max-w-md mx-auto">
                 <Image
                   src="/images/phone.png"
-                  alt="Selliko - Kerala's premier phone resale platform"
+                  alt="Sellikko - Kerala's premier phone resale platform"
                   width={400}
                   height={400}
                   className="object-contain drop-shadow-2xl"
@@ -349,7 +349,7 @@ export default async function HomePage() {
       <section className="py-20 bg-gradient-to-r from-gray-50 to-green-50">
         <div className="max-w-6xl mx-auto px-4">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Why selliko?</h2>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Why Sellikko?</h2>
             <p className="text-lg text-gray-600">Upload phone and get your asking price in minutes.</p>
           </div>
           

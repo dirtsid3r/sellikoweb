@@ -1141,8 +1141,19 @@ export default function AdminReports() {
   const router = useRouter()
   const [activeSection, setActiveSection] = useState('users')
 
+  // Overlay state: 'loading', 'error', or null
+  const [overlayState, setOverlayState] = useState<'loading' | 'error' | null>('loading')
+
+  useEffect(() => {
+    // Show spinner for 30 seconds, then show error
+    const timer = setTimeout(() => {
+      setOverlayState('error')
+    }, 30000)
+    return () => clearTimeout(timer)
+  }, [])
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 relative">
       <Header variant="admin" showBackButton />
 
       {/* Main Content */}
@@ -1155,6 +1166,43 @@ export default function AdminReports() {
           activeSection={activeSection}
         />
       </div>
+
+      {/* Blocking Overlay */}
+      {overlayState && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/90 backdrop-blur-sm select-none cursor-not-allowed">
+          {overlayState === 'loading' ? (
+            <div className="flex flex-col items-center">
+              <Icons.spinner className="w-12 h-12 animate-spin text-blue-600 mb-6" />
+              <h2 className="text-xl font-semibold text-gray-800 mb-2">Connecting to Reports Server...</h2>
+              <p className="text-gray-600 text-center max-w-md">Please wait while we load your report data. This may take a few moments.</p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center max-w-lg p-8 bg-white border border-red-200 rounded-xl shadow-xl">
+              <Icons.exclamationTriangle className="w-14 h-14 text-red-500 mb-4" />
+              <h2 className="text-2xl font-bold text-red-700 mb-2">Unable to Contact Reports Server</h2>
+              <p className="text-gray-700 mb-4 text-center">
+                We were unable to connect to the reports server and could not load your report data.<br />
+                <span className="font-semibold">Possible reasons:</span>
+                <ul className="list-disc list-inside text-left mt-2 text-gray-600">
+                  <li>Network connectivity issues</li>
+                  <li>Server is temporarily unavailable</li>
+                  <li>Firewall or security restrictions</li>
+                </ul>
+              </p>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-800 w-full mb-4">
+                <strong>Error:</strong> Failed to fetch report data from the server. Please check your internet connection or try again later.<br />
+                <span className="text-xs text-gray-500">(This is a simulated error for demonstration purposes.)</span>
+              </div>
+              <button
+                className="mt-2 px-6 py-2 bg-gray-300 text-gray-700 rounded-lg cursor-not-allowed opacity-60"
+                disabled
+              >
+                Retry
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

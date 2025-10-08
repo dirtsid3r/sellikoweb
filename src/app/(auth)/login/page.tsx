@@ -8,7 +8,6 @@ import sellikoClient from '@/selliko-client'
 import Link from 'next/link'
 
 export default function SignInPage() {
-  console.log('🚀 [LOGIN] Component initialization started')
   
   const [phoneNumber, setPhoneNumber] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -16,31 +15,18 @@ export default function SignInPage() {
 
   const [isMounted, setIsMounted] = useState(false)
 
-  console.log('🔧 [LOGIN] Initial state set:', {
-    phoneNumber: phoneNumber || 'empty',
-    isLoading,
-    isMounted
-  })
-
   // Check authentication status and redirect if needed
   useEffect(() => {
     const checkAuth = async () => {
-      console.log('🔒 [LOGIN] Checking authentication status...')
       try {
         const user = await sellikoClient.getCurrentUser()
-        console.log('👤 [LOGIN] Current user:', user ? {
-          id: user.id,
-          role: user.user_role,
-        } : 'No user found')
         
         if (user) {
-          console.log('✅ [LOGIN] User is authenticated, redirecting...')
           const userRole = (user.user_role || user.role || '').toLowerCase()
           router.replace(`/${userRole}`)
           return
         }
         
-        console.log('ℹ️ [LOGIN] No authenticated user, showing login page')
       } catch (error) {
         console.error('❌ [LOGIN] Error checking auth status:', error)
       }
@@ -51,18 +37,11 @@ export default function SignInPage() {
     checkAuth()
     
     if (typeof window !== 'undefined') {
-      console.log('🧹 [LOGIN] Clearing previous pending data from localStorage')
       localStorage.removeItem('pendingPhone')
       localStorage.removeItem('pendingOtpId')
       localStorage.removeItem('pendingUserId')
       localStorage.removeItem('pendingOtp')
       
-      console.log('📱 [LOGIN] LocalStorage after cleanup:', {
-        pendingPhone: localStorage.getItem('pendingPhone') || 'CLEARED',
-        pendingOtpId: localStorage.getItem('pendingOtpId') || 'CLEARED',
-        pendingUserId: localStorage.getItem('pendingUserId') || 'CLEARED',
-        pendingOtp: localStorage.getItem('pendingOtp') || 'CLEARED'
-      })
     }
   }, [router])
 
@@ -71,13 +50,6 @@ export default function SignInPage() {
     // Only allow digits, max 10 characters, must start with 6-9
     const digitsOnly = value.replace(/\D/g, '').slice(0, 10)
     
-    console.log('⌨️ [LOGIN] Phone input change:', {
-      rawValue: value ? value.substring(0, 3) + '***' : 'empty',
-      processedValue: digitsOnly ? digitsOnly.substring(0, 3) + '***' : 'empty',
-      length: digitsOnly.length,
-      isValid: digitsOnly.length === 10 && /^[6-9]/.test(digitsOnly)
-    })
-    
     if (digitsOnly === '' || /^[6-9]/.test(digitsOnly)) {
       setPhoneNumber(digitsOnly)
     }
@@ -85,54 +57,20 @@ export default function SignInPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('🚀 [LOGIN] Form submission started')
-    console.log('📊 [LOGIN] Form data:', {
-      phoneLength: phoneNumber.length,
-      phonePreview: phoneNumber ? phoneNumber.substring(0, 3) + '***' : 'empty',
-      isValid: phoneNumber.match(/^[6-9]\d{9}$/),
-      isLoading
-    })
     
     if (!phoneNumber.match(/^[6-9]\d{9}$/)) {
-      console.error('❌ [LOGIN] Invalid phone number format')
       toast.error('Please enter a valid 10-digit mobile number')
       return
     }
 
-    console.log('✅ [LOGIN] Phone validation passed, starting OTP request')
     setIsLoading(true)
     const fullPhone = `+91${phoneNumber}`
     
-    console.log('📞 [LOGIN] Formatted phone number:', {
-      original: phoneNumber.substring(0, 3) + '***',
-      formatted: fullPhone.substring(0, 6) + '***'
-    })
-
     try {
-      console.log('🌐 [LOGIN] Calling sellikoClient.getAuthOTP...')
       const result = await sellikoClient.getAuthOTP(fullPhone)
       
-      console.log('📥 [LOGIN] API Response received:', {
-        success: result.success,
-        hasOtp: !!result.otp,
-        hasOtpId: !!result.otp_id,
-        hasUserId: !!result.user_id,
-        otpIdValue: result.otp_id || 'MISSING',
-        userIdValue: result.user_id || 'MISSING',
-        errorMessage: result.error || 'NO_ERROR'
-      })
-      
       if (result.success) {
-        console.log('🎉 [LOGIN] OTP sent successfully!')
         toast.success('OTP sent successfully!')
-        
-        console.log('💾 [LOGIN] Storing data in localStorage...')
-        console.log('💾 [LOGIN] Values to store:', {
-          pendingPhone: fullPhone.substring(0, 6) + '***',
-          pendingOtpId: result.otp_id || 'UNDEFINED',
-          pendingUserId: result.user_id || 'UNDEFINED',
-          pendingOtp: result.otp ? '***masked***' : 'UNDEFINED'
-        })
         
         localStorage.setItem('pendingPhone', fullPhone)
         localStorage.setItem('pendingOtpId', result.otp_id || '')
@@ -140,14 +78,6 @@ export default function SignInPage() {
         // Store the OTP returned from the API so it can be pre-filled in verify-otp
         localStorage.setItem('pendingOtp', result.otp || '')
         
-        console.log('📱 [LOGIN] LocalStorage after storing:', {
-          pendingPhone: localStorage.getItem('pendingPhone') || 'NOT_STORED',
-          pendingOtpId: localStorage.getItem('pendingOtpId') || 'NOT_STORED',
-          pendingUserId: localStorage.getItem('pendingUserId') || 'NOT_STORED',
-          pendingOtp: localStorage.getItem('pendingOtp') ? '***masked***' : 'NOT_STORED'
-        })
-        
-        console.log('🔄 [LOGIN] Navigating to verify-otp page...')
         router.push('/verify-otp')
       } else {
         console.error('❌ [LOGIN] OTP sending failed')
@@ -167,24 +97,14 @@ export default function SignInPage() {
       })
       toast.error('Something went wrong. Please try again.')
     } finally {
-      console.log('🏁 [LOGIN] Setting loading to false')
       setIsLoading(false)
     }
   }
 
   const isValid = phoneNumber.length === 10
 
-  // Component render logging
-  console.log('🎨 [LOGIN] Component rendering with state:', {
-    phoneLength: phoneNumber.length,
-    isValid,
-    isLoading,
-    isMounted
-  })
-
   // Prevent hydration mismatch by not rendering until mounted
   if (!isMounted) {
-    console.log('⏳ [LOGIN] Component not mounted yet, showing loading...')
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
@@ -243,24 +163,17 @@ export default function SignInPage() {
                       maxLength={10}
                       required
                       autoComplete="tel"
-                      onFocus={() => console.log('🎯 [LOGIN] Phone input focused')}
-                      onBlur={() => console.log('👋 [LOGIN] Phone input blurred')}
                     />
                   </div>
                   <p className="text-xs text-gray-500">
                     We'll send you an OTP via WhatsApp to verify your number
                   </p>
-                  {/* Debug info */}
-                  <div className="text-xs text-gray-400 text-center font-mono">
-                    Debug: {phoneNumber.length}/10 digits • Valid: {isValid ? '✓' : '✗'} • Loading: {isLoading ? '✓' : '✗'}
-                  </div>
                 </div>
 
                 <button
                   type="submit"
                   disabled={isLoading || !isValid}
                   className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
-                  onClick={() => console.log('🖱️ [LOGIN] Submit button clicked')}
                 >
                   {isLoading ? (
                     <>
@@ -306,16 +219,6 @@ export default function SignInPage() {
                 <span>Mobile First</span>
               </div>
             </div>
-          </div>
-
-          {/* Debug Panel */}
-          <div className="mt-4 p-3 bg-gray-100 rounded-lg text-xs font-mono">
-            <div className="font-bold mb-2">Debug Info:</div>
-            <div>Phone: {phoneNumber ? `${phoneNumber.length}/10 digits` : 'empty'}</div>
-            <div>Valid: {isValid ? 'yes' : 'no'}</div>
-            <div>Loading: {isLoading ? 'yes' : 'no'}</div>
-            <div>Mounted: {isMounted ? 'yes' : 'no'}</div>
-            <div>Submit Ready: {isValid && !isLoading ? 'yes' : 'no'}</div>
           </div>
         </div>
       </div>

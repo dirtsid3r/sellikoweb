@@ -570,6 +570,23 @@ export default function AdminDashboard() {
 
           <Card 
             className="hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => router.push('/admin/listings')}
+          >
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
+                  <Icons.smartphone className="w-6 h-6 text-indigo-600" />
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-semibold text-gray-900">All Listings</h3>
+                  <p className="text-sm text-gray-600">View and search all device listings</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="hover:shadow-lg transition-shadow cursor-pointer"
             onClick={() => router.push('/admin/reports')}
           >
             <CardContent className="p-6">
