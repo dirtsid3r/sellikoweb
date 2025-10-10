@@ -46,6 +46,7 @@ export default function AdminListingDetailPage() {
             brand: apiListing.devices?.[0]?.brand,
             storage: apiListing.devices?.[0]?.storage,
             color: apiListing.devices?.[0]?.color,
+            ram: apiListing.devices?.[0]?.ram || '',
             created_at: apiListing.created_at,
             updated_at: apiListing.updated_at,
             deviceDetails: {
@@ -246,7 +247,12 @@ export default function AdminListingDetailPage() {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-xl font-bold text-gray-900">{device.device}</h1>
-              <p className="text-sm text-gray-600">{device.model}</p>
+              <p className="text-sm text-gray-600">
+                {device.model}
+                {device.storage && ` | Storage: ${device.storage}`}
+                {device.ram && ` | RAM: ${device.ram}`}
+                {device.color && ` | Color: ${device.color}`}
+              </p>
             </div>
             <Badge className={`${statusInfo.color} border font-medium`}>
               <StatusIcon className="w-3 h-3 mr-1" />
@@ -344,12 +350,16 @@ export default function AdminListingDetailPage() {
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm font-medium text-gray-500">Brand & Model</p>
-                    <p className="text-lg font-semibold text-gray-900">{device.device}</p>
+                    <p className="text-sm font-medium text-gray-500">Storage</p>
+                    <p className="text-lg font-semibold text-gray-900">{device.storage || 'N/A'}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-500">Storage & Color</p>
-                    <p className="text-lg font-semibold text-gray-900">{device.model}</p>
+                    <p className="text-sm font-medium text-gray-500">RAM</p>
+                    <p className="text-lg font-semibold text-gray-900">{device.ram || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Color</p>
+                    <p className="text-lg font-semibold text-gray-900">{device.color || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-500">Condition</p>

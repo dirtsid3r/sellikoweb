@@ -251,7 +251,7 @@ export default function VerifyOTPPage() {
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-semibold text-center">Enter Verification Code</CardTitle>
             <CardDescription className="text-center">
-              We've sent a 6-digit code to your WhatsApp
+              We've sent a 6-digit code to your SMS or WhatsApp
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -272,7 +272,7 @@ export default function VerifyOTPPage() {
                   onBlur={() => {}}
                 />
                 <p className="text-xs text-gray-500 text-center">
-                  Check your WhatsApp for the verification code
+                  Check your SMS or WhatsApp for the verification code
                 </p>
               </div>
 

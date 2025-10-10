@@ -55,6 +55,7 @@ interface MarketplaceListing {
   features: string[]
   warranty: string
   currentBid?: number
+  ram?: string
 }
 
 export default function AdminListingsPage() {
@@ -70,64 +71,82 @@ export default function AdminListingsPage() {
   const fetchAdminListings = async (search?: string) => {
     setLoading(true)
     setError(null)
+
     try {
-      const response = await sellikoClient.getListings({
-        user_id: '',
-        status: '',
-        brand: '',
-        model: '',
-        min_price: 0,
-        max_price: 0,
-        condition: '',
+      const response = await sellikoClient.getMarketplaceListings({
         search: search || '',
-        sort_by: 'created_at',
-        sort_order: 'desc',
+        status: null as any, // fetch all statuses
         page: 1,
         limit: 100,
-        include_images: true,
-        my_listings_only: false,
-      }) as any;
+      }) as any
+
       if (response.success && response.listings) {
-        const transformedListings: MarketplaceListing[] = response.listings.map((item: any) => ({
-          ...item,
-          currentBidInfo: item.currentBidInfo || null,
-          model: item.device || item.brand || item.model,
-          timeLeftMinutes: item.timeLeft ? parseTimeLeftToMinutes(item.timeLeft) : 60,
-          image: item.images && item.images.length > 0 ? item.images[0] : '/api/placeholder/300/200',
-          photos: item.images || [],
-          description: `${item.condition || ''} condition ${item.device || item.brand || ''}`,
-          listingDate: item.created_at ? new Date(item.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-          features: item.features || [],
-          warranty: item.warranty || 'N/A',
-          currentBid: item.bids && item.bids.length > 0 ? Math.max(...item.bids.map((bid: any) => bid.amount)) : item.currentBidInfo?.amount,
-          seller: {
-            name: item.seller?.name || item.contact_name || 'Unknown Seller',
-            rating: item.seller?.rating || 5,
-            isVerified: true
-          },
-          totalBids: item.bids ? item.bids.length : 0,
-          bids: item.bids || [],
-          winningBid: item.winningBid || null,
-          isHot: item.isHot || false,
-          isInstantWin: item.isInstantWin || false,
-          isBiddable: item.isBiddable !== undefined ? item.isBiddable : true,
-          timeLeft: item.timeLeft || '',
-          timeRemaining: item.timeRemaining,
-          storage: item.storage || '',
-          color: item.color || '',
-          brand: item.brand || '',
-          condition: item.condition || '',
-          location: item.location || (item.addresses && item.addresses[0]?.city) || 'N/A',
-        }))
+        // Transform to admin shape; fallback/compat logic exactly as in MarketplaceTab
+        const transformedListings: MarketplaceListing[] = response.listings.map((item: any) => {
+          const device = (item.devices && item.devices[0]) || {}
+          const brand = device.brand || item.brand || 'Unknown'
+          const model = device.model || item.model || ''
+          const storage = device.variant || device.storage || ''
+          const ram = device.ram || ''
+          const color = device.color || ''
+          const askingPrice = item.highest_bid_value ?? 0
+
+          // Bids and winning bid (admin listings may differ in fields)
+          const bids = Array.isArray(item.bids)
+            ? item.bids.map((bid: any) => ({
+                id: bid.bid_id?.toString() || '',
+                amount: bid.bid_amount ?? 0,
+                vendor_id: bid.user_id || '',
+                vendor_name: '',
+                created_at: bid.created_at || '',
+                instant_win: !!bid.instant_win,
+                status: 'active',
+              }))
+            : []
+          const totalBids = bids.length
+          // Sort for currentBidInfo/winningBid logic
+          const highestBid = bids.reduce((max: any, b: any) => b.amount > max.amount ? b : max, { amount: 0 })
+          
+          return {
+            id: (item.id || '').toString(),
+            status: item.status || '',
+            device: `${brand} ${model}`.trim() || 'Unknown Device',
+            brand,
+            storage,
+            color,
+            condition: item.condition || '',
+            askingPrice,
+            currentBidInfo: highestBid && highestBid.amount > 0 ? highestBid : null,
+            bids,
+            winningBid: null, // Fill as needed per role/UI, not available in sample
+            totalBids,
+            timeLeft: '', // If not in API, fallback
+            timeRemaining: '',
+            location: (item.addresses && item.addresses[0]?.city) || '',
+            seller: { name: '', rating: 5, isVerified: false },
+            images: item.images || [],
+            isHot: false,
+            isInstantWin: false,
+            isBiddable: true,
+            model: model || '',
+            timeLeftMinutes: 60, // fallback parseTimeLeftToMinutes
+            image: item.images && item.images.length > 0 ? item.images[0] : '/api/placeholder/300/200',
+            photos: item.images || [],
+            description: `${brand} ${model} ${storage}`.trim(),
+            listingDate: item.created_at ? new Date(item.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            features: [],
+            warranty: '',
+            currentBid: highestBid ? highestBid.amount : 0,
+            ram
+          }
+        })
         setListings(transformedListings)
         setTotalListings(response.total || response.listings.length || 0)
       } else {
-        setError(response.error || 'Failed to load listings')
         setListings([])
         setTotalListings(0)
       }
     } catch (error) {
-      setError('Network error occurred while loading listings')
       setListings([])
       setTotalListings(0)
     } finally {
@@ -350,104 +369,43 @@ export default function AdminListingsPage() {
                       )}
                       {listing.status === 'receiving_bids' && (
                         <div className={`absolute bottom-2 left-2 px-2 py-1 rounded text-sm font-medium ${getTimeLeftColor(listing.timeRemaining || listing.timeLeft)}`}>
-                          ⏱️ {listing.timeRemaining || listing.timeLeft}
+                          {listing.timeRemaining || listing.timeLeft}
                         </div>
                       )}
                     </div>
-                    <CardContent className="p-4">
-                      <div className="mb-3">
-                        <h3 className="font-semibold text-gray-900 text-lg">{listing.device}</h3>
-                        <p className="text-sm text-gray-600">{listing.storage}, {listing.color}</p>
-                        <p className="text-sm text-gray-600">Condition: {listing.condition}</p>
-                        <p className="text-xs text-gray-500">Status: {listing.status}</p>
+                    <CardContent className="p-4 flex flex-col gap-2">
+                      <h3 className="text-lg font-bold text-gray-900 mb-0.5">{listing.device}</h3>
+                      <div className="flex flex-wrap gap-2 text-gray-600 text-xs">
+                        <span>Condition: <span className="font-semibold text-gray-800">{listing.condition || 'N/A'}</span></span>
+                        <span>Storage: <span className="font-semibold text-gray-800">{listing.storage || 'N/A'}</span></span>
+                        <span>RAM: <span className="font-semibold text-gray-800">{listing.ram || 'N/A'}</span></span>
+                        <span>Color: <span className="font-semibold text-gray-800">{listing.color || 'N/A'}</span></span>
                       </div>
-                      <div className="space-y-2 mb-4">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Asking:</span>
-                          <span className="font-semibold text-green-600">₹{listing.askingPrice.toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Current:</span>
-                          <span className="font-semibold">
-                            {listing.currentBidInfo ? `₹${listing.currentBidInfo.amount.toLocaleString()}` : 'No bids yet'}
-                          </span>
-                        </div>
-                        {listing.winningBid && (
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-600">Winning:</span>
-                            <span className="font-semibold text-green-600">
-                              ₹{listing.winningBid.amount.toLocaleString()}
-                            </span>
-                          </div>
-                        )}
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Bids:</span>
-                          <span className={`font-medium ${getBidStatusColor(listing.totalBids)}`}>
-                            {listing.totalBids === 0 ? '🆕 New' :
-                              listing.totalBids <= 2 ? `🟢 ${listing.totalBids} bid${listing.totalBids > 1 ? 's' : ''}` :
-                              listing.totalBids <= 5 ? `🟡 ${listing.totalBids} bids` :
-                              `🔴 ${listing.totalBids} bids`}
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">📍 Location:</span>
-                          <span>{listing.location}</span>
-                        </div>
-                        {listing.currentBidInfo && (
-                          <div className="mt-2 p-2 bg-blue-50 rounded text-xs">
-                            <p className="text-blue-800">
-                              <strong>Top Bidder:</strong> {listing.currentBidInfo.vendor_name}
-                            </p>
-                            <p className="text-blue-600">
-                              Bid: ₹{listing.currentBidInfo.amount.toLocaleString()}
-                              {listing.currentBidInfo.instant_win && <span className="ml-1">⚡</span>}
-                            </p>
-                          </div>
-                        )}
+                      <div className="flex flex-wrap gap-2 text-gray-600 text-xs mb-1">
+                        <span>Location: <span className="font-semibold text-gray-800">{listing.location || 'N/A'}</span></span>
+                        <span>Listed: <span className="font-semibold text-gray-800">{listing.listingDate || 'N/A'}</span></span>
                       </div>
-                      <div className="flex flex-col gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="w-full"
-                          onClick={() => router.push(`/admin/listings/${listing.id}`)}
-                        >
-                          View Details
-                        </Button>
+                      <p className="text-gray-700 text-sm mb-1">{listing.description}</p>
+                      <div className="flex items-center justify-between text-gray-700 text-sm mb-2">
+                        <span>Asking Price: <Badge className="bg-blue-500 text-white">{listing.askingPrice.toLocaleString()}</Badge></span>
+                        <span>Current Bid: <Badge className="bg-green-500 text-white">{listing.currentBidInfo?.amount.toLocaleString()}</Badge></span>
                       </div>
+                      <div className="flex items-center justify-between text-gray-700 text-sm mb-2">
+                        <span>Bids: <Badge className={`${getBidStatusColor(listing.totalBids)}`}>{listing.totalBids}</Badge></span>
+                        <span>Time Left: <Badge className={`${getTimeLeftColor(listing.timeRemaining || listing.timeLeft)}`}>{listing.timeRemaining || listing.timeLeft}</Badge></span>
+                      </div>
+                      <button
+                        onClick={() => router.push(`/admin/listings/${listing.id}`)}
+                        className="mt-2 inline-flex items-center px-3 py-2 text-sm font-medium bg-gray-900 text-white rounded hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-800"
+                        type="button"
+                      >
+                        <Icons.smartphone className="w-4 h-4 mr-1" />
+                        View Details
+                      </button>
                     </CardContent>
                   </Card>
                 ))}
               </div>
-            )}
-            {!loading && !error && filteredListings.length === 0 && (
-              <Card>
-                <CardContent className="p-12 text-center">
-                  <Icons.search className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No devices found</h3>
-                  <p className="text-gray-600 mb-4">
-                    {searchQuery ?
-                      `No devices found matching "${searchQuery}". Try adjusting your search terms.` :
-                      'No marketplace listings are currently available.'
-                    }
-                  </p>
-                  <div className="flex gap-2 justify-center">
-                    <Button
-                      variant="outline"
-                      onClick={() => setSearchQuery('')}
-                      disabled={!searchQuery}
-                    >
-                      Clear Search
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={handleRefresh}
-                    >
-                      Refresh Listings
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
             )}
           </CardContent>
         </Card>

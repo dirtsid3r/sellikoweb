@@ -166,7 +166,7 @@ export default function SignInPage() {
                     />
                   </div>
                   <p className="text-xs text-gray-500">
-                    We'll send you an OTP via WhatsApp to verify your number
+                    We'll send you an OTP via SMS or WhatsApp to verify your number
                   </p>
                 </div>
 
