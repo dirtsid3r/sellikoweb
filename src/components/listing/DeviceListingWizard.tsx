@@ -41,7 +41,7 @@ interface DeviceListing {
 }
 
 const DEVICE_BRANDS = ['Apple', 'Samsung', 'OnePlus', 'Xiaomi', 'Realme', 'Oppo', 'Vivo', 'Google', 'Nothing', 'Other']
-const STORAGE_OPTIONS = ['32GB', '64GB', '128GB', '256GB', '512GB', '1TB']
+const STORAGE_OPTIONS = ['4GB', '6GB', '8GB', '12GB', '16GB', '21GB', '32GB']
 const CONDITIONS = [
   { value: 'Excellent', label: 'Excellent - Like new, no visible wear' },
   { value: 'Good', label: 'Good - Minor scratches, fully functional' },
