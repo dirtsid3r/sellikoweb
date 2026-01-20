@@ -891,7 +891,8 @@ export default function AgentVerification() {
         verificationData.verification_data,
         verificationData.verification_note,
         verificationData.deductions,
-        verificationData.offer_value
+        verificationData.offer_value,
+        verificationData.bank_details
       ) as { success: boolean; error?: string; message?: string }
 
       if (result.success) {

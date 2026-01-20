@@ -3475,17 +3475,19 @@ class SellikoClient {
    * @param {string} verificationNote - Agent's verification notes and observations
    * @param {Array} deductions - Array of deduction objects for issues found
    * @param {number} offerValue - Final calculated offer value after deductions
+   * @param {Object} bankDetails - Bank info for payout { bankName, ifscCode, accountNumber, accountHolderName }
    * 
    * @returns {Promise<Object>} Response with success status and verification result
    */
-  async verifyListing(listingId, verificationData, verificationNote, deductions, offerValue) {
+  async verifyListing(listingId, verificationData, verificationNote, deductions, offerValue, bankDetails) {
     console.log('🔍 [SELLIKO-CLIENT] verifyListing called with:', {
       listingId: listingId,
       verificationDataCount: verificationData ? verificationData.length : 0,
       hasVerificationNote: !!verificationNote,
       deductionsCount: deductions ? deductions.length : 0,
       offerValue: offerValue,
-      formattedOffer: offerValue ? `₹${offerValue.toLocaleString()}` : 'N/A'
+      formattedOffer: offerValue ? `₹${offerValue.toLocaleString()}` : 'N/A',
+      hasBankDetails: !!bankDetails
     })
 
     try {
@@ -3554,13 +3556,22 @@ class SellikoClient {
         processedVerificationData.push(processedStep)
       }
 
+      // Normalize bank details to backend expected keys if provided
+      const normalizedBankDetails = bankDetails ? {
+        bank_name: bankDetails.bankName || '',
+        ifsc_code: bankDetails.ifscCode || '',
+        account_number: bankDetails.accountNumber || '',
+        account_holder_name: bankDetails.accountHolderName || ''
+      } : null
+
       // Prepare request body with the exact structure expected by API
       const requestBody = {
         listing_id: parseInt(listingId), // Ensure it's a number
         verification_data: processedVerificationData,
         verification_note: verificationNote || '',
         deductions: deductions || [],
-        offer_value: parseInt(offerValue) // Ensure it's a number
+        offer_value: parseInt(offerValue), // Ensure it's a number
+        bank_details: normalizedBankDetails
       }
 
       console.log('📤 [SELLIKO-CLIENT] Submitting verification request:', {
@@ -3573,7 +3584,8 @@ class SellikoClient {
           verification_note_length: requestBody.verification_note.length,
           deductions_count: requestBody.deductions.length,
           offer_value: requestBody.offer_value,
-          formattedOffer: `₹${requestBody.offer_value.toLocaleString()}`
+          formattedOffer: `₹${requestBody.offer_value.toLocaleString()}`,
+          has_bank_details: !!requestBody.bank_details
         }
       })
 
@@ -3633,7 +3645,8 @@ class SellikoClient {
           verificationSteps: verificationData.length,
           deductionsApplied: deductions.length,
           totalDeductions: deductions.reduce((sum, d) => sum + (d.amount || 0), 0),
-          noteLength: verificationNote ? verificationNote.length : 0
+          noteLength: verificationNote ? verificationNote.length : 0,
+          hasBankDetails: !!bankDetails
         })
       } else {
         console.error(`❌ [SELLIKO-CLIENT] Failed to submit verification for listing ${listingId}:`, result.error)
@@ -3650,7 +3663,8 @@ class SellikoClient {
         listingId: listingId,
         verificationDataCount: verificationData ? verificationData.length : 0,
         deductionsCount: deductions ? deductions.length : 0,
-        offerValue: offerValue
+        offerValue: offerValue,
+        hasBankDetails: !!bankDetails
       })
       
       return {
