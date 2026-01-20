@@ -10,8 +10,45 @@ class SellikoClient {
   constructor() {
     this.apiBase = API_BASE
     this.storageUrl = STORAGE_URL
+    this._isWebpSupported = undefined
     console.log('🏗️ [SELLIKO-CLIENT] Client initialized with API base:', this.apiBase)
     console.log('🗄️ [SELLIKO-CLIENT] Storage URL:', this.storageUrl)
+  }
+
+  // Detect whether the current browser can encode WebP. Safari on some iOS
+  // versions returns null blobs for WebP even though canvas exists, which
+  // prevents uploads from firing. Cache the result to avoid repeated checks.
+  isWebPSupported() {
+    if (typeof document === 'undefined') {
+      return false
+    }
+
+    if (this._isWebpSupported !== undefined) {
+      return this._isWebpSupported
+    }
+
+    try {
+      const canvas = document.createElement('canvas')
+      if (!canvas.getContext || !canvas.toDataURL) {
+        this._isWebpSupported = false
+        return this._isWebpSupported
+      }
+
+      const dataUrl = canvas.toDataURL('image/webp')
+      this._isWebpSupported = dataUrl.startsWith('data:image/webp')
+
+      if (!this._isWebpSupported) {
+        console.warn('⚠️ [SELLIKO-CLIENT] WebP not supported; will skip conversion')
+      }
+
+      return this._isWebpSupported
+    } catch (error) {
+      console.warn('⚠️ [SELLIKO-CLIENT] WebP support check failed; assuming unsupported', {
+        message: error?.message
+      })
+      this._isWebpSupported = false
+      return this._isWebpSupported
+    }
   }
 
   // Generate UUID for file naming
@@ -26,7 +63,14 @@ class SellikoClient {
   // Convert image to WebP format
   async convertToWebP(file) {
     console.log('🖼️ [SELLIKO-CLIENT] Converting image to WebP:', file.name)
-    
+
+    // Older Safari/iOS builds don't support WebP encoding; skip conversion so
+    // the upload can still proceed instead of failing before the API call.
+    if (!this.isWebPSupported()) {
+      console.log('ℹ️ [SELLIKO-CLIENT] Skipping WebP conversion (unsupported); using original file')
+      return file
+    }
+
     return new Promise((resolve, reject) => {
       const canvas = document.createElement('canvas')
       const ctx = canvas.getContext('2d')
@@ -46,8 +90,8 @@ class SellikoClient {
             console.log('✅ [SELLIKO-CLIENT] Image converted to WebP successfully')
             resolve(blob)
           } else {
-            console.error('❌ [SELLIKO-CLIENT] Failed to convert image to WebP')
-            reject(new Error('Failed to convert image to WebP'))
+            console.warn('⚠️ [SELLIKO-CLIENT] Canvas returned null WebP blob; falling back to original file')
+            resolve(file)
           }
         }, 'image/webp', 0.8) // 80% quality
       }
