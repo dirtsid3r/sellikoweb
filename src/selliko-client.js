@@ -67,8 +67,8 @@ class SellikoClient {
     // Older Safari/iOS builds don't support WebP encoding; skip conversion so
     // the upload can still proceed instead of failing before the API call.
     if (!this.isWebPSupported()) {
-      console.log('ℹ️ [SELLIKO-CLIENT] Skipping WebP conversion (unsupported); using original file')
-      return file
+      console.log('ℹ️ [SELLIKO-CLIENT] Skipping WebP conversion (unsupported); falling back to PNG')
+      return this.convertToPng(file)
     }
 
     return new Promise((resolve, reject) => {
@@ -90,8 +90,8 @@ class SellikoClient {
             console.log('✅ [SELLIKO-CLIENT] Image converted to WebP successfully')
             resolve(blob)
           } else {
-            console.warn('⚠️ [SELLIKO-CLIENT] Canvas returned null WebP blob; falling back to original file')
-            resolve(file)
+            console.warn('⚠️ [SELLIKO-CLIENT] Canvas returned null WebP blob; falling back to PNG')
+            this.convertToPng(file).then(resolve).catch(reject)
           }
         }, 'image/webp', 0.8) // 80% quality
       }
@@ -101,6 +101,40 @@ class SellikoClient {
         reject(new Error('Failed to load image'))
       }
       
+      img.src = URL.createObjectURL(file)
+    })
+  }
+
+  // Fallback: convert image to PNG (supported across browsers)
+  async convertToPng(file) {
+    console.log('🖼️ [SELLIKO-CLIENT] Converting image to PNG as fallback:', file.name)
+
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      const img = new Image()
+
+      img.onload = () => {
+        canvas.width = img.width
+        canvas.height = img.height
+        ctx.drawImage(img, 0, 0)
+
+        canvas.toBlob((blob) => {
+          if (blob) {
+            console.log('✅ [SELLIKO-CLIENT] Image converted to PNG successfully')
+            resolve(blob)
+          } else {
+            console.error('❌ [SELLIKO-CLIENT] Failed to convert image to PNG')
+            reject(new Error('Failed to convert image to PNG'))
+          }
+        }, 'image/png')
+      }
+
+      img.onerror = () => {
+        console.error('❌ [SELLIKO-CLIENT] Failed to load image for PNG conversion')
+        reject(new Error('Failed to load image'))
+      }
+
       img.src = URL.createObjectURL(file)
     })
   }
