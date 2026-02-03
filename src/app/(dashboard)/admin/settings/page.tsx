@@ -19,11 +19,11 @@ const getUserRole = (user: any): string => {
 }
 
 // Searchable Dropdown Component
-function SearchableDropdown({ 
-  options, 
-  value, 
-  onChange, 
-  placeholder, 
+function SearchableDropdown({
+  options,
+  value,
+  onChange,
+  placeholder,
   disabled = false,
   required = false,
   className = ""
@@ -103,9 +103,8 @@ function SearchableDropdown({
                 key={index}
                 type="button"
                 onClick={() => handleSelect(option)}
-                className={`w-full px-3 py-2 text-left hover:bg-blue-50 focus:bg-blue-50 focus:outline-none ${
-                  option === value ? 'bg-blue-100 text-blue-900' : 'text-gray-900'
-                }`}
+                className={`w-full px-3 py-2 text-left hover:bg-blue-50 focus:bg-blue-50 focus:outline-none ${option === value ? 'bg-blue-100 text-blue-900' : 'text-gray-900'
+                  }`}
               >
                 {option}
               </button>
@@ -178,6 +177,12 @@ const settingsMenuItems = [
     description: 'Security policies and authentication'
   },
   {
+    id: 'set_passwords',
+    label: 'Set Passwords',
+    icon: Icons.lock,
+    description: 'Set passwords for manager accounts'
+  },
+  {
     id: 'backup',
     label: 'Backup & Recovery',
     icon: Icons.package,
@@ -186,12 +191,12 @@ const settingsMenuItems = [
 ]
 
 // Sidebar Menu Component
-function SettingsSidebar({ 
-  activeSection, 
-  onSectionChange 
-}: { 
+function SettingsSidebar({
+  activeSection,
+  onSectionChange
+}: {
   activeSection: string
-  onSectionChange: (section: string) => void 
+  onSectionChange: (section: string) => void
 }) {
   return (
     <div className="w-80 bg-white border-r border-gray-200 h-full">
@@ -214,34 +219,30 @@ function SettingsSidebar({
           {settingsMenuItems.map((item) => {
             const IconComponent = item.icon
             const isActive = activeSection === item.id
-            
+
             return (
               <button
                 key={item.id}
                 onClick={() => onSectionChange(item.id)}
-                className={`w-full text-left p-4 rounded-xl transition-all duration-200 group ${
-                  isActive
-                    ? 'bg-blue-50 border border-blue-200 shadow-sm'
-                    : 'hover:bg-gray-50 border border-transparent'
-                }`}
+                className={`w-full text-left p-4 rounded-xl transition-all duration-200 group ${isActive
+                  ? 'bg-blue-50 border border-blue-200 shadow-sm'
+                  : 'hover:bg-gray-50 border border-transparent'
+                  }`}
               >
                 <div className="flex items-start space-x-3">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                    isActive
-                      ? 'bg-blue-100 text-blue-600'
-                      : 'bg-gray-100 text-gray-500 group-hover:bg-gray-200'
-                  }`}>
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${isActive
+                    ? 'bg-blue-100 text-blue-600'
+                    : 'bg-gray-100 text-gray-500 group-hover:bg-gray-200'
+                    }`}>
                     <IconComponent className="w-4 h-4" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className={`font-medium text-sm ${
-                      isActive ? 'text-blue-900' : 'text-gray-900'
-                    }`}>
+                    <h3 className={`font-medium text-sm ${isActive ? 'text-blue-900' : 'text-gray-900'
+                      }`}>
                       {item.label}
                     </h3>
-                    <p className={`text-xs mt-1 ${
-                      isActive ? 'text-blue-600' : 'text-gray-500'
-                    }`}>
+                    <p className={`text-xs mt-1 ${isActive ? 'text-blue-600' : 'text-gray-500'
+                      }`}>
                       {item.description}
                     </p>
                   </div>
@@ -284,20 +285,20 @@ function UserManagement() {
       toast.error('Mobile number is required')
       return
     }
-    
+
     setIsAddingUser(true)
     try {
       console.log('👥 [USER-MGMT] Adding user:', {
         mobile_number: addUserData.mobile_number.substring(0, 5) + '***',
         user_role: addUserData.user_role
       })
-      
+
       const result = await sellikoClient.addUser(addUserData.mobile_number, addUserData.user_role) as any
-      
+
       if (result.success) {
         toast.success('User created successfully!')
         console.log('✅ [USER-MGMT] User created:', result.user)
-        
+
         // Reset form after successful add
         setAddUserData({ mobile_number: '', user_role: 'anon' })
       } else {
@@ -318,13 +319,13 @@ function UserManagement() {
       toast.error('Mobile number is required')
       return
     }
-    
+
     setIsCheckingBanUser(true)
     try {
       console.log('🔍 [USER-MGMT] Checking ban status for:', banUserMobile.substring(0, 5) + '***')
-      
+
       const result = await sellikoClient.checkUserBanStatus(banUserMobile) as any
-      
+
       if (result.success && result.user) {
         console.log('✅ [USER-MGMT] User ban status retrieved:', result.user)
         console.log('🔍 [USER-MGMT] Raw is_banned value:', {
@@ -333,15 +334,15 @@ function UserManagement() {
           stringValue: String(result.user.is_banned),
           booleanValue: Boolean(result.user.is_banned)
         })
-        
+
         // Ensure is_banned is properly converted to boolean
         const isBanned = result.user.is_banned === true || result.user.is_banned === 'true' || result.user.is_banned === 1
-        
+
         console.log('🔄 [USER-MGMT] Processed ban status:', {
           original: result.user.is_banned,
           processed: isBanned
         })
-        
+
         setBanUserInfo({
           mobile_number: result.user.mobile_number,
           name: result.user.name || 'Unknown User',
@@ -367,7 +368,7 @@ function UserManagement() {
   // Ban/Unban User Handler
   const handleBanUnbanUser = async (ban: boolean) => {
     if (!banUserInfo) return
-    
+
     setIsBanningUser(true)
     try {
       console.log(`${ban ? '🚫' : '✅'} [USER-MGMT] ${ban ? 'Banning' : 'Unbanning'} user:`, banUserInfo.mobile_number.substring(0, 5) + '***')
@@ -382,20 +383,20 @@ function UserManagement() {
           reason: ban ? 'Banned by admin' : undefined
         }
       })
-      
+
       const result = await sellikoClient.banUser(banUserInfo.mobile_number, ban, ban ? 'Banned by admin' : undefined) as any
-      
+
       console.log('📥 [USER-MGMT] API response:', {
         success: result.success,
         user: result.user,
         error: result.error
       })
-      
+
       if (result.success) {
         const action = ban ? 'banned' : 'unbanned'
         toast.success(`User ${action} successfully!`)
         console.log(`✅ [USER-MGMT] User ${action}:`, result.user)
-        
+
         // Update local state with new ban status - ensure we use the correct value
         const newBanStatus = result.user?.is_banned !== undefined ? result.user.is_banned : ban
         console.log('🔄 [USER-MGMT] Updating ban status:', {
@@ -405,7 +406,7 @@ function UserManagement() {
           fallback: ban,
           verification: newBanStatus === ban ? '✅ Status matches expected' : '⚠️ Status mismatch'
         })
-        
+
         setBanUserInfo({
           ...banUserInfo,
           is_banned: newBanStatus,
@@ -430,15 +431,15 @@ function UserManagement() {
       toast.error('Mobile number is required')
       return
     }
-    
+
     setIsGettingUser(true)
     try {
       console.log('📋 [USER-MGMT] Getting user details for:', getUserMobile.substring(0, 5) + '***')
-      
+
       // TODO: Replace with real API call when get-user-details function is implemented
       // For now, using mock data
       await new Promise(resolve => setTimeout(resolve, 1000)) // Simulate API delay
-      
+
       // Mock response - replace with real API call
       setUserDetails({
         mobile_number: getUserMobile,
@@ -456,7 +457,7 @@ function UserManagement() {
           { id: 2, action: 'Created Listing', timestamp: '2024-01-19T14:30:00Z' }
         ]
       })
-      
+
       toast.success('User details retrieved successfully!')
     } catch (error: any) {
       console.error('💥 [USER-MGMT] Get user details error:', error)
@@ -577,7 +578,7 @@ function UserManagement() {
                   {banUserInfo.is_banned ? 'Banned' : 'Active'}
                 </Badge>
               </div>
-              
+
               <Button
                 onClick={() => {
                   const actionToBan = !banUserInfo.is_banned
@@ -759,7 +760,7 @@ function VendorManagement({ availableCities, configLoading }: {
   const [selectedVendorId, setSelectedVendorId] = useState('')
   const [vendors, setVendors] = useState<any[]>([])
   const [isLoadingVendors, setIsLoadingVendors] = useState(false)
-  
+
   // State for vendor form
   const [vendorData, setVendorData] = useState({
     vendor_id: '',
@@ -795,7 +796,7 @@ function VendorManagement({ availableCities, configLoading }: {
     setIsLoadingVendors(true)
     try {
       console.log('📋 [VENDOR-MGMT] Loading vendors list from API...')
-      
+
       const token = localStorage.getItem('selliko_access_token')
       if (!token) {
         throw new Error('No access token found')
@@ -816,7 +817,7 @@ function VendorManagement({ availableCities, configLoading }: {
       })
 
       const result = await response.json()
-      
+
       console.log('📥 [VENDOR-MGMT] List vendors result:', {
         success: result.success,
         vendorCount: result.vendors ? result.vendors.length : 0,
@@ -869,13 +870,13 @@ function VendorManagement({ availableCities, configLoading }: {
     }
 
     setSelectedVendorId(vendorId)
-    
+
     try {
       console.log('🔍 [VENDOR-MGMT] Loading vendor details for:', vendorId)
-      
+
       // Find the selected vendor from the loaded vendors list
       const selectedVendor = vendors.find(v => v.vendor_profile?.vendor_id === vendorId)
-      
+
       if (!selectedVendor) {
         console.error('❌ [VENDOR-MGMT] Vendor not found in loaded list:', vendorId)
         toast.error('Vendor not found')
@@ -883,7 +884,7 @@ function VendorManagement({ availableCities, configLoading }: {
       }
 
       console.log('📋 [VENDOR-MGMT] Selected vendor data:', selectedVendor)
-      
+
       // Map the API response to form data
       const profile = selectedVendor.vendor_profile
       const mappedData = {
@@ -904,12 +905,12 @@ function VendorManagement({ availableCities, configLoading }: {
         user_mobile: selectedVendor.phone || '',
         base_price: profile?.base_price !== undefined ? String(profile.base_price) : '' // Add base_price
       }
-      
+
       setVendorData(mappedData)
       console.log('✅ [VENDOR-MGMT] Vendor details loaded:', mappedData)
-      
+
       // Convert working_pincodes string to array for tag display
-      const pincodes = mappedData.working_pincodes 
+      const pincodes = mappedData.working_pincodes
         ? mappedData.working_pincodes.split(',').map((p: string) => p.trim()).filter((p: string) => p.length > 0)
         : []
       setWorkingPincodesArray(pincodes)
@@ -932,28 +933,28 @@ function VendorManagement({ availableCities, configLoading }: {
   // Working Pincodes Management Functions
   const addPincode = () => {
     const trimmedPincode = newPincode.trim()
-    
+
     // Validate pincode format (6 digits)
     if (!/^\d{6}$/.test(trimmedPincode)) {
       toast.error('Pincode must be exactly 6 digits')
       return
     }
-    
+
     // Check for duplicates
     if (workingPincodesArray.includes(trimmedPincode)) {
       toast.error('Pincode already exists')
       return
     }
-    
+
     const updatedPincodes = [...workingPincodesArray, trimmedPincode]
     setWorkingPincodesArray(updatedPincodes)
-    
+
     // Update the main form data
     setVendorData(prev => ({
       ...prev,
       working_pincodes: updatedPincodes.join(', ')
     }))
-    
+
     setNewPincode('')
     console.log('📍 [VENDOR-MGMT] Added pincode:', trimmedPincode)
   }
@@ -961,13 +962,13 @@ function VendorManagement({ availableCities, configLoading }: {
   const removePincode = (pincodeToRemove: string) => {
     const updatedPincodes = workingPincodesArray.filter(p => p !== pincodeToRemove)
     setWorkingPincodesArray(updatedPincodes)
-    
+
     // Update the main form data
     setVendorData(prev => ({
       ...prev,
       working_pincodes: updatedPincodes.join(', ')
     }))
-    
+
     console.log('📍 [VENDOR-MGMT] Removed pincode:', pincodeToRemove)
   }
 
@@ -994,7 +995,7 @@ function VendorManagement({ availableCities, configLoading }: {
     setIsUpdatingVendor(true)
     try {
       console.log('📝 [VENDOR-MGMT] Updating vendor:', selectedVendorId)
-      
+
       const token = localStorage.getItem('selliko_access_token')
       if (!token) {
         throw new Error('No access token found')
@@ -1026,23 +1027,8 @@ function VendorManagement({ availableCities, configLoading }: {
         hasCity: !!updatePayload.city
       })
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_SELLIKO_API_BASE || 'http://127.0.0.1:54321/'}functions/v1/update-vendor-profile`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updatePayload)
-      })
+      const result = await sellikoClient.updateVendorProfile(vendorData.vendor_id, updatePayload) as any
 
-      console.log('🌐 [VENDOR-MGMT] Update vendor response:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok
-      })
-
-      const result = await response.json()
-      
       console.log('📥 [VENDOR-MGMT] Update vendor result:', {
         success: result.success,
         message: result.message,
@@ -1053,17 +1039,17 @@ function VendorManagement({ availableCities, configLoading }: {
       if (result.success) {
         toast.success('Vendor updated successfully!')
         console.log('✅ [VENDOR-MGMT] Vendor updated successfully:', result.vendor_profile)
-        
+
         // Refresh the vendors list to get updated data
         console.log('🔄 [VENDOR-MGMT] Refreshing vendors list after successful update...')
         await loadVendors()
-        
+
         // After reloading vendors, re-select the current vendor to refresh the form
         console.log('🔄 [VENDOR-MGMT] Reloading selected vendor data after list refresh...')
         setTimeout(() => {
           handleVendorSelect(selectedVendorId)
         }, 100) // Small delay to ensure vendors list is updated
-        
+
         // Also update the current form data with the response
         if (result.vendor_profile) {
           const updatedProfile = result.vendor_profile
@@ -1082,17 +1068,17 @@ function VendorManagement({ availableCities, configLoading }: {
             working_pincodes: updatedProfile.working_pincodes || prev.working_pincodes,
             base_price: updatedProfile.base_price !== undefined ? String(updatedProfile.base_price) : prev.base_price
           }))
-          
+
           // Update working pincodes array if it was updated
           if (updatedProfile.working_pincodes !== undefined) {
-            const updatedPincodes = updatedProfile.working_pincodes 
+            const updatedPincodes = updatedProfile.working_pincodes
               ? updatedProfile.working_pincodes.split(',').map((p: string) => p.trim()).filter((p: string) => p.length > 0)
               : []
             setWorkingPincodesArray(updatedPincodes)
             console.log('📍 [VENDOR-MGMT] Working pincodes updated from API response:', updatedPincodes)
             console.log('📍 [VENDOR-MGMT] Raw working_pincodes string:', updatedProfile.working_pincodes)
           }
-          
+
           console.log('✅ [VENDOR-MGMT] Form data updated with API response')
         }
       } else {
@@ -1137,7 +1123,7 @@ function VendorManagement({ availableCities, configLoading }: {
                   const mobile = vendor.phone || 'No mobile'
                   const name = vendor.name || 'No name'
                   const city = vendor.vendor_profile?.city || 'No city'
-                  
+
                   return (
                     <option key={vendor.id} value={vendorId}>
                       #{vendorId} - {mobile} - {name} - {city}
@@ -1146,7 +1132,7 @@ function VendorManagement({ availableCities, configLoading }: {
                 })}
               </select>
             </div>
-            
+
             {isLoadingVendors && (
               <div className="flex items-center justify-center py-4">
                 <Icons.spinner className="w-6 h-6 animate-spin text-blue-600" />
@@ -1263,7 +1249,7 @@ function VendorManagement({ availableCities, configLoading }: {
               {/* Address Information */}
               <div className="border-t pt-6">
                 <h4 className="text-lg font-medium text-gray-900 mb-4">Address Information</h4>
-                
+
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1277,21 +1263,21 @@ function VendorManagement({ availableCities, configLoading }: {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                      <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      City
-                    </label>
-                    <SearchableDropdown
-                      options={availableCities}
-                      value={vendorData.city}
-                      onChange={(value) => handleInputChange('city', value)}
-                      placeholder={configLoading ? "Loading cities..." : "Search and select city"}
-                      disabled={configLoading}
-                    />
-                    {configLoading && (
-                      <p className="text-xs text-gray-500 mt-1">Loading available cities...</p>
-                    )}
-                  </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        City
+                      </label>
+                      <SearchableDropdown
+                        options={availableCities}
+                        value={vendorData.city}
+                        onChange={(value) => handleInputChange('city', value)}
+                        placeholder={configLoading ? "Loading cities..." : "Search and select city"}
+                        disabled={configLoading}
+                      />
+                      {configLoading && (
+                        <p className="text-xs text-gray-500 mt-1">Loading available cities...</p>
+                      )}
+                    </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Pincode
@@ -1330,7 +1316,7 @@ function VendorManagement({ availableCities, configLoading }: {
               {/* Working Pincodes Section */}
               <div className="border-t pt-6">
                 <h4 className="text-lg font-medium text-gray-900 mb-4">Working Pincodes</h4>
-                
+
                 <div className="space-y-4">
                   {/* Add New Pincode */}
                   <div className="flex space-x-2">
@@ -1355,7 +1341,7 @@ function VendorManagement({ availableCities, configLoading }: {
                       Add
                     </Button>
                   </div>
-                  
+
                   {/* Pincodes Tags Display */}
                   {workingPincodesArray.length > 0 && (
                     <div>
@@ -1381,7 +1367,7 @@ function VendorManagement({ availableCities, configLoading }: {
                       </div>
                     </div>
                   )}
-                  
+
                   {workingPincodesArray.length === 0 && (
                     <div className="text-center py-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
                       <Icons.mapPin className="w-8 h-8 text-gray-400 mx-auto mb-2" />
@@ -1395,7 +1381,7 @@ function VendorManagement({ availableCities, configLoading }: {
               {/* User Information (Read-only) */}
               <div className="border-t pt-6">
                 <h4 className="text-lg font-medium text-gray-900 mb-4">Associated User Account</h4>
-                
+
                 <div className="bg-gray-50 rounded-lg p-4 space-y-3">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -1461,12 +1447,12 @@ function AgentManagement({ availableCities, configLoading }: {
 }) {
   // Get current user for role validation
   const { user } = useAuth()
-  
+
   // State for agent selection
   const [selectedAgentId, setSelectedAgentId] = useState('')
   const [agents, setAgents] = useState<any[]>([])
   const [isLoadingAgents, setIsLoadingAgents] = useState(false)
-  
+
   // State for agent form
   const [agentData, setAgentData] = useState({
     agent_id: '',
@@ -1502,14 +1488,14 @@ function AgentManagement({ availableCities, configLoading }: {
     setIsLoadingAgents(true)
     try {
       console.log('📋 [AGENT-MGMT] Loading agents list from API...')
-      
+
       const result = await sellikoClient.listAgents() as {
         success: boolean
         agents?: any[]
         message?: string
         error?: string
       }
-      
+
       console.log('📥 [AGENT-MGMT] List agents result:', {
         success: result.success,
         agentCount: result.agents ? result.agents.length : 0,
@@ -1562,13 +1548,13 @@ function AgentManagement({ availableCities, configLoading }: {
     }
 
     setSelectedAgentId(agentId)
-    
+
     try {
       console.log('🔍 [AGENT-MGMT] Loading agent details for:', agentId)
-      
+
       // Find the selected agent from the loaded agents list
       const selectedAgent = agents.find(a => a.agent_profile?.agent_id === parseInt(agentId))
-      
+
       if (!selectedAgent) {
         console.error('❌ [AGENT-MGMT] Agent not found in loaded list:', agentId)
         toast.error('Agent not found')
@@ -1576,7 +1562,7 @@ function AgentManagement({ availableCities, configLoading }: {
       }
 
       console.log('📋 [AGENT-MGMT] Selected agent data:', selectedAgent)
-      
+
       // Map the API response to form data
       const profile = selectedAgent.agent_profile
       const mappedData = {
@@ -1597,12 +1583,12 @@ function AgentManagement({ availableCities, configLoading }: {
         user_name: selectedAgent.name || '',
         user_mobile: selectedAgent.phone || ''
       }
-      
+
       setAgentData(mappedData)
       console.log('✅ [AGENT-MGMT] Agent details loaded:', mappedData)
-      
+
       // Convert working_pincodes string to array for tag display
-      const pincodes = mappedData.working_pincodes 
+      const pincodes = mappedData.working_pincodes
         ? mappedData.working_pincodes.split(',').map((p: string) => p.trim()).filter((p: string) => p.length > 0)
         : []
       setWorkingPincodesArray(pincodes)
@@ -1625,28 +1611,28 @@ function AgentManagement({ availableCities, configLoading }: {
   // Working Pincodes Management Functions
   const addPincode = () => {
     const trimmedPincode = newPincode.trim()
-    
+
     // Validate pincode format (6 digits)
     if (!/^\d{6}$/.test(trimmedPincode)) {
       toast.error('Pincode must be exactly 6 digits')
       return
     }
-    
+
     // Check for duplicates
     if (workingPincodesArray.includes(trimmedPincode)) {
       toast.error('Pincode already exists')
       return
     }
-    
+
     const updatedPincodes = [...workingPincodesArray, trimmedPincode]
     setWorkingPincodesArray(updatedPincodes)
-    
+
     // Update the main form data
     setAgentData(prev => ({
       ...prev,
       working_pincodes: updatedPincodes.join(', ')
     }))
-    
+
     setNewPincode('')
     console.log('📍 [AGENT-MGMT] Added pincode:', trimmedPincode)
   }
@@ -1654,13 +1640,13 @@ function AgentManagement({ availableCities, configLoading }: {
   const removePincode = (pincodeToRemove: string) => {
     const updatedPincodes = workingPincodesArray.filter(p => p !== pincodeToRemove)
     setWorkingPincodesArray(updatedPincodes)
-    
+
     // Update the main form data
     setAgentData(prev => ({
       ...prev,
       working_pincodes: updatedPincodes.join(', ')
     }))
-    
+
     console.log('📍 [AGENT-MGMT] Removed pincode:', pincodeToRemove)
   }
 
@@ -1687,7 +1673,7 @@ function AgentManagement({ availableCities, configLoading }: {
     setIsUpdatingAgent(true)
     try {
       console.log('📝 [AGENT-MGMT] Updating agent:', selectedAgentId)
-      
+
       // Prepare update payload - only include fields that can be updated
       const updatePayload: any = {
         name: agentData.name,
@@ -1724,7 +1710,7 @@ function AgentManagement({ availableCities, configLoading }: {
       })
 
       const result = await sellikoClient.updateAgentProfile(agentData.agent_id as any, updatePayload) as any
-      
+
       console.log('📥 [AGENT-MGMT] Update agent result:', {
         success: result.success,
         message: result.message,
@@ -1735,17 +1721,17 @@ function AgentManagement({ availableCities, configLoading }: {
       if (result.success) {
         toast.success('Agent updated successfully!')
         console.log('✅ [AGENT-MGMT] Agent updated successfully:', result.agent_profile)
-        
+
         // Refresh the agents list to get updated data
         console.log('🔄 [AGENT-MGMT] Refreshing agents list after successful update...')
         await loadAgents()
-        
+
         // After reloading agents, re-select the current agent to refresh the form
         console.log('🔄 [AGENT-MGMT] Reloading selected agent data after list refresh...')
         setTimeout(() => {
           handleAgentSelect(selectedAgentId)
         }, 100) // Small delay to ensure agents list is updated
-        
+
         // Also update the current form data with the response
         if (result.agent_profile) {
           const updatedProfile = result.agent_profile
@@ -1764,16 +1750,16 @@ function AgentManagement({ availableCities, configLoading }: {
             contact_person_phone: updatedProfile.contact_person_phone || prev.contact_person_phone,
             working_pincodes: updatedProfile.working_pincodes || prev.working_pincodes
           }))
-          
+
           // Update working pincodes array if it was updated
           if (updatedProfile.working_pincodes !== undefined) {
-            const updatedPincodes = updatedProfile.working_pincodes 
+            const updatedPincodes = updatedProfile.working_pincodes
               ? updatedProfile.working_pincodes.split(',').map((p: string) => p.trim()).filter((p: string) => p.length === 6)
               : []
             setWorkingPincodesArray(updatedPincodes)
             console.log('📍 [AGENT-MGMT] Working pincodes updated:', updatedPincodes)
           }
-          
+
           console.log('✅ [AGENT-MGMT] Form data updated with API response')
         }
       } else {
@@ -1822,7 +1808,7 @@ function AgentManagement({ availableCities, configLoading }: {
                   const name = agent.name || 'No name'
                   const city = agent.agent_profile?.city || 'No city'
                   const agentCode = agent.agent_profile?.agent_code || 'NO-CODE'
-                  
+
                   return (
                     <option key={agent.id} value={agentId}>
                       #{agentId} - {agentCode} - {mobile} - {name} - {city}
@@ -1831,7 +1817,7 @@ function AgentManagement({ availableCities, configLoading }: {
                 })}
               </select>
             </div>
-            
+
             {isLoadingAgents && (
               <div className="flex items-center justify-center py-4">
                 <Icons.spinner className="w-6 h-6 animate-spin text-blue-600" />
@@ -1954,7 +1940,7 @@ function AgentManagement({ availableCities, configLoading }: {
               {/* Address Information */}
               <div className="border-t pt-6">
                 <h4 className="text-lg font-medium text-gray-900 mb-4">Address Information</h4>
-                
+
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1968,21 +1954,21 @@ function AgentManagement({ availableCities, configLoading }: {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                      <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      City
-                    </label>
-                    <SearchableDropdown
-                      options={availableCities}
-                      value={agentData.city}
-                      onChange={(value) => handleInputChange('city', value)}
-                      placeholder={configLoading ? "Loading cities..." : "Search and select city"}
-                      disabled={configLoading}
-                    />
-                    {configLoading && (
-                      <p className="text-xs text-gray-500 mt-1">Loading available cities...</p>
-                    )}
-                  </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        City
+                      </label>
+                      <SearchableDropdown
+                        options={availableCities}
+                        value={agentData.city}
+                        onChange={(value) => handleInputChange('city', value)}
+                        placeholder={configLoading ? "Loading cities..." : "Search and select city"}
+                        disabled={configLoading}
+                      />
+                      {configLoading && (
+                        <p className="text-xs text-gray-500 mt-1">Loading available cities...</p>
+                      )}
+                    </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Pincode
@@ -2021,7 +2007,7 @@ function AgentManagement({ availableCities, configLoading }: {
               {/* Working Pincodes Section */}
               <div className="border-t pt-6">
                 <h4 className="text-lg font-medium text-gray-900 mb-4">Working Pincodes</h4>
-                
+
                 <div className="space-y-4">
                   {/* Add New Pincode */}
                   <div className="flex space-x-2">
@@ -2046,7 +2032,7 @@ function AgentManagement({ availableCities, configLoading }: {
                       Add
                     </Button>
                   </div>
-                  
+
                   {/* Pincodes Tags Display */}
                   {workingPincodesArray.length > 0 && (
                     <div>
@@ -2072,7 +2058,7 @@ function AgentManagement({ availableCities, configLoading }: {
                       </div>
                     </div>
                   )}
-                  
+
                   {workingPincodesArray.length === 0 && (
                     <div className="text-center py-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
                       <Icons.mapPin className="w-8 h-8 text-gray-400 mx-auto mb-2" />
@@ -2086,7 +2072,7 @@ function AgentManagement({ availableCities, configLoading }: {
               {/* User Information (Read-only) */}
               <div className="border-t pt-6">
                 <h4 className="text-lg font-medium text-gray-900 mb-4">Associated User Account</h4>
-                
+
                 <div className="bg-gray-50 rounded-lg p-4 space-y-3">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -2145,8 +2131,100 @@ function AgentManagement({ availableCities, configLoading }: {
   )
 }
 
+// Password Management Component
+function PasswordManagement() {
+  const [passwordData, setPasswordData] = useState({
+    email: '',
+    password: ''
+  })
+  const [isSettingPassword, setIsSettingPassword] = useState(false)
+
+  const handleSetPassword = async () => {
+    if (!passwordData.email.trim() || !passwordData.password.trim()) {
+      toast.error('Email and password are required')
+      return
+    }
+
+    setIsSettingPassword(true)
+    try {
+      console.log('🔐 [PASSWORD-MGMT] Setting password for:', passwordData.email)
+
+      const result = await sellikoClient.setPassword(passwordData.email, passwordData.password) as any
+
+      if (result.success) {
+        toast.success(result.message || 'Password updated successfully!')
+        console.log('✅ [PASSWORD-MGMT] Password updated:', result)
+        // Reset form
+        setPasswordData({ email: '', password: '' })
+      } else {
+        toast.error(result.error || 'Failed to update password')
+        console.error('❌ [PASSWORD-MGMT] Update failed:', result.error)
+      }
+    } catch (error: any) {
+      console.error('💥 [PASSWORD-MGMT] Update error:', error)
+      toast.error('Network error occurred')
+    } finally {
+      setIsSettingPassword(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center space-x-2">
+          <Icons.lock className="w-5 h-5 text-blue-600" />
+          <span>Set User Password</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              User Email
+            </label>
+            <Input
+              type="email"
+              placeholder="Enter user email"
+              value={passwordData.email}
+              onChange={(e) => setPasswordData({ ...passwordData, email: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              New Password
+            </label>
+            <Input
+              type="text"
+              placeholder="Enter new password"
+              value={passwordData.password}
+              onChange={(e) => setPasswordData({ ...passwordData, password: e.target.value })}
+            />
+          </div>
+        </div>
+        <Button
+          onClick={handleSetPassword}
+          disabled={isSettingPassword || !passwordData.email.trim() || !passwordData.password.trim()}
+          className="bg-blue-600 hover:bg-blue-700"
+        >
+          {isSettingPassword ? (
+            <>
+              <Icons.spinner className="w-4 h-4 mr-2 animate-spin" />
+              Updating Password...
+            </>
+          ) : (
+            <>
+              <Icons.check className="w-4 h-4 mr-2" />
+              Set Password
+            </>
+          )}
+        </Button>
+      </CardContent>
+    </Card>
+  )
+}
+
 // Main Content Component
-function SettingsContent({ activeSection, availableCities, configLoading }: { 
+function SettingsContent({ activeSection, availableCities, configLoading }: {
   activeSection: string
   availableCities: string[]
   configLoading: boolean
@@ -2183,6 +2261,8 @@ function SettingsContent({ activeSection, availableCities, configLoading }: {
             <VendorManagement availableCities={availableCities} configLoading={configLoading} />
           ) : activeSection === 'agents' ? (
             <AgentManagement availableCities={availableCities} configLoading={configLoading} />
+          ) : activeSection === 'set_passwords' ? (
+            <PasswordManagement />
           ) : (
             /* Placeholder content for other sections */
             <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
@@ -2212,7 +2292,7 @@ export default function AdminSettings() {
   const { user } = useAuth()
   const router = useRouter()
   const [activeSection, setActiveSection] = useState('general')
-  
+
   // Config state for cities
   const [configLoading, setConfigLoading] = useState(true)
   const [availableCities, setAvailableCities] = useState<string[]>([])
@@ -2223,7 +2303,7 @@ export default function AdminSettings() {
       try {
         console.log('📋 [ADMIN-SETTINGS] Fetching form configuration...')
         const config = await sellikoClient.getUniversalFormConfig() as any
-        
+
         if (config.success) {
           setAvailableCities(config.cities || [])
           console.log('✅ [ADMIN-SETTINGS] Form config loaded:', {
@@ -2252,12 +2332,12 @@ export default function AdminSettings() {
 
       {/* Main Content */}
       <div className="flex h-[calc(100vh-73px)]">
-        <SettingsSidebar 
+        <SettingsSidebar
           activeSection={activeSection}
           onSectionChange={setActiveSection}
         />
-        <SettingsContent 
-          activeSection={activeSection} 
+        <SettingsContent
+          activeSection={activeSection}
           availableCities={availableCities}
           configLoading={configLoading}
         />

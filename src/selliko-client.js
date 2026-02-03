@@ -53,7 +53,7 @@ class SellikoClient {
 
   // Generate UUID for file naming
   generateUUID() {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
       const r = Math.random() * 16 | 0
       const v = c == 'x' ? r : (r & 0x3 | 0x8)
       return v.toString(16)
@@ -75,15 +75,15 @@ class SellikoClient {
       const canvas = document.createElement('canvas')
       const ctx = canvas.getContext('2d')
       const img = new Image()
-      
+
       img.onload = () => {
         // Set canvas dimensions to image dimensions
         canvas.width = img.width
         canvas.height = img.height
-        
+
         // Draw image on canvas
         ctx.drawImage(img, 0, 0)
-        
+
         // Convert to WebP blob
         canvas.toBlob((blob) => {
           if (blob) {
@@ -95,12 +95,12 @@ class SellikoClient {
           }
         }, 'image/webp', 0.8) // 80% quality
       }
-      
+
       img.onerror = () => {
         console.error('❌ [SELLIKO-CLIENT] Failed to load image for conversion')
         reject(new Error('Failed to load image'))
       }
-      
+
       img.src = URL.createObjectURL(file)
     })
   }
@@ -142,20 +142,20 @@ class SellikoClient {
   // Convert file to data URL (fallback method)
   async fileToDataUrl(file) {
     console.log('🔄 [SELLIKO-CLIENT] Converting file to data URL:', file.name)
-    
+
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
-      
+
       reader.onload = () => {
         console.log('✅ [SELLIKO-CLIENT] File converted to data URL')
         resolve(reader.result)
       }
-      
+
       reader.onerror = () => {
         console.error('❌ [SELLIKO-CLIENT] Failed to convert file to data URL')
         reject(new Error('Failed to convert file to data URL'))
       }
-      
+
       reader.readAsDataURL(file)
     })
   }
@@ -163,7 +163,7 @@ class SellikoClient {
   // Upload file to Supabase storage
   async uploadFile(file, fileName) {
     console.log('📤 [SELLIKO-CLIENT] Uploading file:', fileName)
-    
+
     try {
       const token = localStorage.getItem('selliko_access_token')
       if (!token) {
@@ -175,7 +175,7 @@ class SellikoClient {
       if (!userData) {
         throw new Error('No user data found')
       }
-      
+
       const user = JSON.parse(userData)
       const userId = user.id
       if (!userId) {
@@ -190,7 +190,7 @@ class SellikoClient {
 
       // Use correct path format: listing_images/{user_id}{filename}
       const uploadUrl = `${this.storageUrl}storage/v1/object/listing_images/${userId}${fileName}`
-      
+
       console.log('🎯 [SELLIKO-CLIENT] Upload URL:', uploadUrl)
       console.log('📋 [SELLIKO-CLIENT] File details:', {
         name: fileName,
@@ -232,13 +232,13 @@ class SellikoClient {
 
       // Construct the public URL with user_id
       const fileUrl = `${this.storageUrl}storage/v1/object/public/listing_images/${userId}${fileName}`
-      
+
       console.log('✅ [SELLIKO-CLIENT] File uploaded successfully:', fileUrl)
       return fileUrl
-      
+
     } catch (error) {
       console.error('💥 [SELLIKO-CLIENT] File upload error:', error)
-      
+
       // Try alternative upload method if first fails
       console.log('🔄 [SELLIKO-CLIENT] Trying alternative upload method...')
       try {
@@ -253,7 +253,7 @@ class SellikoClient {
   // Alternative upload method using direct POST to bucket
   async uploadFileAlternative(file, fileName) {
     console.log('🔄 [SELLIKO-CLIENT] Using alternative upload method for:', fileName)
-    
+
     try {
       const token = localStorage.getItem('selliko_access_token')
       if (!token) {
@@ -265,7 +265,7 @@ class SellikoClient {
       if (!userData) {
         throw new Error('No user data found')
       }
-      
+
       const user = JSON.parse(userData)
       const userId = user.id
       if (!userId) {
@@ -276,7 +276,7 @@ class SellikoClient {
 
       // Try uploading using the bucket creation/update endpoint
       const uploadUrl = `${this.storageUrl}storage/v1/object/listing_images`
-      
+
       const formData = new FormData()
       // Include user_id in the filename for alternative method
       formData.append('file', file, `${userId}${fileName}`)
@@ -331,7 +331,7 @@ class SellikoClient {
       privacyAccepted: data.privacyAccepted,
       whatsappConsent: data.whatsappConsent
     })
-    
+
     const errors = []
 
     // Check required device fields
@@ -339,28 +339,28 @@ class SellikoClient {
     if (!data.model) errors.push('Model is required')
     if (!data.storage) errors.push('Storage is required')
     if (!data.condition) errors.push('Condition is required')
-    
+
     // Check IMEI - IMEI1 is required, IMEI2 is optional
     if (!data.imei1 || data.imei1.length < 10) errors.push('Valid IMEI 1 is required')
     // IMEI2 is optional - only validate if provided
     if (data.imei2 && data.imei2.length > 0 && data.imei2.length < 10) {
       errors.push('IMEI 2 must be valid if provided')
     }
-    
+
     // Check pricing
     if (!data.expectedPrice || parseInt(data.expectedPrice) <= 0) {
       errors.push('Valid expected price is required')
     }
-    
+
     // Check personal details
     if (!data.name) errors.push('Name is required')
     if (!data.mobile) errors.push('Mobile number is required')
     if (!data.email) errors.push('Email is required')
-    
+
     // Check images - at least 2 required
     const imageCount = Object.values(data.images || {}).filter(Boolean).length
     if (imageCount < 2) errors.push('At least 2 device images are required')
-    
+
     // Check terms acceptance - all must be true
     if (!data.termsAccepted) errors.push('Terms must be accepted')
     if (!data.privacyAccepted) errors.push('Privacy policy must be accepted')
@@ -473,7 +473,7 @@ class SellikoClient {
       // Validate data first
       console.log('🔍 [SELLIKO-CLIENT] Starting validation...')
       const validation = this.validateListingData(listingData)
-      
+
       if (!validation.valid) {
         console.error('❌ [SELLIKO-CLIENT] Validation failed - API call will NOT be made')
         console.error('📋 [SELLIKO-CLIENT] Validation errors:', validation.errors)
@@ -483,33 +483,33 @@ class SellikoClient {
           errors: validation.errors
         }
       }
-      
+
       console.log('✅ [SELLIKO-CLIENT] Validation passed - proceeding with API call')
 
       // Clone data to avoid mutating original
       const processedData = { ...listingData }
-      
+
       // Process and upload images
       console.log('🖼️ [SELLIKO-CLIENT] Processing images...')
       const imageUrls = {}
-      
+
       for (const [position, file] of Object.entries(listingData.images || {})) {
         if (file) {
           try {
             console.log(`📸 [SELLIKO-CLIENT] Processing ${position} image:`, file.name)
-            
+
             // Convert to WebP if it's an image
             const isImage = file.type.startsWith('image/')
             let uploadFile = file
             let fileName = `${this.generateUUID()}`
-            
+
             if (isImage) {
               uploadFile = await this.convertToWebP(file)
               fileName += '.webp'
             } else {
               fileName += `.${file.name.split('.').pop()}`
             }
-            
+
             // Upload file
             try {
               const fileUrl = await this.uploadFile(uploadFile, fileName)
@@ -520,7 +520,7 @@ class SellikoClient {
               const dataUrl = await this.fileToDataUrl(uploadFile)
               imageUrls[position] = dataUrl
             }
-            
+
           } catch (error) {
             console.error(`💥 [SELLIKO-CLIENT] Failed to process ${position} image:`, error)
             return {
@@ -530,7 +530,7 @@ class SellikoClient {
           }
         }
       }
-      
+
       // Process warranty image if exists
       if (listingData.warrantyImage) {
         try {
@@ -546,7 +546,7 @@ class SellikoClient {
           }
         }
       }
-      
+
       // Process bill image if exists
       if (listingData.billImage) {
         try {
@@ -572,57 +572,57 @@ class SellikoClient {
         color: processedData.color || null,
         condition: processedData.condition || null,
         description: processedData.description || null,
-        
+
         // Technical Details (required)
         imei1: processedData.imei1 || null,
         imei2: processedData.imei2 || null,
         battery_health: processedData.batteryHealth ? parseInt(processedData.batteryHealth) : null,
         expected_price: processedData.expectedPrice ? parseInt(processedData.expectedPrice) : null,
-        
+
         // Images (replace with URLs)
         device_images: imageUrls || {},
         warranty_image_url: processedData.warrantyImageUrl || null,
         bill_image_url: processedData.billImageUrl || null,
-        
+
         // Warranty Information
         warranty_status: processedData.warrantyStatus || 'none',
         warranty_expiry: processedData.warrantyExpiry || null,
         warranty_type: processedData.warrantyType || null,
-        
+
         // Bill Information
         has_bill: processedData.hasBill !== undefined ? processedData.hasBill : false,
         purchase_date: processedData.purchaseDate || null,
         purchase_price: processedData.purchasePrice ? parseInt(processedData.purchasePrice) : null,
-        
+
         // Personal Details (use mobile_number as required by server)
         contact_name: processedData.name || null,
         mobile_number: processedData.mobile || null,
         email: processedData.email || null,
-        
+
         // Address Information (required)
         address: processedData.address || null,
         city: processedData.city || null,
         pincode: processedData.pincode || null,
         state: processedData.state || 'Kerala',
         landmark: processedData.landmark || null,
-        
+
         // Bank Details (required)
         account_number: processedData.accountNumber || null,
         ifsc_code: processedData.ifscCode || null,
         account_holder_name: processedData.accountHolderName || null,
         bank_name: processedData.bankName || null,
-        
+
         // Pickup Details (required)
         pickup_address: processedData.pickupAddress || null,
         pickup_city: processedData.pickupCity || null,
         pickup_pincode: processedData.pickupPincode || null,
         pickup_time: processedData.preferredTime || null,
-        
+
         // Terms Agreement (required)
         terms_accepted: processedData.termsAccepted || false,
         privacy_accepted: processedData.privacyAccepted || false,
         whatsapp_consent: processedData.whatsappConsent || false,
-        
+
         // Additional fields that might be expected
         asking_price: processedData.expectedPrice ? parseInt(processedData.expectedPrice) : null, // Alias for expected_price
         device_condition: processedData.condition || null, // Alias for condition
@@ -669,7 +669,7 @@ class SellikoClient {
       })
 
       const result = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] API response data:', {
         success: result.success,
         hasListingId: !!result.listing_id,
@@ -700,7 +700,7 @@ class SellikoClient {
       console.log('🚫 [SELLIKO-CLIENT] Window undefined, returning null')
       return null
     }
-    
+
     let instanceId = localStorage.getItem('selliko_instance_id')
     if (!instanceId) {
       instanceId = `instance_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
@@ -717,15 +717,15 @@ class SellikoClient {
     console.log('📞 [SELLIKO-CLIENT] getAuthOTP called with:', {
       mobile_number: mobile_number ? mobile_number.substring(0, 5) + '***' : 'MISSING'
     })
-    
+
     try {
       const instance_id = this.getInstanceId()
-      
+
       const requestBody = {
         instance_id,
         mobile_number
       }
-      
+
       console.log('📤 [SELLIKO-CLIENT] Making OTP request:', {
         url: `${this.apiBase}functions/v1/auth`,
         method: 'POST',
@@ -734,7 +734,7 @@ class SellikoClient {
           mobile_number: mobile_number ? mobile_number.substring(0, 5) + '***' : 'MISSING'
         }
       })
-      
+
       const response = await fetch(`${this.apiBase}functions/v1/auth`, {
         method: 'POST',
         headers: {
@@ -751,7 +751,7 @@ class SellikoClient {
       })
 
       const data = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] Parsed response data:', {
         success: data.success,
         hasOtp: !!data.otp,
@@ -763,14 +763,14 @@ class SellikoClient {
         error: data.error,
         fullResponseKeys: Object.keys(data)
       })
-      
+
       // Log the actual otp_id value (safely)
       if (data.otp_id) {
         console.log('🔑 [SELLIKO-CLIENT] OTP ID received:', data.otp_id)
       } else {
         console.error('❌ [SELLIKO-CLIENT] No otp_id in response!')
       }
-      
+
       return data
     } catch (error) {
       console.error('💥 [SELLIKO-CLIENT] getAuthOTP error:', error)
@@ -786,6 +786,123 @@ class SellikoClient {
     }
   }
 
+  // 1.5 managerLogin - accepts {email, password}
+  async managerLogin(email, password) {
+    console.log('💼 [SELLIKO-CLIENT] managerLogin called for:', email)
+
+    try {
+      const instance_id = this.getInstanceId()
+
+      const requestBody = {
+        email,
+        password,
+        instance_id
+      }
+
+      console.log('📤 [SELLIKO-CLIENT] Making manager login request...')
+
+      const response = await fetch(`${this.apiBase}functions/v1/managerlogin`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Manager login raw response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      })
+
+      const data = await response.json()
+
+      console.log('📥 [SELLIKO-CLIENT] Manager login response data:', {
+        success: data.success,
+        hasUser: !!data.user,
+        hasSession: !!data.session,
+        message: data.message,
+        error: data.error
+      })
+
+      // Store session data if successful
+      if (data.success && data.session && typeof window !== 'undefined') {
+        console.log('💾 [SELLIKO-CLIENT] Storing session data...')
+
+        if (data.user) {
+          const normalizedUser = {
+            ...data.user,
+            user_role: (data.user.user_role || data.user.role || 'CLIENT').toUpperCase()
+          }
+          localStorage.setItem('selliko_user', JSON.stringify(normalizedUser))
+        }
+
+        localStorage.setItem('selliko_access_token', data.session.access_token)
+        console.log('✅ [SELLIKO-CLIENT] Session data stored successfully')
+      }
+
+      return data
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] managerLogin error:', error)
+      return {
+        success: false,
+        error: 'Network error occurred'
+      }
+    }
+  }
+
+  // 1.6 setPassword - accepts {email, password}
+  async setPassword(email, password) {
+    console.log('🔐 [SELLIKO-CLIENT] setPassword called for:', email)
+
+    try {
+      const instance_id = this.getInstanceId()
+      const token = localStorage.getItem('selliko_access_token')
+
+      if (!token) {
+        throw new Error('No access token found')
+      }
+
+      const requestBody = {
+        email,
+        password
+      }
+
+      console.log('📤 [SELLIKO-CLIENT] Making set password request...')
+
+      const response = await fetch(`${this.apiBase}functions/v1/setpassword`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(requestBody)
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Set password raw response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      })
+
+      const data = await response.json()
+
+      console.log('📥 [SELLIKO-CLIENT] Set password response data:', {
+        success: data.success,
+        message: data.message,
+        error: data.error
+      })
+
+      return data
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] setPassword error:', error)
+      return {
+        success: false,
+        error: error.message || 'Network error occurred'
+      }
+    }
+  }
+
   // 2. verifyAuthOTP - accepts (otp, otp_id, mobile_number)
   async verifyAuthOTP(otp, otp_id, mobile) {
     console.log('🔐 [SELLIKO-CLIENT] verifyAuthOTP called with:', {
@@ -793,14 +910,14 @@ class SellikoClient {
       otp_id: otp_id || 'MISSING',
       mobile_number: mobile ? mobile.substring(0, 5) + '***' : 'MISSING'
     })
-    
+
     try {
       const requestBody = {
         otp,
         otp_id,
         mobile_number: mobile
       }
-      
+
       console.log('📤 [SELLIKO-CLIENT] Making verify request:', {
         url: `${this.apiBase}functions/v1/auth-verify`,
         method: 'POST',
@@ -810,7 +927,7 @@ class SellikoClient {
           mobile_number: mobile ? mobile.substring(0, 5) + '***' : 'MISSING'
         }
       })
-      
+
       const response = await fetch(`${this.apiBase}functions/v1/auth-verify`, {
         method: 'POST',
         headers: {
@@ -826,7 +943,7 @@ class SellikoClient {
       })
 
       const data = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] Verify response data:', {
         success: data.success,
         hasUser: !!data.user,
@@ -836,11 +953,11 @@ class SellikoClient {
         userRole: data.user?.user_role,
         sessionKeys: data.session ? Object.keys(data.session) : []
       })
-      
+
       // Store session data if successful
       if (data.success && data.session && typeof window !== 'undefined') {
         console.log('💾 [SELLIKO-CLIENT] Storing session data...')
-        
+
         // Ensure user data has proper role format
         if (data.user) {
           // Normalize user role
@@ -855,7 +972,7 @@ class SellikoClient {
           })
           localStorage.setItem('selliko_user', JSON.stringify(normalizedUser))
         }
-        
+
         localStorage.setItem('selliko_access_token', data.session.access_token)
         console.log('✅ [SELLIKO-CLIENT] Session data stored successfully')
       } else {
@@ -884,13 +1001,13 @@ class SellikoClient {
   // 3. getCurrentUser - calls default supabase endpoint to get current user from JWT
   async getCurrentUser() {
     console.log('👤 [SELLIKO-CLIENT] getCurrentUser called')
-    
+
     try {
       if (typeof window === 'undefined') {
         console.log('🚫 [SELLIKO-CLIENT] Window undefined, returning null')
         return null
       }
-      
+
       const token = localStorage.getItem('selliko_access_token')
       if (!token) {
         console.log('🔑 [SELLIKO-CLIENT] No access token found')
@@ -898,7 +1015,7 @@ class SellikoClient {
       }
 
       console.log('🌐 [SELLIKO-CLIENT] Making getCurrentUser request with token')
-      
+
       const response = await fetch(`${this.apiBase}functions/v1/auth-user`, {
         method: 'GET',
         headers: {
@@ -914,7 +1031,7 @@ class SellikoClient {
       })
 
       const data = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] User data received:', {
         success: data.success,
         hasUser: !!data.user,
@@ -994,7 +1111,7 @@ class SellikoClient {
         search: options.search || null,
         min_price: options.min_price || null,
         max_price: options.max_price || null,
-        
+
         // Add sorting and pagination
         sort_by: options.sort_by || 'created_at',
         sort_order: options.sort_order || 'desc',
@@ -1005,7 +1122,7 @@ class SellikoClient {
       }
 
       const url = `${this.apiBase}functions/v1/get-listings`
-      
+
       console.log('🌐 [SELLIKO-CLIENT] Making listings request:', {
         url: url,
         method: 'POST',
@@ -1035,7 +1152,7 @@ class SellikoClient {
       })
 
       const data = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] Listings data received:', {
         success: data.success,
         listingsCount: data.listings ? data.listings.length : 0,
@@ -1069,7 +1186,7 @@ class SellikoClient {
         message: error.message,
         stack: error.stack
       })
-      
+
       return {
         success: false,
         error: error.message || 'Network error occurred',
@@ -1082,7 +1199,7 @@ class SellikoClient {
   // 5. getMyListings - convenience method to get current user's listings
   async getMyListings(options = {}) {
     console.log('👤 [SELLIKO-CLIENT] getMyListings called')
-    
+
     try {
       // Get current user to ensure we have user context
       const user = await this.getCurrentUser()
@@ -1097,7 +1214,7 @@ class SellikoClient {
       }
 
       console.log('👤 [SELLIKO-CLIENT] Getting listings for user:', user.id)
-      
+
       // Call getListings with my_listings_only flag and user_id
       return await this.getListings({
         ...options,
@@ -1166,7 +1283,7 @@ class SellikoClient {
       })
 
       const url = `${this.apiBase}functions/v1/listing?${queryParams.toString()}`
-      
+
       console.log('🌐 [SELLIKO-CLIENT] Making listing request:', {
         url: url,
         method: 'GET',
@@ -1191,7 +1308,7 @@ class SellikoClient {
       })
 
       const data = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] Listing data received:', {
         success: data.success,
         hasListing: !!data.listing,
@@ -1213,7 +1330,7 @@ class SellikoClient {
       if (data.listing) {
         const device = data.listing.devices?.[0] // Get first device
         const clientAddress = data.listing.addresses?.find(addr => addr.type === 'client') || data.listing.addresses?.[0]
-        
+
         console.log('📋 [SELLIKO-CLIENT] Listing details:', {
           id: data.listing.id,
           brand: device?.brand,
@@ -1266,7 +1383,7 @@ class SellikoClient {
         stack: error.stack,
         listingId: listingId
       })
-      
+
       return {
         success: false,
         error: error.message || 'Network error occurred',
@@ -1418,7 +1535,7 @@ class SellikoClient {
       const hasChanged = (original, updated, key) => {
         const origVal = original?.[key]
         const updatedVal = updated?.[key]
-        
+
         // Handle null/undefined/empty string equivalence
         const normalizeValue = (val) => {
           if (val === null || val === undefined || val === '') return null
@@ -1428,14 +1545,14 @@ class SellikoClient {
 
         const normalizedOrig = normalizeValue(origVal)
         const normalizedUpdated = normalizeValue(updatedVal)
-        
+
         return normalizedOrig !== normalizedUpdated
       }
 
       // Check device information changes
       const deviceMappings = {
         brand: 'brand',
-        model: 'model', 
+        model: 'model',
         storage: 'storage',
         color: 'color',
         condition: 'condition',
@@ -1463,7 +1580,7 @@ class SellikoClient {
         changes.battery_health = updatedData.batteryHealth ? parseInt(updatedData.batteryHealth) : null
       }
       if (hasChanged(originalData, { expected_price: updatedData.askingPrice }, 'expected_price') ||
-          hasChanged(originalData, { asking_price: updatedData.askingPrice }, 'asking_price')) {
+        hasChanged(originalData, { asking_price: updatedData.askingPrice }, 'asking_price')) {
         changes.expected_price = updatedData.askingPrice ? parseInt(updatedData.askingPrice) : null
         changes.asking_price = updatedData.askingPrice ? parseInt(updatedData.askingPrice) : null
       }
@@ -1612,7 +1729,7 @@ class SellikoClient {
       })
 
       const result = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] Update result:', {
         success: result.success,
         hasUpdatedListing: !!result.listing,
@@ -1742,7 +1859,7 @@ class SellikoClient {
       })
 
       const result = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] Approval result:', {
         success: result.success,
         hasUpdatedListing: !!result.listing,
@@ -1776,7 +1893,7 @@ class SellikoClient {
         approve: approve,
         hasReasonNote: !!reasonNote
       })
-      
+
       return {
         success: false,
         error: error.message || 'Network error occurred'
@@ -1879,7 +1996,7 @@ class SellikoClient {
       })
 
       const result = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] Add user result:', {
         success: result.success,
         hasUser: !!result.user,
@@ -1911,7 +2028,7 @@ class SellikoClient {
         mobile_number: mobile_number ? mobile_number.substring(0, 5) + '***' : 'MISSING',
         user_role: user_role
       })
-      
+
       return {
         success: false,
         error: error.message || 'Network error occurred'
@@ -1999,7 +2116,7 @@ class SellikoClient {
       })
 
       const result = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] Check ban status result:', {
         success: result.success,
         hasUser: !!result.user,
@@ -2035,7 +2152,7 @@ class SellikoClient {
         stack: error.stack,
         mobile_number: mobile_number ? mobile_number.substring(0, 5) + '***' : 'MISSING'
       })
-      
+
       return {
         success: false,
         error: error.message || 'Network error occurred'
@@ -2142,7 +2259,7 @@ class SellikoClient {
       })
 
       const result = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] Ban/unban result:', {
         success: result.success,
         hasUser: !!result.user,
@@ -2183,7 +2300,7 @@ class SellikoClient {
         ban: ban,
         hasReason: !!reason
       })
-      
+
       return {
         success: false,
         error: error.message || 'Network error occurred'
@@ -2232,23 +2349,23 @@ class SellikoClient {
 
       // Build query parameters
       const queryParams = new URLSearchParams()
-      
+
       // Add search if provided
       if (options.search && options.search.trim()) {
         queryParams.append('search', options.search.trim())
       }
-      
+
       // Add status filter (default to receiving_bids for marketplace, unless explicitly null)
       if (options.status !== null) {
         queryParams.append('status', options.status || 'receiving_bids')
       }
-      
+
       // Add pagination
       queryParams.append('page', (options.page || 1).toString())
       queryParams.append('limit', Math.min(options.limit || 20, 100).toString()) // Cap at 100
-      
+
       const url = `${this.apiBase}functions/v1/marketplace?${queryParams.toString()}`
-      
+
       console.log('🌐 [SELLIKO-CLIENT] Making marketplace request:', {
         url: url,
         method: 'GET',
@@ -2271,7 +2388,7 @@ class SellikoClient {
       })
 
       const data = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] Marketplace data received:', {
         success: data.success,
         listingsCount: data.listings ? data.listings.length : 0,
@@ -2310,7 +2427,7 @@ class SellikoClient {
         message: error.message,
         stack: error.stack
       })
-      
+
       return {
         success: false,
         error: error.message || 'Network error occurred',
@@ -2413,7 +2530,7 @@ class SellikoClient {
       })
 
       const result = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] Bid result:', {
         success: result.success,
         hasBid: !!result.bid,
@@ -2450,7 +2567,7 @@ class SellikoClient {
         listingId: listingId,
         bidAmount: bidAmount
       })
-      
+
       return {
         success: false,
         error: error.message || 'Network error occurred'
@@ -2541,7 +2658,7 @@ class SellikoClient {
       })
 
       const result = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] Accept bid result:', {
         success: result.success,
         hasListing: !!result.listing,
@@ -2590,7 +2707,7 @@ class SellikoClient {
         stack: error.stack,
         listingId: listingId
       })
-      
+
       return {
         success: false,
         error: error.message || 'Network error occurred'
@@ -2663,7 +2780,7 @@ class SellikoClient {
       })
 
       const result = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] List agents result:', {
         success: result.success,
         agentCount: result.agents ? result.agents.length : 0,
@@ -2698,7 +2815,7 @@ class SellikoClient {
         message: error.message,
         stack: error.stack
       })
-      
+
       return {
         success: false,
         error: error.message || 'Network error occurred',
@@ -2753,7 +2870,7 @@ class SellikoClient {
       })
 
       const result = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] Get profile result:', {
         success: result.success,
         userRole: result.user_role,
@@ -2773,7 +2890,7 @@ class SellikoClient {
             name: result.profile.name,
             email: result.profile.email,
             city: result.profile.city,
-            workingPincodes: result.profile.working_pincodes ? 
+            workingPincodes: result.profile.working_pincodes ?
               result.profile.working_pincodes.split(',').length : 0
           })
         } else if (result.user_role === 'vendor') {
@@ -2783,7 +2900,7 @@ class SellikoClient {
             name: result.profile.name,
             email: result.profile.email,
             city: result.profile.city,
-            workingPincodes: result.profile.working_pincodes ? 
+            workingPincodes: result.profile.working_pincodes ?
               result.profile.working_pincodes.split(',').length : 0
           })
         }
@@ -2800,7 +2917,7 @@ class SellikoClient {
         message: error.message,
         stack: error.stack
       })
-      
+
       return {
         success: false,
         error: error.message || 'Network error occurred',
@@ -2931,7 +3048,7 @@ class SellikoClient {
       })
 
       const result = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] Update agent profile result:', {
         success: result.success,
         hasAgentProfile: !!result.agent_profile,
@@ -2971,7 +3088,7 @@ class SellikoClient {
         agentId: agentId,
         hasUpdateData: !!updateData
       })
-      
+
       return {
         success: false,
         error: error.message || 'Network error occurred'
@@ -3044,7 +3161,7 @@ class SellikoClient {
       })
 
       const result = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] Get bid accepted result:', {
         success: result.success,
         bidCount: result.accepted_bids ? result.accepted_bids.length : 0,
@@ -3088,7 +3205,7 @@ class SellikoClient {
         message: error.message,
         stack: error.stack
       })
-      
+
       return {
         success: false,
         error: error.message || 'Network error occurred',
@@ -3236,7 +3353,7 @@ class SellikoClient {
       })
 
       const result = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] Assign agent result:', {
         success: result.success,
         hasListing: !!result.listing,
@@ -3302,7 +3419,7 @@ class SellikoClient {
         listingId: listingId,
         agentUserId: agentUserId
       })
-      
+
       return {
         success: false,
         error: error.message || 'Network error occurred'
@@ -3375,7 +3492,7 @@ class SellikoClient {
       })
 
       const result = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] Get tasks result:', {
         success: result.success,
         taskCount: result.tasks ? result.tasks.length : 0,
@@ -3413,7 +3530,7 @@ class SellikoClient {
         message: error.message,
         stack: error.stack
       })
-      
+
       return {
         success: false,
         error: error.message || 'Network error occurred',
@@ -3489,7 +3606,7 @@ class SellikoClient {
       }
 
       const configs = await response.json()
-      
+
       // Transform Supabase response to match expected format
       const result = {
         success: true,
@@ -3531,7 +3648,7 @@ class SellikoClient {
         message: error.message,
         stack: error.stack
       })
-      
+
       return {
         success: false,
         error: error.message || 'Network error occurred',
@@ -3707,7 +3824,7 @@ class SellikoClient {
       })
 
       const result = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] Verification result:', {
         success: result.success,
         message: result.message,
@@ -3744,7 +3861,7 @@ class SellikoClient {
         offerValue: offerValue,
         hasBankDetails: !!bankDetails
       })
-      
+
       return {
         success: false,
         error: error.message || 'Network error occurred'
@@ -3833,7 +3950,7 @@ class SellikoClient {
       })
 
       const result = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] Start verification result:', {
         success: result.success,
         message: result.message,
@@ -3858,7 +3975,7 @@ class SellikoClient {
         stack: error.stack,
         listingId: listingId
       })
-      
+
       return {
         success: false,
         error: error.message || 'Network error occurred'
@@ -3931,7 +4048,7 @@ class SellikoClient {
       })
 
       const result = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] Get pickups result:', {
         success: result.success,
         pickupCount: result.pickups ? result.pickups.length : 0,
@@ -3969,7 +4086,7 @@ class SellikoClient {
         message: error.message,
         stack: error.stack
       })
-      
+
       return {
         success: false,
         error: error.message || 'Network error occurred',
@@ -4070,7 +4187,7 @@ class SellikoClient {
       })
 
       const result = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] Pickup confirmation result:', {
         success: result.success,
         hasPickup: !!result.pickup,
@@ -4128,7 +4245,7 @@ class SellikoClient {
         listingId: listingId,
         pickupOtp: pickupOtp ? '****' : 'MISSING'
       })
-      
+
       return {
         success: false,
         error: error.message || 'Network error occurred'
@@ -4266,7 +4383,7 @@ class SellikoClient {
       })
 
       const result = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] Delivery confirmation result:', {
         success: result.success,
         hasPickup: !!result.pickup,
@@ -4323,7 +4440,7 @@ class SellikoClient {
         listingId: listingId,
         deliveryOtp: deliveryOtp ? '****' : 'MISSING'
       })
-      
+
       return {
         success: false,
         error: error.message || 'Network error occurred'
@@ -4334,7 +4451,7 @@ class SellikoClient {
   // Track order status and agent details
   async trackOrder(listingId) {
     console.log('🔍 [SELLIKO-CLIENT] Tracking order for listing:', listingId)
-    
+
     try {
       const token = localStorage.getItem('selliko_access_token')
       if (!token) {
@@ -4348,8 +4465,8 @@ class SellikoClient {
           'Content-Type': 'application/json',
           'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'default-key'
         },
-        body: JSON.stringify({ 
-          listing_id: parseInt(listingId) 
+        body: JSON.stringify({
+          listing_id: parseInt(listingId)
         })
       })
 
@@ -4366,7 +4483,7 @@ class SellikoClient {
       }
 
       const result = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] Track API result:', {
         listing_id: result.listing_id,
         status: result.status,
@@ -4375,7 +4492,7 @@ class SellikoClient {
       })
 
       return result
-      
+
     } catch (error) {
       console.error('💥 [SELLIKO-CLIENT] Track order error:', error)
       throw error
@@ -4466,7 +4583,7 @@ class SellikoClient {
       })
 
       const result = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] Dashboard result:', {
         success: result.success,
         hasData: !!result.data,
@@ -4496,7 +4613,7 @@ class SellikoClient {
         message: error.message,
         stack: error.stack
       })
-      
+
       return {
         success: false,
         error: error.message || 'Network error occurred',
@@ -4542,7 +4659,7 @@ class SellikoClient {
       // Build query parameters - /bids endpoint doesn't support filtering/pagination
       // It returns all bids for the current vendor
       const queryParams = new URLSearchParams()
-      
+
       const url = `${this.apiBase}functions/v1/bids?${queryParams.toString()}`
 
       console.log('📤 [SELLIKO-CLIENT] Submitting get my bids request:', {
@@ -4569,7 +4686,7 @@ class SellikoClient {
       })
 
       const result = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] Get my bids result:', {
         success: result.success,
         bidCount: result.bids ? result.bids.length : 0,
@@ -4582,7 +4699,7 @@ class SellikoClient {
       // Log bid summary if available
       if (result.success && result.bids && result.bids.length > 0) {
         console.log(`✅ [SELLIKO-CLIENT] Found ${result.bids.length} bids by current vendor`)
-        
+
         // Log bid statistics
         const bidStats = {
           active: result.bids.filter(bid => bid.bid_status === 'active').length,
@@ -4590,7 +4707,7 @@ class SellikoClient {
           lost: result.bids.filter(bid => bid.bid_status === 'lost').length,
           total: result.total || result.bids.length
         }
-        
+
         console.log('📊 [SELLIKO-CLIENT] Bid statistics:', bidStats)
 
         // Log first few bids for debugging
@@ -4618,7 +4735,7 @@ class SellikoClient {
         message: error.message,
         stack: error.stack
       })
-      
+
       return {
         success: false,
         error: error.message || 'Network error occurred',
@@ -4690,7 +4807,7 @@ class SellikoClient {
       })
 
       const result = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] Get bids result:', {
         success: result.success,
         bidCount: result.bids ? result.bids.length : 0,
@@ -4740,7 +4857,7 @@ class SellikoClient {
         stack: error.stack,
         listingId: listingId
       })
-      
+
       return {
         success: false,
         error: error.message || 'Network error occurred',
@@ -4803,7 +4920,7 @@ class SellikoClient {
       }
 
       const configData = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] Raw config data received:', {
         isArray: Array.isArray(configData),
         length: configData ? configData.length : 0,
@@ -4859,7 +4976,7 @@ class SellikoClient {
         message: error.message,
         stack: error.stack
       })
-      
+
       return {
         success: false,
         error: error.message || 'Network error occurred',
@@ -4872,114 +4989,114 @@ class SellikoClient {
 
   // Get notifications using Supabase REST API to query notifications table directly
   async listenToNotifications() {
-      console.log('🔔 [SELLIKO-CLIENT] listenToNotifications called');
-      
-      try {
-          // Get current user to ensure authenticated
-          const user = await this.getCurrentUser();
-          if (!user) {
-              console.error('❌ [SELLIKO-CLIENT] User not authenticated for notifications');
-              return {
-                  success: false,
-                  error: 'Authentication required',
-                  notifications: []
-              };
-          }
+    console.log('🔔 [SELLIKO-CLIENT] listenToNotifications called');
 
-          console.log('👤 [SELLIKO-CLIENT] Current user validation:', {
-              userId: user.id,
-              userRole: user.user_role
-          });
-
-          // Get access token for authentication
-          const token = localStorage.getItem('selliko_access_token');
-          if (!token) {
-              console.error('❌ [SELLIKO-CLIENT] No access token found for notifications');
-              return {
-                  success: false,
-                  error: 'Authentication required',
-                  notifications: []
-              };
-          }
-
-          console.log('📤 [SELLIKO-CLIENT] Fetching notifications from Supabase table');
-
-          // Use Supabase REST API to query notifications table directly
-          const url = `${this.apiBase}rest/v1/notifications?user_id=eq.${user.id}&select=*&order=created_at.desc&limit=50`;
-
-          const response = await fetch(url, {
-              method: 'GET',
-              headers: {
-                  'Authorization': `Bearer ${token}`,
-                  'Content-Type': 'application/json',
-                  'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'default-key',
-                  'Prefer': 'return=representation'
-              }
-          });
-
-          console.log('🌐 [SELLIKO-CLIENT] Notifications response:', {
-              status: response.status,
-              statusText: response.statusText,
-              ok: response.ok,
-              headers: Object.fromEntries(response.headers.entries())
-          });
-
-          if (!response.ok) {
-              const errorText = await response.text();
-              console.error('❌ [SELLIKO-CLIENT] Notifications table query error:', errorText);
-              return {
-                  success: false,
-                  error: `Failed to fetch notifications: ${response.status} ${response.statusText}`,
-                  notifications: []
-              };
-          }
-
-          const notifications = await response.json();
-          
-          console.log('📥 [SELLIKO-CLIENT] Notifications result:', {
-              success: true,
-              notificationCount: notifications ? notifications.length : 0,
-              isArray: Array.isArray(notifications)
-          });
-
-          // Log notification details if available
-          if (Array.isArray(notifications) && notifications.length > 0) {
-              console.log(`✅ [SELLIKO-CLIENT] Found ${notifications.length} notifications`);
-              notifications.slice(0, 3).forEach((notification, index) => {
-                  console.log(`🔔 [SELLIKO-CLIENT] Notification ${index + 1}:`, {
-                      id: notification.id,
-                      title: notification.title,
-                      message: notification.message,
-                      type: notification.type,
-                      created_at: notification.created_at,
-                      read: notification.read,
-                      user_id: notification.user_id
-                  });
-              });
-          } else {
-              console.log('ℹ️ [SELLIKO-CLIENT] No notifications found for current user');
-          }
-
-          return {
-              success: true,
-              notifications: Array.isArray(notifications) ? notifications : [],
-              error: null
-          };
-          
-      } catch (error) {
-          console.error('💥 [SELLIKO-CLIENT] listenToNotifications error:', error);
-          console.error('📋 [SELLIKO-CLIENT] Error details:', {
-              name: error.name,
-              message: error.message,
-              stack: error.stack
-          });
-          
-          return {
-              success: false,
-              error: error.message || 'Network error occurred',
-              notifications: []
-          };
+    try {
+      // Get current user to ensure authenticated
+      const user = await this.getCurrentUser();
+      if (!user) {
+        console.error('❌ [SELLIKO-CLIENT] User not authenticated for notifications');
+        return {
+          success: false,
+          error: 'Authentication required',
+          notifications: []
+        };
       }
+
+      console.log('👤 [SELLIKO-CLIENT] Current user validation:', {
+        userId: user.id,
+        userRole: user.user_role
+      });
+
+      // Get access token for authentication
+      const token = localStorage.getItem('selliko_access_token');
+      if (!token) {
+        console.error('❌ [SELLIKO-CLIENT] No access token found for notifications');
+        return {
+          success: false,
+          error: 'Authentication required',
+          notifications: []
+        };
+      }
+
+      console.log('📤 [SELLIKO-CLIENT] Fetching notifications from Supabase table');
+
+      // Use Supabase REST API to query notifications table directly
+      const url = `${this.apiBase}rest/v1/notifications?user_id=eq.${user.id}&select=*&order=created_at.desc&limit=50`;
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'default-key',
+          'Prefer': 'return=representation'
+        }
+      });
+
+      console.log('🌐 [SELLIKO-CLIENT] Notifications response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ [SELLIKO-CLIENT] Notifications table query error:', errorText);
+        return {
+          success: false,
+          error: `Failed to fetch notifications: ${response.status} ${response.statusText}`,
+          notifications: []
+        };
+      }
+
+      const notifications = await response.json();
+
+      console.log('📥 [SELLIKO-CLIENT] Notifications result:', {
+        success: true,
+        notificationCount: notifications ? notifications.length : 0,
+        isArray: Array.isArray(notifications)
+      });
+
+      // Log notification details if available
+      if (Array.isArray(notifications) && notifications.length > 0) {
+        console.log(`✅ [SELLIKO-CLIENT] Found ${notifications.length} notifications`);
+        notifications.slice(0, 3).forEach((notification, index) => {
+          console.log(`🔔 [SELLIKO-CLIENT] Notification ${index + 1}:`, {
+            id: notification.id,
+            title: notification.title,
+            message: notification.message,
+            type: notification.type,
+            created_at: notification.created_at,
+            read: notification.read,
+            user_id: notification.user_id
+          });
+        });
+      } else {
+        console.log('ℹ️ [SELLIKO-CLIENT] No notifications found for current user');
+      }
+
+      return {
+        success: true,
+        notifications: Array.isArray(notifications) ? notifications : [],
+        error: null
+      };
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] listenToNotifications error:', error);
+      console.error('📋 [SELLIKO-CLIENT] Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+
+      return {
+        success: false,
+        error: error.message || 'Network error occurred',
+        notifications: []
+      };
+    }
   }
 
   // 12. getEvents - fetch events for a user and/or listing
@@ -5016,7 +5133,7 @@ class SellikoClient {
       }
 
       const url = `${this.apiBase}functions/v1/get-events?${queryParams.toString()}`;
-      
+
       console.log('📤 [SELLIKO-CLIENT] Making get-events request:', {
         url: url,
         method: 'GET',
@@ -5039,7 +5156,7 @@ class SellikoClient {
       })
 
       const data = await response.json()
-      
+
       console.log('📥 [SELLIKO-CLIENT] Get-events data received:', {
         success: data.success,
         eventsCount: data.events ? data.events.length : 0,
@@ -5055,11 +5172,136 @@ class SellikoClient {
         message: error.message,
         stack: error.stack
       })
-      
+
       return {
         success: false,
         error: error.message || 'Network error occurred',
         events: []
+      }
+    }
+  }
+
+  // updateVendorProfile - accepts { vendorId, updateData }
+  async updateVendorProfile(vendorId, updateData) {
+    console.log('🔄 [SELLIKO-CLIENT] updateVendorProfile called with:', {
+      vendorId: vendorId,
+      hasUpdateData: !!updateData,
+      updateFields: updateData ? Object.keys(updateData) : []
+    })
+
+    try {
+      // Validate inputs
+      if (!vendorId) {
+        throw new Error('Vendor ID is required')
+      }
+
+      if (!updateData || typeof updateData !== 'object' || Object.keys(updateData).length === 0) {
+        throw new Error('Update data is required and must contain at least one field')
+      }
+
+      // Get access token
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        throw new Error('No access token found')
+      }
+
+      // Prepare request body
+      const requestBody = {
+        vendor_id: vendorId,
+        ...updateData
+      }
+
+      console.log('📤 [SELLIKO-CLIENT] Submitting update vendor profile request:', {
+        url: `${this.apiBase}functions/v1/update-vendor-profile`,
+        method: 'PUT',
+        hasToken: !!token
+      })
+
+      // Make API request
+      const response = await fetch(`${this.apiBase}functions/v1/update-vendor-profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(requestBody)
+      })
+
+      console.log('🌐 [SELLIKO-CLIENT] Update vendor profile response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      })
+
+      const result = await response.json()
+
+      console.log('📥 [SELLIKO-CLIENT] Update vendor profile result:', {
+        success: result.success,
+        message: result.message,
+        error: result.error
+      })
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update vendor profile')
+      }
+
+      return result
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] updateVendorProfile error:', error)
+      return {
+        success: false,
+        error: error.message || 'Network error occurred'
+      }
+    }
+  }
+
+  // setManagerPassword - accepts { email, password }
+  async setManagerPassword(email, password) {
+    console.log('🔐 [SELLIKO-CLIENT] setManagerPassword called for:', email)
+
+    try {
+      // Validate inputs
+      if (!email || !password) {
+        throw new Error('Email and password are required')
+      }
+
+      // Get access token (must be authenticated and likely admin/manager)
+      const token = localStorage.getItem('selliko_access_token')
+      if (!token) {
+        throw new Error('No access token found')
+      }
+
+      const requestBody = {
+        email,
+        password
+      }
+
+      console.log('📤 [SELLIKO-CLIENT] Submitting set password request:', {
+        url: `${this.apiBase}functions/v1/set-manager-password`,
+        method: 'POST'
+      })
+
+      const response = await fetch(`${this.apiBase}functions/v1/set-manager-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(requestBody)
+      })
+
+      const result = await response.json()
+
+      console.log('📥 [SELLIKO-CLIENT] Set password result:', result)
+
+      return result
+
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] setManagerPassword error:', error)
+      return {
+        success: false,
+        error: error.message || 'Network error occurred'
       }
     }
   }
