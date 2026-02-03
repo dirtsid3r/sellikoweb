@@ -49,6 +49,8 @@ import {
   Lightbulb,
   Image,
   Truck,
+  Mail,
+  LogIn,
 } from "lucide-react"
 
 export const Icons = {
@@ -102,4 +104,6 @@ export const Icons = {
   lightBulb: Lightbulb,
   image: Image,
   truck: Truck,
+  mail: Mail,
+  logIn: LogIn,
 } 
