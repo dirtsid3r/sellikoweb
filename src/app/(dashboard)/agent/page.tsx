@@ -14,7 +14,8 @@ import {
   MapPinIcon,
   ArrowRightIcon,
   PlayIcon,
-  TruckIcon
+  TruckIcon,
+  FunnelIcon
 } from '@heroicons/react/24/outline'
 import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid'
 import { useAuth } from '@/lib/auth'
@@ -26,6 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Icons } from '@/components/ui/icons'
 import DeliveryModal from '@/components/shared/DeliveryModal'
 import Header from '@/components/layout/header'
+import VerificationDetailsModal from '@/components/shared/VerificationDetailsModal'
 
 // Types for agent dashboard data
 interface AgentDashboardData {
@@ -155,39 +157,71 @@ export default function AgentDashboard() {
   const [isLoadingDashboard, setIsLoadingDashboard] = useState(false)
   const [dashboardError, setDashboardError] = useState<string | null>(null)
   const [selectedTimeframe, setSelectedTimeframe] = useState('today')
+  const [activeSortBox, setActiveSortBox] = useState<'all' | 'verifications' | 'pending' | 'pickups' | 'deliveries'>('all')
+
+  const [selectedVerification, setSelectedVerification] = useState<any>(null)
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false)
+  const [selectedDeviceName, setSelectedDeviceName] = useState('')
+  const [selectedDeviceModel, setSelectedDeviceModel] = useState('')
+  const [isFetchingVerification, setIsFetchingVerification] = useState(false)
+
+  const handleViewVerification = async (listingId: number, deviceName: string, deviceModel: string) => {
+    setIsFetchingVerification(true)
+    try {
+      console.log('🔍 Fetching listing details for verification:', listingId)
+      const response = await sellikoClient.getListingById(listingId.toString()) as any
+      if (response.success && response.listing) {
+        if (response.listing.verification) {
+          setSelectedVerification(response.listing.verification)
+          setSelectedDeviceName(deviceName)
+          setSelectedDeviceModel(deviceModel)
+          setIsVerificationModalOpen(true)
+        } else {
+          toast.error('No verification report found for this task')
+        }
+      } else {
+        toast.error(response.error || 'Failed to fetch task details')
+      }
+    } catch (error) {
+      console.error('Error fetching verification details:', error)
+      toast.error('Failed to load verification details')
+    } finally {
+      setIsFetchingVerification(false)
+    }
+  }
 
   // Fetch agent dashboard data
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      console.log('📊 [AGENT-DASH] Fetching dashboard data...')
-      setIsLoadingDashboard(true)
-      setDashboardError(null)
+  const fetchDashboardData = async () => {
+    console.log('📊 [AGENT-DASH] Fetching dashboard data...')
+    setIsLoadingDashboard(true)
+    setDashboardError(null)
+    
+    try {
+      const response = await sellikoClient.getDashboard('agent') as any
       
-      try {
-        const response = await sellikoClient.getDashboard('agent') as any
-        
-        console.log('📥 [AGENT-DASH] Dashboard response:', {
-          success: response.success,
-          hasData: !!response.data,
-          error: response.error
-        })
-        
-        if (response.success && response.data) {
-          setDashboardData(response.data)
-          console.log('✅ [AGENT-DASH] Dashboard data loaded successfully')
-        } else {
-          setDashboardError(response.error || 'Failed to fetch dashboard data')
-          console.error('❌ [AGENT-DASH] Failed to fetch dashboard data:', response.error)
-        }
-      } catch (error: any) {
-        console.error('💥 [AGENT-DASH] Error fetching dashboard data:', error)
-        setDashboardError(error.message || 'Network error occurred')
-      } finally {
-        setIsLoadingDashboard(false)
+      console.log('📥 [AGENT-DASH] Dashboard response:', {
+        success: response.success,
+        hasData: !!response.data,
+        error: response.error
+      })
+      
+      if (response.success && response.data) {
+        setDashboardData(response.data)
+        console.log('✅ [AGENT-DASH] Dashboard data loaded successfully')
+      } else {
+        setDashboardError(response.error || 'Failed to fetch dashboard data')
+        console.error('❌ [AGENT-DASH] Failed to fetch dashboard data:', response.error)
       }
+    } catch (error: any) {
+      console.error('💥 [AGENT-DASH] Error fetching dashboard data:', error)
+      setDashboardError(error.message || 'Network error occurred')
+    } finally {
+      setIsLoadingDashboard(false)
     }
+  }
 
-    // Only fetch dashboard data after auth check is complete and user is authenticated
+  // Fetch agent dashboard data on mount/auth success
+  useEffect(() => {
     if (!isAuthChecking && user) {
       fetchDashboardData()
     }
@@ -205,6 +239,8 @@ export default function AgentDashboard() {
         setTasks(response.tasks || [])
         setLastRefresh(new Date().toLocaleTimeString())
         toast.success(`${response.tasks?.length || 0} tasks loaded`)
+        // Refresh dashboard data as well
+        fetchDashboardData()
       } else {
         console.error('❌ [AGENT-DASHBOARD] Failed to fetch tasks:', response.error)
         toast.error(response.error || 'Failed to load tasks')
@@ -229,6 +265,8 @@ export default function AgentDashboard() {
       if (response.success) {
         console.log('✅ [AGENT-DASHBOARD] Pending deliveries fetched successfully:', response.pickups?.length)
         setPendingDeliveries(response.pickups || [])
+        // Refresh dashboard data as well
+        fetchDashboardData()
       } else {
         console.error('❌ [AGENT-DASHBOARD] Failed to fetch pending deliveries:', response.error)
         setPendingDeliveries([])
@@ -341,6 +379,54 @@ export default function AgentDashboard() {
   }
 
   const formattedTasks = formatApiTasksForComponent(tasks)
+
+  // Sort tasks based on selected card
+  const getSortedTasks = () => {
+    const sorted = [...formattedTasks]
+    if (activeSortBox === 'verifications') {
+      // Sort 'verification' status to top, followed by 'agent_assigned'
+      return sorted.sort((a, b) => {
+        if (a.status === 'verification' && b.status !== 'verification') return -1;
+        if (a.status !== 'verification' && b.status === 'verification') return 1;
+        if (a.status === 'agent_assigned' && b.status === 'ready_for_pickup') return -1;
+        if (a.status === 'ready_for_pickup' && b.status === 'agent_assigned') return 1;
+        return 0;
+      });
+    }
+    if (activeSortBox === 'pending') {
+      // Sort 'agent_assigned' status to top, and sort by priority (high -> medium -> low)
+      return sorted.sort((a, b) => {
+        if (a.status === 'agent_assigned' && b.status !== 'agent_assigned') return -1;
+        if (a.status !== 'agent_assigned' && b.status === 'agent_assigned') return 1;
+        
+        // Priority sort
+        const priorityWeight = { high: 3, medium: 2, low: 1 };
+        const weightA = priorityWeight[a.priority as keyof typeof priorityWeight] || 0;
+        const weightB = priorityWeight[b.priority as keyof typeof priorityWeight] || 0;
+        return weightB - weightA;
+      });
+    }
+    if (activeSortBox === 'pickups') {
+      // Sort 'ready_for_pickup' status to top
+      return sorted.sort((a, b) => {
+        if (a.status === 'ready_for_pickup' && b.status !== 'ready_for_pickup') return -1;
+        if (a.status !== 'ready_for_pickup' && b.status === 'ready_for_pickup') return 1;
+        return 0;
+      });
+    }
+    if (activeSortBox === 'deliveries') {
+      // Sort by status ready_for_pickup first (closest to delivery) and then by priority
+      return sorted.sort((a, b) => {
+        if (a.status === 'ready_for_pickup' && b.status !== 'ready_for_pickup') return -1;
+        if (a.status !== 'ready_for_pickup' && b.status === 'ready_for_pickup') return 1;
+        const priorityWeight = { high: 3, medium: 2, low: 1 };
+        const weightA = priorityWeight[a.priority as keyof typeof priorityWeight] || 0;
+        const weightB = priorityWeight[b.priority as keyof typeof priorityWeight] || 0;
+        return weightB - weightA;
+      });
+    }
+    return sorted; // Default sort
+  }
   const performanceData = getPerformanceData()
   const completionRate = getCompletionRate()
 
@@ -350,15 +436,15 @@ export default function AgentDashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Agent Dashboard</h1>
               <p className="text-gray-600 mt-1">Manage device verifications and complete pickup tasks</p>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center">
               <Link
                 href="/agent/verification"
-                className="btn-primary px-6 py-3 rounded-xl inline-flex items-center"
+                className="btn-primary w-full sm:w-auto px-6 py-3 rounded-xl inline-flex items-center justify-center"
               >
                 <PlayIcon className="w-5 h-5 mr-2" />
                 Start Verification
@@ -403,53 +489,81 @@ export default function AgentDashboard() {
           </Card>
         ) : dashboardData ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="card-mobile bg-white/80 backdrop-blur-sm p-6">
+            <div 
+              onClick={() => setActiveSortBox(activeSortBox === 'verifications' ? 'all' : 'verifications')}
+              className={`card-mobile cursor-pointer p-6 transition-all duration-200 hover:shadow-md hover:scale-[1.02] border-2 ${
+                activeSortBox === 'verifications' 
+                  ? 'bg-purple-50/50 border-purple-500 shadow-md ring-2 ring-purple-500/20' 
+                  : 'bg-white/80 border-transparent hover:border-purple-200'
+              }`}
+            >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Verifications</p>
+                  <p className="text-sm font-medium text-gray-600 font-semibold">Total Verifications</p>
                   <p className="text-3xl font-bold text-purple-600">{dashboardData.verifications.toLocaleString()}</p>
-                  <p className="text-sm text-gray-500">Career total</p>
+                  <p className="text-xs text-gray-500 mt-1">Click to sort: active first</p>
                 </div>
-                <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0">
                   <CheckCircleIcon className="w-6 h-6 text-purple-600" />
                 </div>
               </div>
             </div>
 
-            <div className="card-mobile bg-white/80 backdrop-blur-sm p-6">
+            <div 
+              onClick={() => setActiveSortBox(activeSortBox === 'pending' ? 'all' : 'pending')}
+              className={`card-mobile cursor-pointer p-6 transition-all duration-200 hover:shadow-md hover:scale-[1.02] border-2 ${
+                activeSortBox === 'pending' 
+                  ? 'bg-blue-50/50 border-blue-500 shadow-md ring-2 ring-blue-500/20' 
+                  : 'bg-white/80 border-transparent hover:border-blue-200'
+              }`}
+            >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Pending Tasks</p>
-                  <p className="text-3xl font-bold text-blue-600">{dashboardData.pending}</p>
-                  <p className="text-sm text-gray-500">Assigned to you</p>
+                  <p className="text-sm font-medium text-gray-600 font-semibold">Pending Tasks</p>
+                  <p className="text-3xl font-bold text-blue-600">{tasks.length}</p>
+                  <p className="text-xs text-gray-500 mt-1">Click to sort: assigned first</p>
                 </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
                   <DevicePhoneMobileIcon className="w-6 h-6 text-blue-600" />
                 </div>
               </div>
             </div>
 
-            <div className="card-mobile bg-white/80 backdrop-blur-sm p-6">
+            <div 
+              onClick={() => setActiveSortBox(activeSortBox === 'pickups' ? 'all' : 'pickups')}
+              className={`card-mobile cursor-pointer p-6 transition-all duration-200 hover:shadow-md hover:scale-[1.02] border-2 ${
+                activeSortBox === 'pickups' 
+                  ? 'bg-green-50/50 border-green-500 shadow-md ring-2 ring-green-500/20' 
+                  : 'bg-white/80 border-transparent hover:border-green-200'
+              }`}
+            >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Today's Pickups</p>
+                  <p className="text-sm font-medium text-gray-600 font-semibold">Today's Pickups</p>
                   <p className="text-3xl font-bold text-green-600">{dashboardData.pickupsToday}</p>
-                  <p className="text-sm text-gray-500">Calendar day</p>
+                  <p className="text-xs text-gray-500 mt-1">Click to sort: pickups first</p>
                 </div>
-                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
                   <TruckIcon className="w-6 h-6 text-green-600" />
                 </div>
               </div>
             </div>
 
-            <div className="card-mobile bg-white/80 backdrop-blur-sm p-6">
+            <div 
+              onClick={() => setActiveSortBox(activeSortBox === 'deliveries' ? 'all' : 'deliveries')}
+              className={`card-mobile cursor-pointer p-6 transition-all duration-200 hover:shadow-md hover:scale-[1.02] border-2 ${
+                activeSortBox === 'deliveries' 
+                  ? 'bg-orange-50/50 border-orange-500 shadow-md ring-2 ring-orange-500/20' 
+                  : 'bg-white/80 border-transparent hover:border-orange-200'
+              }`}
+            >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Today's Deliveries</p>
+                  <p className="text-sm font-medium text-gray-600 font-semibold">Today's Deliveries</p>
                   <p className="text-3xl font-bold text-orange-600">{dashboardData.deliveriesToday}</p>
-                  <p className="text-sm text-gray-500">Completed</p>
+                  <p className="text-xs text-gray-500 mt-1">Click to sort: priority first</p>
                 </div>
-                <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
+                <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center flex-shrink-0">
                   <CheckCircleIcon className="w-6 h-6 text-orange-600" />
                 </div>
               </div>
@@ -461,9 +575,9 @@ export default function AgentDashboard() {
         {dashboardData && (
           <Card className="mb-8">
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <CardTitle>Performance Analytics</CardTitle>
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Button
                     size="sm"
                     variant={selectedTimeframe === 'today' ? 'default' : 'outline'}
@@ -557,6 +671,29 @@ export default function AgentDashboard() {
                 </p>
               )}
 
+              {activeSortBox !== 'all' && (
+                <div className="mb-4 flex items-center justify-between bg-purple-50/20 border border-purple-200/60 px-4 py-2.5 rounded-xl text-sm text-gray-700 animate-in fade-in duration-200">
+                  <span className="flex items-center gap-1.5 font-medium text-gray-800">
+                    <FunnelIcon className="w-4 h-4 text-purple-600" />
+                    Sorted by:{' '}
+                    <span className="text-purple-700 font-semibold">
+                      {activeSortBox === 'verifications' && 'Active Verifications first'}
+                      {activeSortBox === 'pending' && 'Assigned Tasks & Priority'}
+                      {activeSortBox === 'pickups' && 'Pickups first'}
+                      {activeSortBox === 'deliveries' && 'Priority first'}
+                    </span>
+                  </span>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setActiveSortBox('all')}
+                    className="h-7 px-2.5 text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-lg font-semibold"
+                  >
+                    Clear Sort
+                  </Button>
+                </div>
+              )}
+
               {isLoadingTasks ? (
                 <div className="flex items-center justify-center py-8">
                   <Icons.spinner className="h-6 w-6 animate-spin text-purple-600" />
@@ -578,10 +715,10 @@ export default function AgentDashboard() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {formattedTasks.map((task: any) => (
+                  {getSortedTasks().map((task: any) => (
                     <div key={task.id} className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all cursor-pointer">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start space-x-4">
+                      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                           <img 
                             src={task.images[0]} 
                             alt={task.device}
@@ -591,8 +728,8 @@ export default function AgentDashboard() {
                               target.src = '/api/placeholder/100/100'
                             }}
                           />
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-3 mb-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 mb-1">
                               <h3 className="font-semibold text-gray-900">{task.device}</h3>
                               <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getPriorityColor(task.priority)}`}>
                                 {task.priority.toUpperCase()}
@@ -608,7 +745,7 @@ export default function AgentDashboard() {
                             </p>
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className="flex flex-col md:items-end text-left md:text-right">
                           <div className={`text-sm font-medium ${getStatusColor(task.status)}`}>
                             {getStatusText(task.status)}
                           </div>
@@ -629,28 +766,48 @@ export default function AgentDashboard() {
                           )}
                         </div>
                       </div>
-                      
                       <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-100">
-                        <div className="text-sm text-gray-600">
-                          Task ID: {task.id}
+                          <div className="text-sm text-gray-600">
+                            Task ID: {task.id}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {['ready_for_pickup', 'completed'].includes(task.status) && (
+                              <Button
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  handleViewVerification(task.listingId, task.device, task.timeLeft)
+                                }}
+                                disabled={isFetchingVerification}
+                                className="bg-purple-650 hover:bg-purple-700 text-white text-xs font-semibold h-9 rounded-lg"
+                                size="sm"
+                              >
+                                {isFetchingVerification ? (
+                                  <Icons.spinner className="w-3 h-3 animate-spin mr-1" />
+                                ) : (
+                                  <Icons.fileText className="w-3 h-3 mr-1" />
+                                )}
+                                Report
+                              </Button>
+                            )}
+                            {task.status === 'ready_for_pickup' ? (
+                              <Link
+                                href={`/agent/verification?taskId=${task.listingId}`}
+                                className="inline-flex items-center px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-lg hover:bg-orange-700 transition-colors"
+                              >
+                                <TruckIcon className="w-4 h-4 mr-2" />
+                                Pickup
+                              </Link>
+                            ) : task.status !== 'completed' ? (
+                              <Link
+                                href={`/agent/verification?taskId=${task.listingId}`}
+                                className="inline-flex items-center px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
+                              >
+                                {task.status === 'verification' ? 'Continue' : 'Start'} Verification
+                                <ArrowRightIcon className="w-4 h-4 ml-2" />
+                              </Link>
+                            ) : null}
                         </div>
-                        {task.status === 'ready_for_pickup' ? (
-                          <Link
-                            href={`/agent/verification?taskId=${task.listingId}`}
-                            className="inline-flex items-center px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-lg hover:bg-orange-700 transition-colors"
-                          >
-                            <TruckIcon className="w-4 h-4 mr-2" />
-                            Pickup
-                          </Link>
-                        ) : (
-                          <Link
-                            href={`/agent/verification?taskId=${task.listingId}`}
-                            className="inline-flex items-center px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
-                          >
-                            {task.status === 'verification' ? 'Continue' : 'Start'} Verification
-                            <ArrowRightIcon className="w-4 h-4 ml-2" />
-                          </Link>
-                        )}
                       </div>
                     </div>
                   ))}
@@ -779,6 +936,13 @@ export default function AgentDashboard() {
         delivery={selectedDelivery}
         onConfirmDelivery={handleConfirmDelivery}
       />
+      <VerificationDetailsModal
+        isOpen={isVerificationModalOpen}
+        onClose={() => setIsVerificationModalOpen(false)}
+        verification={selectedVerification}
+        deviceTitle={selectedDeviceName}
+        deviceModel={selectedDeviceModel}
+      />
     </div>
   )
-} 
+}

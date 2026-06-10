@@ -168,21 +168,21 @@ export default function VendorDashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-4 mb-8">
-            <TabsTrigger value="dashboard" className="flex items-center gap-2">
-              <Icons.home className="w-4 h-4" />
-              Dashboard
+            <TabsTrigger value="dashboard" className="flex items-center justify-center gap-2">
+              <Icons.home className="w-4 h-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Dashboard</span>
             </TabsTrigger>
-            <TabsTrigger value="marketplace" className="flex items-center gap-2">
-              <Icons.smartphone className="w-4 h-4" />
-              Marketplace
+            <TabsTrigger value="marketplace" className="flex items-center justify-center gap-2">
+              <Icons.smartphone className="w-4 h-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Marketplace</span>
             </TabsTrigger>
-            <TabsTrigger value="my-bids" className="flex items-center gap-2">
-              <Icons.list className="w-4 h-4" />
-              My Bids
+            <TabsTrigger value="my-bids" className="flex items-center justify-center gap-2">
+              <Icons.list className="w-4 h-4 flex-shrink-0" />
+              <span className="hidden sm:inline">My Bids</span>
             </TabsTrigger>
-            <TabsTrigger value="notifications" className="flex items-center gap-2">
-              <Icons.bell className="w-4 h-4" />
-              Notifications
+            <TabsTrigger value="notifications" className="flex items-center justify-center gap-2">
+              <Icons.bell className="w-4 h-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Notifications</span>
             </TabsTrigger>
           </TabsList>
 

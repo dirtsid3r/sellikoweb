@@ -1,19 +1,26 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/lib/auth'
+import sellikoClient from '@/selliko-client'
+import { getNotificationRedirectUrl } from '@/lib/getNotificationRedirectUrl'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Icons } from '@/components/ui/icons'
 
 interface Notification {
-  id: string
-  type: 'new_listing' | 'bid_placed' | 'bid_outbid' | 'bid_won' | 'order_update' | 'delivery_ready'
+  id: string | number
+  type: string
   title: string
   message: string
+  created_at?: string
   timestamp: string
   isRead: boolean
   isImportant: boolean
+  metadata?: any
+  cta_link?: string
   data?: {
     listingId?: string
     orderId?: string
@@ -23,79 +30,57 @@ interface Notification {
 }
 
 export function NotificationsTab() {
+  const { user } = useAuth()
+  const router = useRouter()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'unread' | 'important'>('all')
 
-  // Mock data for notifications
-  const mockNotifications: Notification[] = [
-    {
-      id: 'notif-1',
-      type: 'new_listing',
-      title: 'New Device Available',
-      message: 'iPhone 14 Pro Max 256GB listed for ₹55,000 in Kochi',
-      timestamp: '2 mins ago',
-      isRead: false,
-      isImportant: true,
-      data: { listingId: 'listing-1', deviceName: 'iPhone 14 Pro Max', amount: 55000 }
-    },
-    {
-      id: 'notif-2',
-      type: 'bid_outbid',
-      title: 'You\'ve been outbid',
-      message: 'Someone bid ₹53,000 on Samsung Galaxy S21. Your bid: ₹52,000',
-      timestamp: '1 hour ago',
-      isRead: false,
-      isImportant: true,
-      data: { listingId: 'listing-2', deviceName: 'Samsung Galaxy S21', amount: 53000 }
-    },
-    {
-      id: 'notif-3',
-      type: 'bid_won',
-      title: 'Congratulations! You won',
-      message: 'Your bid of ₹45,000 won the iPhone 13 auction',
-      timestamp: '3 hours ago',
-      isRead: true,
-      isImportant: true,
-      data: { orderId: 'order-1', deviceName: 'iPhone 13', amount: 45000 }
-    },
-    {
-      id: 'notif-4',
-      type: 'order_update',
-      title: 'Order Update',
-      message: 'Your iPhone 13 is being verified by our agent',
-      timestamp: '4 hours ago',
-      isRead: true,
-      isImportant: false,
-      data: { orderId: 'order-1', deviceName: 'iPhone 13' }
-    },
-    {
-      id: 'notif-5',
-      type: 'delivery_ready',
-      title: 'Device Ready for Pickup',
-      message: 'OnePlus 9 verified and ready for delivery to your store',
-      timestamp: 'Yesterday, 4:30 PM',
-      isRead: true,
-      isImportant: false,
-      data: { orderId: 'order-2', deviceName: 'OnePlus 9' }
-    },
-    {
-      id: 'notif-6',
-      type: 'bid_placed',
-      title: 'Bid Placed Successfully',
-      message: 'Your bid of ₹28,000 placed on OnePlus 11',
-      timestamp: 'Yesterday, 2:15 PM',
-      isRead: true,
-      isImportant: false,
-      data: { listingId: 'listing-3', deviceName: 'OnePlus 11', amount: 28000 }
+  const formatTimeAgo = (dateString?: string) => {
+    if (!dateString) return ''
+    const now = new Date()
+    const date = new Date(dateString)
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+    
+    if (diffInSeconds < 60) return 'Just now'
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`
+    
+    return date.toLocaleDateString()
+  }
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await sellikoClient.listenToNotifications()
+      if (response.success && response.notifications) {
+        const mapped = response.notifications.map((n: any) => {
+          const isImportant = n.event_type?.includes('won') || n.event_type?.includes('outbid') || n.event_type?.includes('assign');
+          return {
+            id: n.id,
+            type: n.event_type || 'info',
+            event_type: n.event_type,
+            title: n.title || 'Notification',
+            message: n.message || '',
+            created_at: n.created_at,
+            timestamp: formatTimeAgo(n.created_at),
+            isRead: !!n.read_status,
+            isImportant: isImportant,
+            metadata: n.metadata,
+            cta_link: n.cta_link
+          }
+        })
+        setNotifications(mapped)
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error)
+    } finally {
+      setLoading(false)
     }
-  ]
+  }
 
   useEffect(() => {
-    setTimeout(() => {
-      setNotifications(mockNotifications)
-      setLoading(false)
-    }, 1000)
+    fetchNotifications()
   }, [])
 
   const filteredNotifications = notifications.filter(notification => {
@@ -108,30 +93,28 @@ export function NotificationsTab() {
   const unreadCount = notifications.filter(n => !n.isRead).length
 
   const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case 'new_listing': return '📱'
-      case 'bid_placed': return '🔥'
-      case 'bid_outbid': return '⚠️'
-      case 'bid_won': return '🏆'
-      case 'order_update': return '📦'
-      case 'delivery_ready': return '🚚'
-      default: return '🔔'
-    }
+    const typeLower = type.toLowerCase();
+    if (typeLower.includes('listing')) return '📱'
+    if (typeLower.includes('placed')) return '🔥'
+    if (typeLower.includes('outbid')) return '⚠️'
+    if (typeLower.includes('win') || typeLower.includes('won')) return '🏆'
+    if (typeLower.includes('order')) return '📦'
+    if (typeLower.includes('delivery') || typeLower.includes('pickup')) return '🚚'
+    return '🔔'
   }
 
   const getNotificationColor = (type: string, isImportant: boolean) => {
     if (isImportant) {
-      switch (type) {
-        case 'new_listing': return 'bg-blue-100 border-blue-200'
-        case 'bid_outbid': return 'bg-red-100 border-red-200'
-        case 'bid_won': return 'bg-green-100 border-green-200'
-        default: return 'bg-orange-100 border-orange-200'
-      }
+      const typeLower = type.toLowerCase();
+      if (typeLower.includes('listing')) return 'bg-blue-50 border-blue-200'
+      if (typeLower.includes('outbid')) return 'bg-red-50 border-red-200'
+      if (typeLower.includes('win') || typeLower.includes('won')) return 'bg-green-50 border-green-200'
+      return 'bg-orange-50 border-orange-200'
     }
     return 'bg-gray-50 border-gray-200'
   }
 
-  const handleMarkAsRead = (notificationId: string) => {
+  const handleMarkAsRead = async (notificationId: string | number) => {
     setNotifications(prev =>
       prev.map(notification =>
         notification.id === notificationId
@@ -139,12 +122,24 @@ export function NotificationsTab() {
           : notification
       )
     )
+
+    try {
+      await sellikoClient.markNotificationAsRead(notificationId)
+    } catch (error) {
+      console.error('Error marking notification as read:', error)
+    }
   }
 
-  const handleMarkAllAsRead = () => {
+  const handleMarkAllAsRead = async () => {
     setNotifications(prev =>
       prev.map(notification => ({ ...notification, isRead: true }))
     )
+
+    try {
+      await sellikoClient.markAllNotificationsAsRead()
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error)
+    }
   }
 
   const handleNotificationClick = (notification: Notification) => {
@@ -152,12 +147,9 @@ export function NotificationsTab() {
       handleMarkAsRead(notification.id)
     }
 
-    // Navigate based on notification type
-    if (notification.data?.listingId) {
-      alert(`Opening listing: ${notification.data.deviceName}`)
-    } else if (notification.data?.orderId) {
-      alert(`Opening order tracking: ${notification.data.orderId}`)
-    }
+    const redirectUrl = getNotificationRedirectUrl(notification, user?.role)
+    console.log('🔔 [NAVIGATE] Vendor Notification tab clicked routing to:', redirectUrl)
+    router.push(redirectUrl)
   }
 
   const formatCurrency = (amount: number) => {

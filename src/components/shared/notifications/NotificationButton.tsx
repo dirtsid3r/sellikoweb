@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth';
 import sellikoClient from '@/selliko-client';
 import { Button } from '@/components/ui/button';
 import { Icons } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
+import { getNotificationRedirectUrl } from '@/lib/getNotificationRedirectUrl';
 
 interface NotificationButtonProps {
   hasNewNotifications: boolean;
@@ -19,6 +22,8 @@ interface Notification {
 }
 
 const NotificationButton: React.FC<NotificationButtonProps> = ({ hasNewNotifications }) => {
+  const { user } = useAuth();
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -125,13 +130,11 @@ const NotificationButton: React.FC<NotificationButtonProps> = ({ hasNewNotificat
       prev.map(notification => ({ ...notification, read: true }))
     );
 
-    // TODO: Make API call to mark all notifications as read
     try {
-      // await sellikoClient.markAllNotificationsAsRead();
-      console.log('Marking all notifications as read');
+      await sellikoClient.markAllNotificationsAsRead();
+      console.log('Marked all notifications as read in DB');
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
-      // Could revert optimistic update on error if needed
     }
   };
 
@@ -141,7 +144,6 @@ const NotificationButton: React.FC<NotificationButtonProps> = ({ hasNewNotificat
     
     // Mark all notifications as read when opening the dropdown
     if (!wasOpen) {
-      // We're opening the dropdown, mark all unread notifications as read
       const hasUnread = notifications.some(n => !n.read);
       if (hasUnread) {
         markAllAsRead();
@@ -173,10 +175,9 @@ const NotificationButton: React.FC<NotificationButtonProps> = ({ hasNewNotificat
       )
     );
 
-    // TODO: Make API call to mark notification as read
     try {
-      // await sellikoClient.markNotificationAsRead(notificationId);
-      console.log('Marking notification as read:', notificationId);
+      await sellikoClient.markNotificationAsRead(notificationId);
+      console.log('Marked notification as read in DB:', notificationId);
     } catch (error) {
       console.error('Error marking notification as read:', error);
       // Revert optimistic update on error
@@ -194,8 +195,14 @@ const NotificationButton: React.FC<NotificationButtonProps> = ({ hasNewNotificat
     if (!notification.read && notification.id) {
       markAsRead(notification.id);
     }
-    // TODO: Add navigation or additional click handling here
-    console.log('Notification clicked:', notification);
+    
+    // Close dropdown
+    setIsOpen(false);
+    
+    // Redirect dynamically based on role and cta/metadata
+    const redirectUrl = getNotificationRedirectUrl(notification, user?.role);
+    console.log('🔔 [NAVIGATE] Routing notification click to:', redirectUrl);
+    router.push(redirectUrl);
   };
 
   const getNotificationTypeIcon = (type?: string) => {
@@ -252,8 +259,8 @@ const NotificationButton: React.FC<NotificationButtonProps> = ({ hasNewNotificat
 
       {isOpen && (
         <div className={cn(
-          "absolute right-0 top-12 z-50",
-          "w-80 md:w-96 max-w-[calc(100vw-2rem)]",
+          "fixed md:absolute right-4 md:right-0 md:left-auto top-16 md:top-12 z-50",
+          "w-auto md:w-96",
           "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700",
           "rounded-xl shadow-lg transition-all duration-200"
         )}>
@@ -351,8 +358,17 @@ const NotificationButton: React.FC<NotificationButtonProps> = ({ hasNewNotificat
                 size="sm"
                 className="w-full h-8 text-xs font-medium"
                 onClick={() => {
-                  // TODO: Navigate to notifications page
-                  console.log('Navigate to all notifications');
+                  setIsOpen(false);
+                  const role = (user?.role || '').toLowerCase();
+                  if (role === 'vendor') {
+                    router.push('/vendor');
+                  } else if (role === 'admin') {
+                    router.push('/admin');
+                  } else if (role === 'agent') {
+                    router.push('/agent');
+                  } else {
+                    router.push('/client');
+                  }
                 }}
               >
                 View all notifications

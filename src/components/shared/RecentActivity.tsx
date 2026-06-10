@@ -139,7 +139,10 @@ export function RecentActivity({ user_id, listing_id, limit = 25 }: RecentActivi
         
         if (response.success && response.events && response.events.length > 0) {
           console.log('✅ [ACTIVITY] Fetched events:', response.events)
-          const transformed = response.events.map(transformEventToActivity).filter((a: Activity | null): a is Activity => a !== null);
+          const sorted = [...response.events].sort((a: any, b: any) => {
+            return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+          })
+          const transformed = sorted.map(transformEventToActivity).filter((a: Activity | null): a is Activity => a !== null);
           setActivity(transformed)
         } else {
           console.log('⚠️ [ACTIVITY] No activity data returned, using dummy data.')

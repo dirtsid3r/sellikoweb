@@ -5077,9 +5077,17 @@ class SellikoClient {
         console.log('ℹ️ [SELLIKO-CLIENT] No notifications found for current user');
       }
 
+      const mappedNotifications = Array.isArray(notifications)
+        ? notifications.map(n => ({
+            ...n,
+            read: n.read_status,
+            isRead: n.read_status
+          }))
+        : [];
+
       return {
         success: true,
-        notifications: Array.isArray(notifications) ? notifications : [],
+        notifications: mappedNotifications,
         error: null
       };
 
@@ -5096,6 +5104,81 @@ class SellikoClient {
         error: error.message || 'Network error occurred',
         notifications: []
       };
+    }
+  }
+
+  // Mark a single notification as read in the database
+  async markNotificationAsRead(notificationId) {
+    console.log('🔔 [SELLIKO-CLIENT] markNotificationAsRead called with ID:', notificationId);
+
+    try {
+      const token = localStorage.getItem('selliko_access_token');
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+
+      const response = await fetch(`${this.apiBase}rest/v1/rpc/mark_notification_as_read`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'default-key',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify({ p_notification_id: notificationId })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ [SELLIKO-CLIENT] markNotificationAsRead error:', errorText);
+        return { success: false, error: errorText };
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      const result = contentType.includes('application/json') ? await response.json() : await response.text();
+      
+      console.log('📥 [SELLIKO-CLIENT] markNotificationAsRead result:', result);
+      return { success: true, result };
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] markNotificationAsRead error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Mark all notifications for the current user as read in the database
+  async markAllNotificationsAsRead() {
+    console.log('🔔 [SELLIKO-CLIENT] markAllNotificationsAsRead called');
+
+    try {
+      const token = localStorage.getItem('selliko_access_token');
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+
+      const response = await fetch(`${this.apiBase}rest/v1/rpc/mark_all_notifications_as_read`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'default-key',
+          'Prefer': 'return=representation'
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ [SELLIKO-CLIENT] markAllNotificationsAsRead error:', errorText);
+        return { success: false, error: errorText };
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      const result = contentType.includes('application/json') ? await response.json() : await response.text();
+      
+      console.log('📥 [SELLIKO-CLIENT] markAllNotificationsAsRead result:', result);
+      return { success: true, result };
+    } catch (error) {
+      console.error('💥 [SELLIKO-CLIENT] markAllNotificationsAsRead error:', error);
+      return { success: false, error: error.message };
     }
   }
 

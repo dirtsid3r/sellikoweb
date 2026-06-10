@@ -465,9 +465,9 @@ export default function AdminDashboard() {
         {dashboardData && (
           <Card className="mb-8">
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <CardTitle>Platform Activity</CardTitle>
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Button
                     size="sm"
                     variant={selectedTimeframe === 'inLastHour' ? 'default' : 'outline'}
@@ -654,16 +654,15 @@ export default function AdminDashboard() {
               <div className="space-y-4">
                 {pendingListings.map((listing) => (
                   <div key={listing.id} className="bg-gray-50 rounded-lg overflow-hidden">
-                    {/* Main listing info */}
-                    <div className="flex items-center justify-between p-4">
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-gray-900">{listing.device}</h4>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-gray-900 truncate">{listing.device}</h4>
                         <p className="text-sm text-gray-600">
                           Seller: {listing.seller} • Submitted: {listing.submittedAt} • Price: ₹{listing.askingPrice.toLocaleString()}
                         </p>
                       </div>
                       
-                      <div className="flex items-center space-x-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <Badge className="bg-yellow-100 text-yellow-800">Pending Review</Badge>
                         
                         {rejectingListingId === listing.id ? (

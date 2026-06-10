@@ -12,6 +12,7 @@ export default function ManagerLoginPage() {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [isLoading, setIsLoading] = useState(false)
+    const [showPassword, setShowPassword] = useState(false)
     const router = useRouter()
 
     const [isMounted, setIsMounted] = useState(false)
@@ -153,14 +154,25 @@ export default function ManagerLoginPage() {
                                         </div>
                                         <input
                                             id="password"
-                                            type="password"
+                                            type={showPassword ? "text" : "password"}
                                             placeholder="••••••••"
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
-                                            className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
+                                            className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
                                             required
                                             autoComplete="current-password"
                                         />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700 transition-colors"
+                                        >
+                                            {showPassword ? (
+                                                <Icons.eyeOff className="w-5 h-5" />
+                                            ) : (
+                                                <Icons.eye className="w-5 h-5" />
+                                            )}
+                                        </button>
                                     </div>
                                 </div>
 

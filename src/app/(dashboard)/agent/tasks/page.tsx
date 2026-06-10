@@ -26,6 +26,7 @@ import { toast } from 'react-hot-toast'
 import { Icons } from '@/components/ui/icons'
 import { Button } from '@/components/ui/button'
 import Header from '@/components/layout/header'
+import VerificationDetailsModal from '@/components/shared/VerificationDetailsModal'
 
 // Type definitions for API response
 interface ApiTask {
@@ -133,6 +134,37 @@ export default function AgentTasks() {
   const [activeFilter, setActiveFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState('priority') // priority, time, value
+
+  const [selectedVerification, setSelectedVerification] = useState<any>(null)
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false)
+  const [selectedDeviceName, setSelectedDeviceName] = useState('')
+  const [selectedDeviceModel, setSelectedDeviceModel] = useState('')
+  const [isFetchingVerification, setIsFetchingVerification] = useState(false)
+
+  const handleViewVerification = async (listingId: number, deviceName: string, deviceModel: string) => {
+    setIsFetchingVerification(true)
+    try {
+      console.log('🔍 Fetching listing details for verification:', listingId)
+      const response = await sellikoClient.getListingById(listingId.toString()) as any
+      if (response.success && response.listing) {
+        if (response.listing.verification) {
+          setSelectedVerification(response.listing.verification)
+          setSelectedDeviceName(deviceName)
+          setSelectedDeviceModel(deviceModel)
+          setIsVerificationModalOpen(true)
+        } else {
+          toast.error('No verification report found for this task')
+        }
+      } else {
+        toast.error(response.error || 'Failed to fetch task details')
+      }
+    } catch (error) {
+      console.error('Error fetching verification details:', error)
+      toast.error('Failed to load verification details')
+    } finally {
+      setIsFetchingVerification(false)
+    }
+  }
 
   // Convert API tasks to component format (same as agent page)
   const formatApiTasksForComponent = (apiTasks: ApiTask[]): Task[] => {
@@ -455,23 +487,44 @@ export default function AgentTasks() {
                   <div className="text-sm text-gray-600">
                     Task ID: {task.id}
                   </div>
-                  {task.status === 'ready_for_pickup' ? (
-                    <Link
-                      href={`/agent/verification?taskId=${task.listingId}`}
-                      className="inline-flex items-center px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-lg hover:bg-orange-700 transition-colors"
-                    >
-                      <TruckIcon className="w-4 h-4 mr-2" />
-                      Pickup
-                    </Link>
-                  ) : (
-                    <Link
-                      href={`/agent/verification?taskId=${task.listingId}`}
-                      className="inline-flex items-center px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
-                    >
-                      {task.status === 'verification' ? 'Continue' : 'Start'} Verification
-                      <ArrowRightIcon className="w-4 h-4 ml-2" />
-                    </Link>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {['ready_for_pickup', 'completed'].includes(task.status) && (
+                      <Button
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          handleViewVerification(task.listingId, task.device, task.timeLeft)
+                        }}
+                        disabled={isFetchingVerification}
+                        className="bg-purple-650 hover:bg-purple-700 text-white text-xs font-semibold h-9 rounded-lg"
+                        size="sm"
+                      >
+                        {isFetchingVerification ? (
+                          <Icons.spinner className="w-3 h-3 animate-spin mr-1" />
+                        ) : (
+                          <Icons.fileText className="w-3 h-3 mr-1" />
+                        )}
+                        Report
+                      </Button>
+                    )}
+                    {task.status === 'ready_for_pickup' ? (
+                      <Link
+                        href={`/agent/verification?taskId=${task.listingId}`}
+                        className="inline-flex items-center px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-lg hover:bg-orange-700 transition-colors"
+                      >
+                        <TruckIcon className="w-4 h-4 mr-2" />
+                        Pickup
+                      </Link>
+                    ) : task.status !== 'completed' ? (
+                      <Link
+                        href={`/agent/verification?taskId=${task.listingId}`}
+                        className="inline-flex items-center px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
+                      >
+                        {task.status === 'verification' ? 'Continue' : 'Start'} Verification
+                        <ArrowRightIcon className="w-4 h-4 ml-2" />
+                      </Link>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             ))}
@@ -504,6 +557,13 @@ export default function AgentTasks() {
           </div>
         )}
       </div>
+      <VerificationDetailsModal
+        isOpen={isVerificationModalOpen}
+        onClose={() => setIsVerificationModalOpen(false)}
+        verification={selectedVerification}
+        deviceTitle={selectedDeviceName}
+        deviceModel={selectedDeviceModel}
+      />
     </div>
   )
-} 
+}

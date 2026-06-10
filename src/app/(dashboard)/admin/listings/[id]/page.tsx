@@ -7,6 +7,9 @@ import { Icons } from '@/components/ui/icons'
 import { Badge } from '@/components/ui/badge'
 import { useRouter, useParams } from 'next/navigation'
 import sellikoClient from '@/selliko-client'
+import ZoomableImage from '@/components/shared/ZoomableImage'
+import VerificationDetailsModal from '@/components/shared/VerificationDetailsModal'
+
 
 export default function AdminListingDetailPage() {
   const router = useRouter()
@@ -16,6 +19,7 @@ export default function AdminListingDetailPage() {
   const [device, setDevice] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isVerificationOpen, setIsVerificationOpen] = useState(false)
 
   useEffect(() => {
     const loadDeviceData = async () => {
@@ -65,7 +69,8 @@ export default function AdminListingDetailPage() {
                      'Location not specified',
             // Admin can see more fields if needed
             client: apiListing.client || null,
-            owner: apiListing.owner || null
+            owner: apiListing.owner || null,
+            verification: apiListing.verification || null
           }
           setDevice(transformedDevice)
         } else {
@@ -268,65 +273,41 @@ export default function AdminListingDetailPage() {
               <CardContent className="p-0">
                 <div className="aspect-square bg-gray-100">
                   <div className="grid grid-cols-2 gap-1 h-full">
-                    <div className="relative bg-gray-200 group cursor-pointer hover:opacity-90 transition-opacity">
-                      <img 
+                    <div className="relative bg-gray-200 overflow-hidden">
+                      <ZoomableImage
                         src={device.images.front}
                         alt={`${device.device} - Front View`}
-                        className="w-full h-full object-cover"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = '/api/placeholder/400/400'
                         }}
                       />
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
-                        <span className="text-white font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-sm bg-black bg-opacity-50 px-2 py-1 rounded">
-                          Front View
-                        </span>
-                      </div>
                     </div>
-                    <div className="relative bg-gray-200 group cursor-pointer hover:opacity-90 transition-opacity">
-                      <img 
+                    <div className="relative bg-gray-200 overflow-hidden">
+                      <ZoomableImage
                         src={device.images.back}
                         alt={`${device.device} - Back View`}
-                        className="w-full h-full object-cover"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = '/api/placeholder/400/400'
                         }}
                       />
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
-                        <span className="text-white font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-sm bg-black bg-opacity-50 px-2 py-1 rounded">
-                          Back View
-                        </span>
-                      </div>
                     </div>
-                    <div className="relative bg-gray-200 group cursor-pointer hover:opacity-90 transition-opacity">
-                      <img 
+                    <div className="relative bg-gray-200 overflow-hidden">
+                      <ZoomableImage
                         src={device.images.top}
                         alt={`${device.device} - Top View`}
-                        className="w-full h-full object-cover"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = '/api/placeholder/400/400'
                         }}
                       />
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
-                        <span className="text-white font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-sm bg-black bg-opacity-50 px-2 py-1 rounded">
-                          Top View
-                        </span>
-                      </div>
                     </div>
-                    <div className="relative bg-gray-200 group cursor-pointer hover:opacity-90 transition-opacity">
-                      <img 
+                    <div className="relative bg-gray-200 overflow-hidden">
+                      <ZoomableImage
                         src={device.images.bottom}
                         alt={`${device.device} - Bottom View`}
-                        className="w-full h-full object-cover"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = '/api/placeholder/400/400'
                         }}
                       />
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
-                        <span className="text-white font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-sm bg-black bg-opacity-50 px-2 py-1 rounded">
-                          Bottom View
-                        </span>
-                      </div>
                     </div>
                   </div>
                   <div className="absolute top-3 left-3 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs">
@@ -418,6 +399,56 @@ export default function AdminListingDetailPage() {
                   <p className="text-sm font-medium text-gray-500 mb-2">Description</p>
                   <p className="text-gray-700 leading-relaxed">{device.description}</p>
                 </div>
+                {(device.images.bill || device.images.warranty) && (
+                  <div className="border-t pt-4">
+                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <Icons.fileText className="w-5 h-5 text-gray-500" />
+                      Uploaded Documents
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {device.images.bill && (
+                        <div className="border border-gray-200/60 rounded-xl p-4 flex flex-col bg-gray-50/50">
+                          <p className="text-sm font-semibold text-gray-700 mb-2 text-center">Purchase Bill/Invoice</p>
+                          <div className="w-full aspect-[4/3] relative rounded-lg overflow-hidden border bg-white mb-3 max-h-[200px]">
+                            <ZoomableImage
+                              src={device.images.bill}
+                              alt="Purchase Bill"
+                            />
+                          </div>
+                          <a 
+                            href={device.images.bill} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="inline-flex items-center justify-center text-sm text-blue-600 hover:text-blue-800 font-semibold mt-auto"
+                          >
+                            <Icons.download className="w-4 h-4 mr-1.5" />
+                            Open Original Bill
+                          </a>
+                        </div>
+                      )}
+                      {device.images.warranty && (
+                        <div className="border border-gray-200/60 rounded-xl p-4 flex flex-col bg-gray-50/50">
+                          <p className="text-sm font-semibold text-gray-700 mb-2 text-center">Warranty Certificate</p>
+                          <div className="w-full aspect-[4/3] relative rounded-lg overflow-hidden border bg-white mb-3 max-h-[200px]">
+                            <ZoomableImage
+                              src={device.images.warranty}
+                              alt="Warranty Certificate"
+                            />
+                          </div>
+                          <a 
+                            href={device.images.warranty} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="inline-flex items-center justify-center text-sm text-blue-600 hover:text-blue-800 font-semibold mt-auto"
+                          >
+                            <Icons.download className="w-4 h-4 mr-1.5" />
+                            Open Original Warranty
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <div className="border-t pt-4">
                   <div className="flex justify-between items-center text-sm text-gray-500">
                     <span>Listed on: {formatDate(device.created_at)}</span>
@@ -445,6 +476,16 @@ export default function AdminListingDetailPage() {
                 <CardTitle>Admin Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
+                {device.verification && (
+                  <Button 
+                    onClick={() => setIsVerificationOpen(true)}
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                    size="lg"
+                  >
+                    <Icons.fileText className="w-4 h-4 mr-2" />
+                    Verification Report
+                  </Button>
+                )}
                 <Button 
                   onClick={() => router.push('/admin/listings')}
                   variant="outline"
@@ -459,6 +500,13 @@ export default function AdminListingDetailPage() {
           </div>
         </div>
       </div>
+      <VerificationDetailsModal
+        isOpen={isVerificationOpen}
+        onClose={() => setIsVerificationOpen(false)}
+        verification={device.verification}
+        deviceTitle={device.device}
+        deviceModel={device.model}
+      />
     </div>
   )
 }

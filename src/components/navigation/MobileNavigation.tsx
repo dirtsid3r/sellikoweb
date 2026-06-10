@@ -24,6 +24,15 @@ import {
 } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth'
+import NotificationButton from '@/components/shared/notifications/NotificationButton'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 
 interface NavigationItem {
@@ -54,6 +63,7 @@ export default function MobileNavigation({}: MobileNavigationProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
+  const [showConfirmLogout, setShowConfirmLogout] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
 
@@ -73,10 +83,16 @@ export default function MobileNavigation({}: MobileNavigationProps) {
 
   const navItems = isAuthenticated ? [...publicNavItems, ...authNavItems] : publicNavItems
 
-  const handleLogout = async () => {
+  const handleLogoutClick = () => {
     console.log('🔄 [MOBILE-NAV] Logout button clicked')
     setIsOpen(false) // Close the mobile menu
-    router.push('/logout') // Navigate to the logout page
+    setShowConfirmLogout(true) // Open confirmation dialog
+  }
+
+  const handleConfirmLogout = () => {
+    console.log('🔄 [MOBILE-NAV] Confirming logout')
+    setShowConfirmLogout(false)
+    router.push('/logout')
   }
 
   return (
@@ -122,9 +138,7 @@ export default function MobileNavigation({}: MobileNavigationProps) {
             {isAuthenticated && user ? (
               <div className="flex items-center space-x-4">
                 {/* Notifications */}
-                <Button variant="ghost" size="sm" className="relative">
-                  <BellIcon className="w-4 h-4" />
-                </Button>
+                <NotificationButton hasNewNotifications={true} />
                 
                 {/* User Avatar/Menu */}
                 <div className="flex items-center space-x-2">
@@ -245,7 +259,7 @@ export default function MobileNavigation({}: MobileNavigationProps) {
                   <Button 
                     variant="ghost" 
                     className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-                    onClick={handleLogout}
+                    onClick={handleLogoutClick}
                   >
                     <ArrowLeftOnRectangleIcon className="w-4 h-4 mr-2" />
                     Sign Out
@@ -283,7 +297,38 @@ export default function MobileNavigation({}: MobileNavigationProps) {
       {/* Spacer to prevent content from going under fixed nav */}
       <div className="h-16 safe-top" />
 
-
+      {/* Logout Confirmation Dialog */}
+      {showConfirmLogout && (
+        <Dialog open={showConfirmLogout} onOpenChange={setShowConfirmLogout}>
+          <DialogContent className="sm:max-w-md bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-xl">
+            <DialogHeader className="space-y-3">
+              <DialogTitle className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                <ArrowLeftOnRectangleIcon className="w-5 h-5 text-red-500" />
+                Confirm Logout
+              </DialogTitle>
+              <DialogDescription className="text-gray-600 dark:text-gray-400 text-sm">
+                Are you sure you want to log out of your account? You will need to log in again to access your dashboard.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end mt-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowConfirmLogout(false)}
+                className="w-full sm:w-auto rounded-xl"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleConfirmLogout}
+                className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white rounded-xl"
+              >
+                Log Out
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   )
 } 

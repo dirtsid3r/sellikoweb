@@ -358,6 +358,13 @@ export default function ListDevice() {
       case 3: // Warranty Info
         return data.warrantyStatus === 'active' || data.warrantyStatus === 'expired'
       case 4: // Bill Details
+        if (data.hasBill) {
+          if (!data.purchaseDate) return false
+          const purchase = new Date(data.purchaseDate)
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          return purchase < today
+        }
         return data.hasBill !== undefined
       case 5: // Pricing
         return data.expectedPrice && parseInt(data.expectedPrice) > 0
@@ -896,13 +903,17 @@ function BillDetailsStep({ data, updateData, updateImages }: { data: DeviceData,
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="purchaseDate">Purchase Date</Label>
+              <Label htmlFor="purchaseDate">Purchase Date *</Label>
               <Input
                 id="purchaseDate"
                 type="date"
                 value={data.purchaseDate}
                 onChange={(e) => updateData('purchaseDate', e.target.value)}
+                className={data.purchaseDate && new Date(data.purchaseDate) >= new Date(new Date().setHours(0,0,0,0)) ? "border-red-500 focus:ring-red-500 focus:border-red-500" : ""}
               />
+              {data.purchaseDate && new Date(data.purchaseDate) >= new Date(new Date().setHours(0,0,0,0)) && (
+                <p className="text-red-500 text-xs mt-1 font-medium">Purchase date must be at least 1 day prior to today</p>
+              )}
             </div>
 
             <div>

@@ -23,7 +23,12 @@ interface DeviceListing {
   
   // Step 3: Photos & Documentation
   devicePhotos: File[]
+  devicePhotoFront?: File | null
+  devicePhotoBack?: File | null
+  devicePhotoLeft?: File | null
+  devicePhotoRight?: File | null
   billPhoto?: File
+  purchaseDate?: string
   hasWarranty: boolean
   warrantyType?: string
   warrantyExpiry?: Date
@@ -62,7 +67,8 @@ function SearchableDropdown({
   placeholder, 
   disabled = false,
   required = false,
-  className = ""
+  className = "",
+  hasError = false
 }: {
   options: string[]
   value: string
@@ -71,6 +77,7 @@ function SearchableDropdown({
   disabled?: boolean
   required?: boolean
   className?: string
+  hasError?: boolean
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -118,7 +125,11 @@ function SearchableDropdown({
           placeholder={placeholder}
           disabled={disabled}
           required={required}
-          className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+          className={`w-full px-3 py-2 pr-10 border rounded-lg focus:ring-2 disabled:bg-gray-50 disabled:cursor-not-allowed ${
+            hasError
+              ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+              : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+          }`}
           autoComplete="off"
         />
         <button
@@ -176,6 +187,7 @@ export default function DeviceListingWizard() {
     devicePhotos: [],
     hasWarranty: false
   })
+  const [errors, setErrors] = useState<{[key: string]: string}>({})
 
   // Fetch form configuration on component load
   useEffect(() => {
@@ -207,16 +219,133 @@ export default function DeviceListingWizard() {
     setFormData(prev => ({ ...prev, ...data }))
   }
 
+  const validateStep = (step: number): boolean => {
+    const newErrors: {[key: string]: string} = {}
+
+    if (step === 1) {
+      if (!formData.brand) {
+        newErrors.brand = 'Brand is required'
+      }
+      if (!formData.model || formData.model.trim().length < 2) {
+        newErrors.model = 'Model is required (minimum 2 characters)'
+      }
+      if (!formData.storage) {
+        newErrors.storage = 'Storage capacity is required'
+      }
+      if (!formData.color || formData.color.trim().length < 2) {
+        newErrors.color = 'Color is required'
+      }
+      if (!formData.condition) {
+        newErrors.condition = 'Device condition is required'
+      }
+    }
+
+    if (step === 2) {
+      if (!formData.imei1 || !/^\d{15}$/.test(formData.imei1)) {
+        newErrors.imei1 = 'IMEI 1 must be exactly 15 digits'
+      }
+      if (formData.imei2 && !/^\d{15}$/.test(formData.imei2)) {
+        newErrors.imei2 = 'IMEI 2 must be exactly 15 digits'
+      }
+      if (formData.imei2 && formData.imei1 === formData.imei2) {
+        newErrors.imei2 = 'IMEI 2 cannot be the same as IMEI 1'
+      }
+      const battery = formData.batteryHealth ?? 100
+      if (battery < 1 || battery > 100) {
+        newErrors.batteryHealth = 'Battery health must be between 1% and 100%'
+      }
+      if (!formData.askingPrice || formData.askingPrice < 1000) {
+        newErrors.askingPrice = 'Asking price must be at least ₹1,000'
+      }
+      if (!formData.description || formData.description.trim().length < 10) {
+        newErrors.description = 'Description must be at least 10 characters long'
+      }
+    }
+
+    if (step === 3) {
+      if (!formData.devicePhotoFront) {
+        newErrors.devicePhotoFront = 'Front view photo is required'
+      }
+      if (!formData.devicePhotoBack) {
+        newErrors.devicePhotoBack = 'Back view photo is required'
+      }
+      if (!formData.devicePhotoLeft) {
+        newErrors.devicePhotoLeft = 'Left side photo is required'
+      }
+      if (!formData.devicePhotoRight) {
+        newErrors.devicePhotoRight = 'Right side photo is required'
+      }
+      
+      if (formData.hasWarranty) {
+        if (!formData.warrantyType) {
+          newErrors.warrantyType = 'Warranty type is required'
+        }
+        if (!formData.warrantyExpiry) {
+          newErrors.warrantyExpiry = 'Warranty expiry date is required'
+        } else {
+          const expiry = new Date(formData.warrantyExpiry)
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          if (expiry <= today) {
+            newErrors.warrantyExpiry = 'Warranty expiry date must be in the future'
+          }
+        }
+      }
+
+      if (formData.billPhoto) {
+        if (!formData.purchaseDate) {
+          newErrors.purchaseDate = 'Purchase date is required when bill is uploaded'
+        } else {
+          const purchase = new Date(formData.purchaseDate)
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          if (purchase >= today) {
+            newErrors.purchaseDate = 'Purchase date must be at least 1 day prior to today'
+          }
+        }
+      }
+    }
+
+    if (step === 4) {
+      if (!formData.contactName || formData.contactName.trim().length < 2) {
+        newErrors.contactName = 'Full Name is required (minimum 2 characters)'
+      }
+      if (!formData.pickupAddress?.streetAddress || formData.pickupAddress.streetAddress.trim().length < 5) {
+        newErrors.streetAddress = 'Street address is required (minimum 5 characters)'
+      }
+      if (!formData.pickupAddress?.city) {
+        newErrors.city = 'City is required'
+      }
+      if (!formData.pickupAddress?.pincode || !/^\d{6}$/.test(formData.pickupAddress.pincode)) {
+        newErrors.pincode = 'Pincode must be exactly 6 digits'
+      }
+      if (!formData.pickupTime) {
+        newErrors.pickupTime = 'Preferred pickup time is required'
+      }
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
   const nextStep = () => {
-    if (currentStep < 4) setCurrentStep(prev => prev + 1)
+    if (validateStep(currentStep)) {
+      if (currentStep < 4) setCurrentStep(prev => prev + 1)
+    }
   }
 
   const prevStep = () => {
-    if (currentStep > 1) setCurrentStep(prev => prev - 1)
+    if (currentStep > 1) {
+      // Clear errors when going back
+      setErrors({})
+      setCurrentStep(prev => prev - 1)
+    }
   }
 
   const handleSubmit = async () => {
+    if (!validateStep(4)) return
     setIsSubmitting(true)
+
     try {
       // Prepare data structure for selliko-client
       const listingData = {
@@ -251,7 +380,7 @@ export default function DeviceListingWizard() {
         
         // Bill Information
         hasBill: !!formData.billPhoto,
-        purchaseDate: null,
+        purchaseDate: formData.purchaseDate || null,
         purchasePrice: null,
         
         // Personal Details - map contactName to name, and create mobile from user data
@@ -380,10 +509,10 @@ export default function DeviceListingWizard() {
 
       {/* Step Content */}
       <div className="bg-white rounded-xl shadow-sm p-6">
-        {currentStep === 1 && <Step1DeviceInfo formData={formData} updateFormData={updateFormData} availableBrands={availableBrands} configLoading={configLoading} />}
-        {currentStep === 2 && <Step2TechnicalDetails formData={formData} updateFormData={updateFormData} />}
-        {currentStep === 3 && <Step3PhotosDocuments formData={formData} updateFormData={updateFormData} />}
-        {currentStep === 4 && <Step4PickupDetails formData={formData} updateFormData={updateFormData} availableCities={availableCities} configLoading={configLoading} />}
+        {currentStep === 1 && <Step1DeviceInfo formData={formData} updateFormData={updateFormData} availableBrands={availableBrands} configLoading={configLoading} errors={errors} />}
+        {currentStep === 2 && <Step2TechnicalDetails formData={formData} updateFormData={updateFormData} errors={errors} />}
+        {currentStep === 3 && <Step3PhotosDocuments formData={formData} updateFormData={updateFormData} errors={errors} />}
+        {currentStep === 4 && <Step4PickupDetails formData={formData} updateFormData={updateFormData} availableCities={availableCities} configLoading={configLoading} errors={errors} />}
 
         {/* Navigation */}
         <div className="flex justify-between pt-6 mt-6 border-t border-gray-200">
@@ -420,11 +549,12 @@ export default function DeviceListingWizard() {
 }
 
 // Step 1: Device Information
-function Step1DeviceInfo({ formData, updateFormData, availableBrands, configLoading }: {
+function Step1DeviceInfo({ formData, updateFormData, availableBrands, configLoading, errors }: {
   formData: Partial<DeviceListing>
   updateFormData: (data: Partial<DeviceListing>) => void
   availableBrands: string[]
   configLoading: boolean
+  errors: {[key: string]: string}
 }) {
   return (
     <div className="space-y-6">
@@ -444,7 +574,9 @@ function Step1DeviceInfo({ formData, updateFormData, availableBrands, configLoad
             placeholder={configLoading ? "Loading brands..." : "Search and select brand"}
             disabled={configLoading}
             required
+            hasError={!!errors.brand}
           />
+          {errors.brand && <p className="text-red-500 text-xs mt-1 font-medium">{errors.brand}</p>}
           {configLoading && (
             <p className="text-xs text-gray-500 mt-1">Loading available brands...</p>
           )}
@@ -458,9 +590,14 @@ function Step1DeviceInfo({ formData, updateFormData, availableBrands, configLoad
             value={formData.model || ''}
             onChange={(e) => updateFormData({ model: e.target.value })}
             placeholder="e.g., iPhone 14 Pro"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 disabled:bg-gray-50 disabled:cursor-not-allowed ${
+              errors.model 
+                ? 'border-red-500 focus:ring-red-500 focus:border-red-500 bg-red-50/10' 
+                : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+            }`}
             required
           />
+          {errors.model && <p className="text-red-500 text-xs mt-1 font-medium">{errors.model}</p>}
           <p className="text-xs text-gray-500 mt-1">Include the exact model name for accurate pricing</p>
         </div>
 
@@ -470,7 +607,11 @@ function Step1DeviceInfo({ formData, updateFormData, availableBrands, configLoad
           <select
             value={formData.storage || ''}
             onChange={(e) => updateFormData({ storage: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 disabled:bg-gray-50 disabled:cursor-not-allowed ${
+              errors.storage 
+                ? 'border-red-500 focus:ring-red-500 focus:border-red-500 bg-red-50/10' 
+                : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+            }`}
             required
           >
             <option value="">Select storage</option>
@@ -478,6 +619,7 @@ function Step1DeviceInfo({ formData, updateFormData, availableBrands, configLoad
               <option key={storage} value={storage}>{storage}</option>
             ))}
           </select>
+          {errors.storage && <p className="text-red-500 text-xs mt-1 font-medium">{errors.storage}</p>}
         </div>
 
         {/* Color */}
@@ -488,9 +630,14 @@ function Step1DeviceInfo({ formData, updateFormData, availableBrands, configLoad
             value={formData.color || ''}
             onChange={(e) => updateFormData({ color: e.target.value })}
             placeholder="e.g., Space Black"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 disabled:bg-gray-50 disabled:cursor-not-allowed ${
+              errors.color 
+                ? 'border-red-500 focus:ring-red-500 focus:border-red-500 bg-red-50/10' 
+                : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+            }`}
             required
           />
+          {errors.color && <p className="text-red-500 text-xs mt-1 font-medium">{errors.color}</p>}
         </div>
       </div>
 
@@ -516,6 +663,7 @@ function Step1DeviceInfo({ formData, updateFormData, availableBrands, configLoad
             </label>
           ))}
         </div>
+        {errors.condition && <p className="text-red-500 text-xs mt-1 font-medium">{errors.condition}</p>}
         <p className="text-xs text-gray-500 mt-2">Honest condition assessment helps get accurate offers</p>
       </div>
     </div>
@@ -523,9 +671,10 @@ function Step1DeviceInfo({ formData, updateFormData, availableBrands, configLoad
 }
 
 // Step 2: Technical Details
-function Step2TechnicalDetails({ formData, updateFormData }: {
+function Step2TechnicalDetails({ formData, updateFormData, errors }: {
   formData: Partial<DeviceListing>
   updateFormData: (data: Partial<DeviceListing>) => void
+  errors: {[key: string]: string}
 }) {
   return (
     <div className="space-y-6">
@@ -541,12 +690,17 @@ function Step2TechnicalDetails({ formData, updateFormData }: {
           <input
             type="text"
             value={formData.imei1 || ''}
-            onChange={(e) => updateFormData({ imei1: e.target.value })}
+            onChange={(e) => updateFormData({ imei1: e.target.value.replace(/\D/g, '') })}
             placeholder="15-digit IMEI number"
             maxLength={15}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 disabled:bg-gray-50 disabled:cursor-not-allowed ${
+              errors.imei1 
+                ? 'border-red-500 focus:ring-red-500 focus:border-red-500 bg-red-50/10' 
+                : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+            }`}
             required
           />
+          {errors.imei1 && <p className="text-red-500 text-xs mt-1 font-medium">{errors.imei1}</p>}
           <p className="text-xs text-gray-500 mt-1">Dial *#06# to find IMEI</p>
         </div>
 
@@ -556,11 +710,16 @@ function Step2TechnicalDetails({ formData, updateFormData }: {
           <input
             type="text"
             value={formData.imei2 || ''}
-            onChange={(e) => updateFormData({ imei2: e.target.value })}
+            onChange={(e) => updateFormData({ imei2: e.target.value.replace(/\D/g, '') })}
             placeholder="15-digit IMEI number"
             maxLength={15}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 disabled:bg-gray-50 disabled:cursor-not-allowed ${
+              errors.imei2 
+                ? 'border-red-500 focus:ring-red-500 focus:border-red-500 bg-red-50/10' 
+                : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+            }`}
           />
+          {errors.imei2 && <p className="text-red-500 text-xs mt-1 font-medium">{errors.imei2}</p>}
         </div>
 
         {/* Battery Health */}
@@ -577,6 +736,7 @@ function Step2TechnicalDetails({ formData, updateFormData }: {
             />
             <span className="text-sm font-medium text-gray-900 w-12">{formData.batteryHealth || 100}%</span>
           </div>
+          {errors.batteryHealth && <p className="text-red-500 text-xs mt-1 font-medium">{errors.batteryHealth}</p>}
           <p className="text-xs text-gray-500 mt-1">Check in Settings → Battery → Battery Health</p>
         </div>
 
@@ -586,13 +746,18 @@ function Step2TechnicalDetails({ formData, updateFormData }: {
           <input
             type="number"
             value={formData.askingPrice || ''}
-            onChange={(e) => updateFormData({ askingPrice: parseInt(e.target.value) })}
+            onChange={(e) => updateFormData({ askingPrice: parseInt(e.target.value) || 0 })}
             placeholder="e.g., 45000"
             min="1000"
             max="1000000"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 disabled:bg-gray-50 disabled:cursor-not-allowed ${
+              errors.askingPrice 
+                ? 'border-red-500 focus:ring-red-500 focus:border-red-500 bg-red-50/10' 
+                : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+            }`}
             required
           />
+          {errors.askingPrice && <p className="text-red-500 text-xs mt-1 font-medium">{errors.askingPrice}</p>}
           <p className="text-xs text-gray-500 mt-1">Research similar models for competitive pricing</p>
         </div>
       </div>
@@ -605,9 +770,14 @@ function Step2TechnicalDetails({ formData, updateFormData }: {
           onChange={(e) => updateFormData({ description: e.target.value })}
           placeholder="Describe the condition, any accessories included, reason for selling, etc."
           rows={4}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 disabled:bg-gray-50 disabled:cursor-not-allowed ${
+            errors.description 
+              ? 'border-red-500 focus:ring-red-500 focus:border-red-500 bg-red-50/10' 
+              : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+          }`}
           required
         />
+        {errors.description && <p className="text-red-500 text-xs mt-1 font-medium">{errors.description}</p>}
         <p className="text-xs text-gray-500 mt-1">Include condition details, accessories, and any known issues</p>
       </div>
     </div>
@@ -615,24 +785,33 @@ function Step2TechnicalDetails({ formData, updateFormData }: {
 }
 
 // Step 3: Photos & Documentation  
-function Step3PhotosDocuments({ formData, updateFormData }: {
+function Step3PhotosDocuments({ formData, updateFormData, errors }: {
   formData: Partial<DeviceListing>
   updateFormData: (data: Partial<DeviceListing>) => void
+  errors: {[key: string]: string}
 }) {
   const [uploadedPhotos, setUploadedPhotos] = useState<{[key: string]: File | null}>({
-    front: null,
-    back: null,
-    leftSide: null,
-    rightSide: null
+    front: formData.devicePhotoFront || null,
+    back: formData.devicePhotoBack || null,
+    leftSide: formData.devicePhotoLeft || null,
+    rightSide: formData.devicePhotoRight || null
   })
 
   const handlePhotoUpload = (angle: string, file: File | null) => {
     const newPhotos = { ...uploadedPhotos, [angle]: file }
     setUploadedPhotos(newPhotos)
     
-    // Convert to array for form data
+    // Map to parent properties
+    const parentUpdates: Partial<DeviceListing> = {}
+    if (angle === 'front') parentUpdates.devicePhotoFront = file
+    if (angle === 'back') parentUpdates.devicePhotoBack = file
+    if (angle === 'leftSide') parentUpdates.devicePhotoLeft = file
+    if (angle === 'rightSide') parentUpdates.devicePhotoRight = file
+
     const photoArray = Object.values(newPhotos).filter(Boolean) as File[]
-    updateFormData({ devicePhotos: photoArray })
+    parentUpdates.devicePhotos = photoArray
+
+    updateFormData(parentUpdates)
   }
 
   const PhotoUploadCard = ({ 
@@ -662,6 +841,12 @@ function Step3PhotosDocuments({ formData, updateFormData }: {
         fileInputRef.current.value = ''
       }
     }
+
+    let errorKey = 'devicePhotoFront'
+    if (angle === 'back') errorKey = 'devicePhotoBack'
+    if (angle === 'leftSide') errorKey = 'devicePhotoLeft'
+    if (angle === 'rightSide') errorKey = 'devicePhotoRight'
+    const error = errors[errorKey]
 
     return (
       <div className="relative">
@@ -699,7 +884,11 @@ function Step3PhotosDocuments({ formData, updateFormData }: {
           // Upload prompt state
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="aspect-square w-full border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors p-6 flex flex-col items-center justify-center text-center"
+            className={`aspect-square w-full border-2 border-dashed rounded-lg hover:bg-blue-50 transition-colors p-6 flex flex-col items-center justify-center text-center ${
+              error
+                ? 'border-red-500 hover:border-red-600 bg-red-50/10'
+                : 'border-gray-300 hover:border-blue-400'
+            }`}
           >
             <div className="w-12 h-12 text-gray-400 mb-3">
               {icon}
@@ -709,6 +898,7 @@ function Step3PhotosDocuments({ formData, updateFormData }: {
             <p className="text-xs text-gray-400">1600×1200 (5 MB max)</p>
           </button>
         )}
+        {error && <p className="text-red-500 text-xs mt-1 text-center font-medium">{error}</p>}
       </div>
     )
   }
@@ -796,7 +986,23 @@ function Step3PhotosDocuments({ formData, updateFormData }: {
           </p>
         </div>
         {formData.billPhoto && (
-          <p className="text-sm text-green-600 mt-2">Bill uploaded</p>
+          <div className="space-y-3 mt-2">
+            <p className="text-sm text-green-600">Bill uploaded</p>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Purchase Date *</label>
+              <input
+                type="date"
+                value={formData.purchaseDate || ''}
+                onChange={(e) => updateFormData({ purchaseDate: e.target.value })}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 disabled:bg-gray-50 disabled:cursor-not-allowed ${
+                  errors.purchaseDate 
+                    ? 'border-red-500 focus:ring-red-500 focus:border-red-500 bg-red-50/10' 
+                    : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                }`}
+              />
+              {errors.purchaseDate && <p className="text-red-500 text-xs mt-1 font-medium">{errors.purchaseDate}</p>}
+            </div>
+          </div>
         )}
       </div>
 
@@ -815,26 +1021,36 @@ function Step3PhotosDocuments({ formData, updateFormData }: {
         {formData.hasWarranty && (
           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Warranty Type</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Warranty Type *</label>
               <select
                 value={formData.warrantyType || ''}
                 onChange={(e) => updateFormData({ warrantyType: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 disabled:bg-gray-50 disabled:cursor-not-allowed ${
+                  errors.warrantyType 
+                    ? 'border-red-500 focus:ring-red-500 focus:border-red-500 bg-red-50/10' 
+                    : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                }`}
               >
                 <option value="">Select warranty type</option>
                 <option value="Manufacturer">Manufacturer Warranty</option>
                 <option value="Extended">Extended Warranty</option>
                 <option value="Store">Store Warranty</option>
               </select>
+              {errors.warrantyType && <p className="text-red-500 text-xs mt-1 font-medium">{errors.warrantyType}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Warranty Expiry</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Warranty Expiry *</label>
               <input
                 type="date"
-                value={formData.warrantyExpiry?.toISOString().split('T')[0] || ''}
-                onChange={(e) => updateFormData({ warrantyExpiry: new Date(e.target.value) })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                value={formData.warrantyExpiry ? new Date(formData.warrantyExpiry).toISOString().split('T')[0] : ''}
+                onChange={(e) => updateFormData({ warrantyExpiry: e.target.value ? new Date(e.target.value) : undefined })}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 disabled:bg-gray-50 disabled:cursor-not-allowed ${
+                  errors.warrantyExpiry 
+                    ? 'border-red-500 focus:ring-red-500 focus:border-red-500 bg-red-50/10' 
+                    : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                }`}
               />
+              {errors.warrantyExpiry && <p className="text-red-500 text-xs mt-1 font-medium">{errors.warrantyExpiry}</p>}
             </div>
           </div>
         )}
@@ -844,11 +1060,12 @@ function Step3PhotosDocuments({ formData, updateFormData }: {
 }
 
 // Step 4: Pickup Details
-function Step4PickupDetails({ formData, updateFormData, availableCities, configLoading }: {
+function Step4PickupDetails({ formData, updateFormData, availableCities, configLoading, errors }: {
   formData: Partial<DeviceListing>
   updateFormData: (data: Partial<DeviceListing>) => void
   availableCities: string[]
   configLoading: boolean
+  errors: {[key: string]: string}
 }) {
   const updateAddress = (field: string, value: string) => {
     const currentAddress = formData.pickupAddress || {
@@ -882,9 +1099,14 @@ function Step4PickupDetails({ formData, updateFormData, availableCities, configL
           value={formData.contactName || ''}
           onChange={(e) => updateFormData({ contactName: e.target.value })}
           placeholder="Enter your full name"
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 disabled:bg-gray-50 disabled:cursor-not-allowed ${
+            errors.contactName 
+              ? 'border-red-500 focus:ring-red-500 focus:border-red-500 bg-red-50/10' 
+              : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+          }`}
           required
         />
+        {errors.contactName && <p className="text-red-500 text-xs mt-1 font-medium">{errors.contactName}</p>}
         <p className="text-xs text-gray-500 mt-1">This name will be used for pickup coordination</p>
       </div>
 
@@ -897,9 +1119,14 @@ function Step4PickupDetails({ formData, updateFormData, availableCities, configL
             onChange={(e) => updateAddress('streetAddress', e.target.value)}
             placeholder="House/flat number, street name, area"
             rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 disabled:bg-gray-50 disabled:cursor-not-allowed ${
+              errors.streetAddress 
+                ? 'border-red-500 focus:ring-red-500 focus:border-red-500 bg-red-50/10' 
+                : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+            }`}
             required
           />
+          {errors.streetAddress && <p className="text-red-500 text-xs mt-1 font-medium">{errors.streetAddress}</p>}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -912,7 +1139,9 @@ function Step4PickupDetails({ formData, updateFormData, availableCities, configL
               placeholder={configLoading ? "Loading cities..." : "Search and select city"}
               disabled={configLoading}
               required
+              hasError={!!errors.city}
             />
+            {errors.city && <p className="text-red-500 text-xs mt-1 font-medium">{errors.city}</p>}
             {configLoading && (
               <p className="text-xs text-gray-500 mt-1">Loading available cities...</p>
             )}
@@ -933,13 +1162,18 @@ function Step4PickupDetails({ formData, updateFormData, availableCities, configL
             <input
               type="text"
               value={formData.pickupAddress?.pincode || ''}
-              onChange={(e) => updateAddress('pincode', e.target.value)}
+              onChange={(e) => updateAddress('pincode', e.target.value.replace(/\D/g, ''))}
               placeholder="6-digit pincode"
               maxLength={6}
               pattern="\d{6}"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 disabled:bg-gray-50 disabled:cursor-not-allowed ${
+                errors.pincode 
+                  ? 'border-red-500 focus:ring-red-500 focus:border-red-500 bg-red-50/10' 
+                  : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+              }`}
               required
             />
+            {errors.pincode && <p className="text-red-500 text-xs mt-1 font-medium">{errors.pincode}</p>}
           </div>
         </div>
 
@@ -980,6 +1214,7 @@ function Step4PickupDetails({ formData, updateFormData, availableCities, configL
             </label>
           ))}
         </div>
+        {errors.pickupTime && <p className="text-red-500 text-xs mt-1 font-medium">{errors.pickupTime}</p>}
       </div>
 
       {/* Terms */}

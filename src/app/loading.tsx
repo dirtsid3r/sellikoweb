@@ -8,7 +8,7 @@ export default function Loading() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-gray-900">selliko</h1>
+              <h1 className="text-2xl font-bold text-gray-900">SELLIKO</h1>
             </div>
             <nav className="hidden md:flex items-center space-x-8">
               <div className="text-gray-600">Home</div>

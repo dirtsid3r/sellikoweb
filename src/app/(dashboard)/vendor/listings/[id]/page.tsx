@@ -13,6 +13,9 @@ import sellikoClient from '@/selliko-client'
 import { toast } from 'react-hot-toast'
 import { BidModal } from '@/components/vendor/BidModal'
 import Header from '@/components/layout/header'
+import ZoomableImage from '@/components/shared/ZoomableImage'
+import VerificationDetailsModal from '@/components/shared/VerificationDetailsModal'
+
 
 // Helper function to calculate time remaining based on approval time
 const calculateTimeRemaining = (timeApproved: string | null): string => {
@@ -77,6 +80,7 @@ export default function VendorListingDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [timeRemaining, setTimeRemaining] = useState<string>('')
+  const [isVerificationOpen, setIsVerificationOpen] = useState(false)
 
   // Modal states
   const [bidModalOpen, setBidModalOpen] = useState(false)
@@ -156,7 +160,8 @@ export default function VendorListingDetailPage() {
                      apiListing.addresses?.find((addr: any) => addr.type === 'client')?.city || 
                      'Location not specified',
             // Agreement information
-            agreements: apiListing.agreements?.[0] || {}
+            agreements: apiListing.agreements?.[0] || {},
+            verification: apiListing.verification || null
           }
 
           console.log('🔄 [VENDOR-LISTING-DETAIL] Transformed listing data:', transformedListing)
@@ -634,71 +639,47 @@ export default function VendorListingDetailPage() {
                   {/* 2x2 Grid for Device Images */}
                   <div className="grid grid-cols-2 gap-1 h-full">
                     {/* Front Image - Top Left */}
-                    <div className="relative bg-gray-200 group cursor-pointer hover:opacity-90 transition-opacity">
-                      <img 
+                    <div className="relative bg-gray-200 overflow-hidden">
+                      <ZoomableImage
                         src={listing.images.front}
                         alt={`${listing.device} - Front View`}
-                        className="w-full h-full object-cover"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = '/api/placeholder/400/400'
                         }}
                       />
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
-                        <span className="text-white font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-sm bg-black bg-opacity-50 px-2 py-1 rounded">
-                          Front View
-                        </span>
-                      </div>
                     </div>
 
                     {/* Back Image - Top Right */}
-                    <div className="relative bg-gray-200 group cursor-pointer hover:opacity-90 transition-opacity">
-                      <img 
+                    <div className="relative bg-gray-200 overflow-hidden">
+                      <ZoomableImage
                         src={listing.images.back}
                         alt={`${listing.device} - Back View`}
-                        className="w-full h-full object-cover"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = '/api/placeholder/400/400'
                         }}
                       />
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
-                        <span className="text-white font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-sm bg-black bg-opacity-50 px-2 py-1 rounded">
-                          Back View
-                        </span>
-                      </div>
                     </div>
 
                     {/* Top Image - Bottom Left */}
-                    <div className="relative bg-gray-200 group cursor-pointer hover:opacity-90 transition-opacity">
-                      <img 
+                    <div className="relative bg-gray-200 overflow-hidden">
+                      <ZoomableImage
                         src={listing.images.top}
                         alt={`${listing.device} - Top View`}
-                        className="w-full h-full object-cover"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = '/api/placeholder/400/400'
                         }}
                       />
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
-                        <span className="text-white font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-sm bg-black bg-opacity-50 px-2 py-1 rounded">
-                          Top View
-                        </span>
-                      </div>
                     </div>
 
                     {/* Bottom Image - Bottom Right */}
-                    <div className="relative bg-gray-200 group cursor-pointer hover:opacity-90 transition-opacity">
-                      <img 
+                    <div className="relative bg-gray-200 overflow-hidden">
+                      <ZoomableImage
                         src={listing.images.bottom}
                         alt={`${listing.device} - Bottom View`}
-                        className="w-full h-full object-cover"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = '/api/placeholder/400/400'
                         }}
                       />
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
-                        <span className="text-white font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-sm bg-black bg-opacity-50 px-2 py-1 rounded">
-                          Bottom View
-                        </span>
-                      </div>
                     </div>
                   </div>
 
@@ -835,6 +816,57 @@ export default function VendorListingDetailPage() {
                   <p className="text-gray-700 leading-relaxed">{listing.description}</p>
                 </div>
 
+                {(listing.images.bill || listing.images.warranty) && (
+                  <div className="border-t pt-4">
+                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <Icons.fileText className="w-5 h-5 text-gray-500" />
+                      Uploaded Documents
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {listing.images.bill && (
+                        <div className="border border-gray-200/60 rounded-xl p-4 flex flex-col bg-gray-50/50">
+                          <p className="text-sm font-semibold text-gray-700 mb-2 text-center">Purchase Bill/Invoice</p>
+                          <div className="w-full aspect-[4/3] relative rounded-lg overflow-hidden border bg-white mb-3 max-h-[200px]">
+                            <ZoomableImage
+                              src={listing.images.bill}
+                              alt="Purchase Bill"
+                            />
+                          </div>
+                          <a 
+                            href={listing.images.bill} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="inline-flex items-center justify-center text-sm text-blue-600 hover:text-blue-800 font-semibold mt-auto"
+                          >
+                            <Icons.download className="w-4 h-4 mr-1.5" />
+                            Open Original Bill
+                          </a>
+                        </div>
+                      )}
+                      {listing.images.warranty && (
+                        <div className="border border-gray-200/60 rounded-xl p-4 flex flex-col bg-gray-50/50">
+                          <p className="text-sm font-semibold text-gray-700 mb-2 text-center">Warranty Certificate</p>
+                          <div className="w-full aspect-[4/3] relative rounded-lg overflow-hidden border bg-white mb-3 max-h-[200px]">
+                            <ZoomableImage
+                              src={listing.images.warranty}
+                              alt="Warranty Certificate"
+                            />
+                          </div>
+                          <a 
+                            href={listing.images.warranty} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="inline-flex items-center justify-center text-sm text-blue-600 hover:text-blue-800 font-semibold mt-auto"
+                          >
+                            <Icons.download className="w-4 h-4 mr-1.5" />
+                            Open Original Warranty
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Listing Info */}
                 <div className="border-t pt-4">
                   <div className="flex justify-between items-center text-sm text-gray-500">
@@ -931,6 +963,18 @@ export default function VendorListingDetailPage() {
                   >
                     <Icons.package className="w-4 h-4 mr-2" />
                     🚚 Track Order
+                  </Button>
+                )}
+                
+                {/* Verification Report Button */}
+                {listing.verification && (
+                  <Button 
+                    onClick={() => setIsVerificationOpen(true)}
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                    size="lg"
+                  >
+                    <Icons.fileText className="w-4 h-4 mr-2" />
+                    Verification Report
                   </Button>
                 )}
                 
@@ -1271,6 +1315,13 @@ export default function VendorListingDetailPage() {
           </div>
         </DialogContent>
       </Dialog>
+      <VerificationDetailsModal
+        isOpen={isVerificationOpen}
+        onClose={() => setIsVerificationOpen(false)}
+        verification={listing.verification}
+        deviceTitle={listing.device}
+        deviceModel={listing.model}
+      />
     </div>
   )
 }
