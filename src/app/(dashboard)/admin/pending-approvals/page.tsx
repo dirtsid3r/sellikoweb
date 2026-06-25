@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation'
 import sellikoClient from '@/selliko-client'
 import { toast } from 'react-hot-toast'
 import Header from '@/components/layout/header'
+import ZoomableImage from '@/components/shared/ZoomableImage'
 
 interface Listing {
   id: string
@@ -434,11 +435,10 @@ export default function PendingApprovals() {
                       <div className="relative grid grid-cols-2 gap-2">
                         {listing.images.length > 0 ? (
                           listing.images.slice(0, 4).map((image: string, index: number) => (
-                            <div key={index} className="aspect-square rounded-lg overflow-hidden bg-gray-100">
-                            <img 
-                              src={image} 
+                            <div key={index} className="aspect-square rounded-lg overflow-hidden bg-gray-100 relative">
+                              <ZoomableImage
+                                src={image} 
                                 alt={`${listing.device.brand} ${listing.device.model} - View ${index + 1}`}
-                              className="w-full h-full object-cover"
                                 onError={(e) => {
                                   (e.target as HTMLImageElement).src = '/api/placeholder/200/200'
                                 }}
@@ -475,7 +475,7 @@ export default function PendingApprovals() {
                           <p className="text-gray-600">
                             {listing.device.storage} • {listing.device.color}
                           </p>
-                          <div className="flex items-center space-x-2 mt-2">
+                          <div className="flex flex-wrap items-center gap-2 mt-2">
                             <Badge className={getConditionColor(listing.device.condition)}>
                               {listing.device.condition}
                             </Badge>
@@ -500,15 +500,15 @@ export default function PendingApprovals() {
                             <Icons.smartphone className="w-4 h-4 mr-2" />
                             Technical Details
                           </h4>
-                          <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                             <div>
                               <span className="text-gray-600">IMEI 1:</span>
-                              <p className="font-mono text-gray-900">{listing.imei1}</p>
+                              <p className="font-mono text-xs sm:text-sm text-gray-900 break-all">{listing.imei1}</p>
                             </div>
                             {listing.imei2 && (
                               <div>
                                 <span className="text-gray-600">IMEI 2:</span>
-                                <p className="font-mono text-gray-900">{listing.imei2}</p>
+                                <p className="font-mono text-xs sm:text-sm text-gray-900 break-all">{listing.imei2}</p>
                               </div>
                             )}
                             {listing.batteryHealth && (
@@ -544,26 +544,26 @@ export default function PendingApprovals() {
                             <Icons.user className="w-4 h-4 mr-2" />
                             Seller Information
                           </h4>
-                          <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                             <div>
                               <span className="text-gray-600">Name:</span>
                               <p className="text-gray-900 font-medium">{listing.seller.name}</p>
                             </div>
                             <div>
                               <span className="text-gray-600">Phone:</span>
-                              <p className="text-gray-900 font-mono">{listing.seller.phone}</p>
+                              <p className="text-gray-900 font-mono break-all">{listing.seller.phone}</p>
                             </div>
                             <div>
                               <span className="text-gray-600">Email:</span>
-                              <p className="text-gray-900">{listing.seller.email}</p>
+                              <p className="text-gray-900 break-all">{listing.seller.email}</p>
                             </div>
                             <div>
                               <span className="text-gray-600">City:</span>
                               <p className="text-gray-900">{listing.seller.location}</p>
                             </div>
-                            <div className="col-span-2">
+                            <div className="col-span-1 sm:col-span-2">
                               <span className="text-gray-600">Full Address:</span>
-                              <p className="text-gray-900">{listing.seller.fullAddress}</p>
+                              <p className="text-gray-900 break-words">{listing.seller.fullAddress}</p>
                               {listing.seller.landmark && (
                                 <p className="text-gray-600 text-xs mt-1">Landmark: {listing.seller.landmark}</p>
                               )}
@@ -578,10 +578,10 @@ export default function PendingApprovals() {
                             <Icons.mapPin className="w-4 h-4 mr-2" />
                             Pickup Information
                           </h4>
-                          <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div className="col-span-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                            <div className="col-span-1 sm:col-span-2">
                               <span className="text-gray-600">Pickup Address:</span>
-                              <p className="text-gray-900">{listing.pickup.address}</p>
+                              <p className="text-gray-900 break-words">{listing.pickup.address}</p>
                               {listing.pickup.landmark && (
                                 <p className="text-gray-600 text-xs mt-1">Landmark: {listing.pickup.landmark}</p>
                               )}
@@ -590,11 +590,11 @@ export default function PendingApprovals() {
                               <span className="text-gray-600">City:</span>
                               <p className="text-gray-900">{listing.pickup.city}, {listing.pickup.state}</p>
                             </div>
-                        <div>
+                            <div>
                               <span className="text-gray-600">Pincode:</span>
                               <p className="text-gray-900">{listing.pickup.pincode}</p>
                             </div>
-                            <div className="col-span-2">
+                            <div className="col-span-1 sm:col-span-2">
                               <span className="text-gray-600">Preferred Time:</span>
                               <p className="text-gray-900 capitalize">{listing.pickup.preferredTime}</p>
                             </div>
@@ -608,7 +608,7 @@ export default function PendingApprovals() {
                               <Icons.shield className="w-4 h-4 mr-2" />
                               Bank Details (Admin Only)
                             </h4>
-                        <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                               {listing.bankDetails.accountHolderName && (
                                 <div>
                                   <span className="text-gray-600">Account Holder:</span>
@@ -622,20 +622,20 @@ export default function PendingApprovals() {
                                 </div>
                               )}
                               {listing.bankDetails.accountNumber && (
-                          <div>
+                                <div>
                                   <span className="text-gray-600">Account Number:</span>
                                   <p className="text-gray-900 font-mono">****{listing.bankDetails.accountNumber.slice(-4)}</p>
-                          </div>
+                                </div>
                               )}
                               {listing.bankDetails.ifscCode && (
-                            <div>
+                                <div>
                                   <span className="text-gray-600">IFSC Code:</span>
-                                  <p className="text-gray-900 font-mono">{listing.bankDetails.ifscCode}</p>
+                                  <p className="text-gray-900 font-mono break-all">{listing.bankDetails.ifscCode}</p>
                                 </div>
                               )}
                             </div>
-                            </div>
-                          )}
+                          </div>
+                        )}
 
                         {/* Description */}
                         <div>

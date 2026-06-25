@@ -366,6 +366,28 @@ class SellikoClient {
     if (!data.privacyAccepted) errors.push('Privacy policy must be accepted')
     if (!data.whatsappConsent) errors.push('WhatsApp consent must be provided')
 
+    // Check warranty expiry date vs purchase date
+    const wStatus = data.warrantyStatus || data.warranty_status
+    if (wStatus === 'active') {
+      const wExpiry = data.warrantyExpiry || data.warranty_expiry
+      const pDate = data.purchaseDate || data.purchase_date
+      if (!wExpiry) {
+        errors.push('Warranty expiry date is required for active warranty')
+      }
+      if (!pDate) {
+        errors.push('Purchase date is required to validate active warranty')
+      }
+      if (wExpiry && pDate) {
+        const expiry = new Date(wExpiry)
+        const purchase = new Date(pDate)
+        const minExpiry = new Date(purchase)
+        minExpiry.setMonth(minExpiry.getMonth() + 6)
+        if (expiry < minExpiry) {
+          errors.push('Warranty expiry date must be at least 6 months after the purchase date')
+        }
+      }
+    }
+
     if (errors.length > 0) {
       console.error('❌ [SELLIKO-CLIENT] Validation failed:', errors)
       return { valid: false, errors }

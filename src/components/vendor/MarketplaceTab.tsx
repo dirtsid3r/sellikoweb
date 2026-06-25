@@ -397,12 +397,12 @@ export function MarketplaceTab() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-start">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">📱 Device Marketplace</h2>
           <p className="text-gray-600">Browse and bid on verified devices from trusted sellers across Kerala.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 self-end sm:self-auto">
           <span className="text-sm text-gray-500">
             {loading ? 'Loading...' : `${totalListings} listings available`}
           </span>
@@ -569,13 +569,13 @@ export function MarketplaceTab() {
                        `🔴 ${listing.totalBids} bids`}
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">📍 Location:</span>
-                    <span>{listing.location}</span>
+                  <div className="flex justify-between text-sm gap-2">
+                    <span className="text-gray-600 shrink-0">📍 Location:</span>
+                    <span className="truncate text-right" title={listing.location}>{listing.location}</span>
                   </div>
                   {listing.currentBidInfo && (
                     <div className="mt-2 p-2 bg-blue-50 rounded text-xs">
-                      <p className="text-blue-800">
+                      <p className="text-blue-800 truncate" title={listing.currentBidInfo.vendor_name}>
                         <strong>Top Bidder:</strong> {listing.currentBidInfo.vendor_name}
                       </p>
                       <p className="text-blue-600">

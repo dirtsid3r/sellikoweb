@@ -291,7 +291,7 @@ export default function AgentTasks() {
       <Header variant="agent" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Task Management</h1>
             <p className="text-gray-600 mt-1">
@@ -301,7 +301,7 @@ export default function AgentTasks() {
               )}
             </p>
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="flex flex-wrap items-center gap-3">
             <Button
               onClick={fetchTasks}
               disabled={isLoadingTasks}
@@ -403,22 +403,22 @@ export default function AgentTasks() {
               </div>
 
               {/* Search and Sort */}
-              <div className="flex items-center gap-4">
-                <div className="relative">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+                <div className="relative w-full sm:w-auto">
                   <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                   <input
                     type="text"
                     placeholder="Search tasks..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full sm:w-auto pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
                 
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 >
                   <option value="priority">Sort by Priority</option>
                   <option value="time">Sort by Time</option>
@@ -433,19 +433,19 @@ export default function AgentTasks() {
           <div className="space-y-4">
             {filteredTasks.map((task) => (
               <div key={task.id} className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all cursor-pointer">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start space-x-4">
+                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                     <img 
                       src={task.images[0]} 
                       alt={task.device}
-                      className="w-16 h-16 rounded-lg object-cover"
+                      className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement
                         target.src = '/api/placeholder/100/100'
                       }}
                     />
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
                         <h3 className="font-semibold text-gray-900">{task.device}</h3>
                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getPriorityColor(task.priority)}`}>
                           {task.priority.toUpperCase()}
@@ -456,12 +456,12 @@ export default function AgentTasks() {
                         <MapPinIcon className="w-4 h-4 mr-1" />
                         {task.location}
                       </div>
-                      <p className="text-xs text-gray-400 mt-1" title={task.fullAddress}>
+                      <p className="text-xs text-gray-400 mt-1 break-words" title={task.fullAddress}>
                         Full address: {task.fullAddress}
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="flex flex-col md:items-end text-left md:text-right">
                     <div className={`text-sm font-medium ${getStatusColor(task.status)}`}>
                       {getStatusText(task.status)}
                     </div>
@@ -483,11 +483,11 @@ export default function AgentTasks() {
                   </div>
                 </div>
                 
-                <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-100">
-                  <div className="text-sm text-gray-600">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mt-4 pt-4 border-t border-gray-100">
+                  <div className="text-sm text-gray-600 break-all">
                     Task ID: {task.id}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {['ready_for_pickup', 'completed'].includes(task.status) && (
                       <Button
                         onClick={(e) => {

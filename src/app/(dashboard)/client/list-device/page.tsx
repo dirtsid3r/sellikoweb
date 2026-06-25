@@ -356,8 +356,19 @@ export default function ListDevice() {
       case 2: // Device Details
         return data.brand && data.model && data.storage && data.ram && data.condition
       case 3: // Warranty Info
-        return data.warrantyStatus === 'active' || data.warrantyStatus === 'expired'
+        if (data.warrantyStatus === 'active') {
+          return !!data.warrantyExpiry
+        }
+        return data.warrantyStatus === 'expired'
       case 4: // Bill Details
+        if (data.warrantyStatus === 'active') {
+          if (!data.purchaseDate) return false
+          const purchase = new Date(data.purchaseDate)
+          const expiry = new Date(data.warrantyExpiry)
+          const minExpiry = new Date(purchase)
+          minExpiry.setMonth(minExpiry.getMonth() + 6)
+          if (expiry < minExpiry) return false
+        }
         if (data.hasBill) {
           if (!data.purchaseDate) return false
           const purchase = new Date(data.purchaseDate)
@@ -734,10 +745,6 @@ function DeviceDetailsStep({ data, updateData }: { data: DeviceData, updateData:
             <option value="12GB">12GB</option>
             <option value="16GB">16GB</option>
             <option value="32GB">32GB</option>
-            <option value="64GB">64GB</option>
-            <option value="128GB">128GB</option>
-            <option value="256GB">256GB</option>
-            <option value="512GB">512GB</option>
           </select>
         </div>
 
@@ -899,7 +906,7 @@ function BillDetailsStep({ data, updateData, updateImages }: { data: DeviceData,
         </div>
       </div>
 
-      {data.hasBill && (
+      {(data.hasBill || data.warrantyStatus === 'active') && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -929,36 +936,53 @@ function BillDetailsStep({ data, updateData, updateImages }: { data: DeviceData,
             </div>
           </div>
 
-          <div>
-            <Label>Upload Bill Image</Label>
-            <div 
-              className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-green-500 transition-colors"
-              onClick={() => billFileRef.current?.click()}
-            >
-              <input
-                ref={billFileRef}
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (file) updateData('billImage', file)
-                }}
-                className="hidden"
-              />
-              {data.billImage ? (
-                <div>
-                  <Icons.check className="w-6 h-6 text-green-600 mx-auto mb-2" />
-                  <p className="text-green-600">Bill image uploaded</p>
-                </div>
-              ) : (
-                <div>
-                  <Icons.upload className="w-6 h-6 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-600">Upload purchase bill</p>
-                </div>
-              )}
-            </div>
-          </div>
+          {data.warrantyStatus === 'active' && data.purchaseDate && data.warrantyExpiry && (() => {
+            const purchase = new Date(data.purchaseDate)
+            const expiry = new Date(data.warrantyExpiry)
+            const minExpiry = new Date(purchase)
+            minExpiry.setMonth(minExpiry.getMonth() + 6)
+            if (expiry < minExpiry) {
+              return (
+                <p className="text-red-500 text-sm mt-2 font-medium">
+                  Warranty expiry date must be at least 6 months after the purchase date.
+                </p>
+              )
+            }
+            return null
+          })()}
         </>
+      )}
+
+      {data.hasBill && (
+        <div>
+          <Label>Upload Bill Image</Label>
+          <div 
+            className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-green-500 transition-colors"
+            onClick={() => billFileRef.current?.click()}
+          >
+            <input
+              ref={billFileRef}
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) updateData('billImage', file)
+              }}
+              className="hidden"
+            />
+            {data.billImage ? (
+              <div>
+                <Icons.check className="w-6 h-6 text-green-600 mx-auto mb-2" />
+                <p className="text-green-600">Bill image uploaded</p>
+              </div>
+            ) : (
+              <div>
+                <Icons.upload className="w-6 h-6 text-gray-400 mx-auto mb-2" />
+                <p className="text-gray-600">Upload purchase bill</p>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   )
@@ -1190,6 +1214,11 @@ function BankDetailsStep({ data, updateData }: { data: DeviceData, updateData: (
 }
 
 function PickupAddressStep({ data, updateData, availableCities, isConfigLoading }: { data: DeviceData, updateData: (field: keyof DeviceData, value: any) => void, availableCities: string[], isConfigLoading: boolean }) {
+  const isSame = data.pickupAddress === data.address && 
+                 data.pickupCity === data.city && 
+                 data.pickupPincode === data.pincode && 
+                 data.address !== '';
+
   return (
     <div className="space-y-6">
       <div>
@@ -1204,6 +1233,7 @@ function PickupAddressStep({ data, updateData, availableCities, isConfigLoading 
             <input
               type="radio"
               name="sameAddress"
+              checked={isSame}
               onChange={() => {
                 updateData('pickupAddress', data.address)
                 updateData('pickupCity', data.city)
@@ -1217,7 +1247,14 @@ function PickupAddressStep({ data, updateData, availableCities, isConfigLoading 
             <input
               type="radio"
               name="sameAddress"
-              defaultChecked
+              checked={!isSame}
+              onChange={() => {
+                if (isSame) {
+                  updateData('pickupAddress', '')
+                  updateData('pickupCity', '')
+                  updateData('pickupPincode', '')
+                }
+              }}
               className="mr-2"
             />
             Different address

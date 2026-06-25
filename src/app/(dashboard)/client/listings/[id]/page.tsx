@@ -477,13 +477,13 @@ export default function ListingDetailPage() {
       {/* Page Header with device info */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
             <div>
-              <h1 className="text-xl font-bold text-gray-900">{listing.device}</h1>
+              <h1 className="text-xl font-bold text-gray-900 break-words">{listing.device}</h1>
               <p className="text-sm text-gray-600">{listing.model}</p>
             </div>
             
-            <Badge className={`${statusInfo.color} border font-medium`}>
+            <Badge className={`${statusInfo.color} border font-medium w-fit`}>
               <StatusIcon className="w-3 h-3 mr-1" />
               {statusInfo.label}
             </Badge>
@@ -641,22 +641,22 @@ export default function ListingDetailPage() {
             {/* Bidding Summary */}
             <Card className="border-blue-200 bg-blue-50/50">
               <CardContent className="p-6">
-                <div className="grid grid-cols-3 gap-4 text-center">
+                <div className="grid grid-cols-3 gap-2 sm:gap-4 text-center">
                   <div>
-                    <p className="text-2xl font-bold text-blue-600">{listing.totalBids}</p>
-                    <p className="text-sm text-gray-600">Total Bids</p>
+                    <p className="text-lg sm:text-2xl font-bold text-blue-600">{listing.totalBids}</p>
+                    <p className="text-xs sm:text-sm text-gray-600">Total Bids</p>
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-green-600">
+                    <p className="text-lg sm:text-2xl font-bold text-green-600 break-words">
                       {highestBidAmount > 0 ? `₹${highestBidAmount.toLocaleString()}` : 'No bids yet'}
                     </p>
-                    <p className="text-sm text-gray-600">Highest Bid</p>
+                    <p className="text-xs sm:text-sm text-gray-600">Highest Bid</p>
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-orange-600">
+                    <p className="text-lg sm:text-2xl font-bold text-orange-600">
                       {highestBidAmount > 0 ? Math.round(((highestBidAmount - listing.askingPrice) / listing.askingPrice) * 100) : 0}%
                     </p>
-                    <p className="text-sm text-gray-600">vs Asking Price</p>
+                    <p className="text-xs sm:text-sm text-gray-600">vs Asking Price</p>
                   </div>
                 </div>
                 {listing.instantWin && (
@@ -711,13 +711,13 @@ export default function ListingDetailPage() {
                         {listing.deviceDetails.imei1 && (
                           <div>
                             <p className="text-sm font-medium text-gray-500">IMEI 1</p>
-                            <p className="text-sm font-mono text-gray-900">{listing.deviceDetails.imei1}</p>
+                            <p className="text-sm font-mono text-gray-900 break-all">{listing.deviceDetails.imei1}</p>
                           </div>
                         )}
                         {listing.deviceDetails.imei2 && (
                           <div>
                             <p className="text-sm font-medium text-gray-500">IMEI 2</p>
-                            <p className="text-sm font-mono text-gray-900">{listing.deviceDetails.imei2}</p>
+                            <p className="text-sm font-mono text-gray-900 break-all">{listing.deviceDetails.imei2}</p>
                           </div>
                         )}
                         {listing.deviceDetails.battery_health && (
@@ -796,7 +796,7 @@ export default function ListingDetailPage() {
                           {listing.clientAddress.email && (
                             <div className="mb-2">
                               <p className="text-sm font-medium text-gray-700">Email</p>
-                              <p className="text-sm text-gray-900">{listing.clientAddress.email}</p>
+                              <p className="text-sm text-gray-900 break-all">{listing.clientAddress.email}</p>
                             </div>
                           )}
                           {listing.clientAddress.address && (

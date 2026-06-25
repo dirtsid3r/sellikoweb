@@ -367,18 +367,18 @@ export default function MyListings() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <div className="flex items-center space-x-2 mb-2">
               <Link href="/client" className="text-gray-500 hover:text-gray-700">
                 <Icons.arrowLeft className="w-5 h-5" />
               </Link>
-              <h1 className="text-3xl font-bold text-gray-900">📱 My Device Listings</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">📱 My Device Listings</h1>
             </div>
             <p className="text-gray-600">Track your device sales and manage bids</p>
           </div>
-          <Link href="/client/list-device">
-            <Button className="bg-green-600 hover:bg-green-700">
+          <Link href="/client/list-device" className="w-full sm:w-auto">
+            <Button className="bg-green-600 hover:bg-green-700 w-full sm:w-auto">
               <Icons.plus className="w-4 h-4 mr-2" />
               List New Device
             </Button>
@@ -420,7 +420,7 @@ export default function MyListings() {
         </div>
 
         {/* Tabs */}
-        <div className="flex space-x-1 mb-6">
+        <div className="flex flex-wrap gap-2 mb-6">
           {tabs.map((tab) => (
             <button
               key={tab.key}

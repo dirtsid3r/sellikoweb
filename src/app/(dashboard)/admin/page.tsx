@@ -199,13 +199,18 @@ export default function AdminDashboard() {
               minute: '2-digit'
             })
             
+            const imageUrl = device.front_image_url || 
+                             (device.device_images && typeof device.device_images === 'object' ? device.device_images.front : null) || 
+                             null
+
             return {
               id: listing.id,
               device: `${device.brand || 'Unknown'} ${device.model || 'Model'}`,
               seller: sellerName,
               submittedAt: submittedAt,
               askingPrice: listing.expected_price || listing.asking_price || 0,
-              status: listing.status
+              status: listing.status,
+              imageUrl: imageUrl
             }
           })
           
@@ -388,77 +393,66 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
         ) : dashboardData ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
+          <Card className="mb-8 overflow-hidden bg-white/80 backdrop-blur-sm border border-gray-200/60 shadow-sm rounded-2xl">
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 lg:gap-0 lg:divide-x divide-gray-100">
+                {/* Pending Approvals */}
+                <div className="flex items-center justify-between border-b border-gray-100 last:border-b-0 pb-4 last:pb-2 sm:border-b-0 sm:pb-2 lg:px-6 py-2">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Pending Approvals</p>
-                    <p className="text-2xl font-bold text-gray-900">{dashboardData.pendingApprovals.toLocaleString()}</p>
+                    <p className="text-sm font-semibold text-gray-500">Pending Approvals</p>
+                    <p className="text-3xl font-extrabold text-gray-900 mt-1">{dashboardData.pendingApprovals.toLocaleString()}</p>
                   </div>
-                  <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                  <div className="w-12 h-12 bg-yellow-100/80 rounded-xl flex items-center justify-center flex-shrink-0">
                     <Icons.clock className="w-6 h-6 text-yellow-600" />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
 
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
+                {/* Total Purchases */}
+                <div className="flex items-center justify-between border-b border-gray-100 last:border-b-0 pb-4 last:pb-2 sm:border-b-0 sm:pb-2 lg:px-6 py-2">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Total Purchases</p>
-                    <p className="text-2xl font-bold text-gray-900">{dashboardData.totalPurchases.toLocaleString()}</p>
+                    <p className="text-sm font-semibold text-gray-500">Total Purchases</p>
+                    <p className="text-3xl font-extrabold text-gray-900 mt-1">{dashboardData.totalPurchases.toLocaleString()}</p>
                   </div>
-                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                  <div className="w-12 h-12 bg-green-100/80 rounded-xl flex items-center justify-center flex-shrink-0">
                     <Icons.download className="w-6 h-6 text-green-600" />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
 
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
+                {/* Active Agents */}
+                <div className="flex items-center justify-between border-b border-gray-100 last:border-b-0 pb-4 last:pb-2 sm:border-b-0 sm:pb-2 lg:px-6 py-2">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Active Agents</p>
-                    <p className="text-2xl font-bold text-gray-900">{dashboardData.agents.toLocaleString()}</p>
+                    <p className="text-sm font-semibold text-gray-500">Active Agents</p>
+                    <p className="text-3xl font-extrabold text-gray-900 mt-1">{dashboardData.agents.toLocaleString()}</p>
                   </div>
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <div className="w-12 h-12 bg-blue-100/80 rounded-xl flex items-center justify-center flex-shrink-0">
                     <Icons.user className="w-6 h-6 text-blue-600" />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
 
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
+                {/* Total Clients */}
+                <div className="flex items-center justify-between border-b border-gray-100 last:border-b-0 pb-4 last:pb-2 sm:border-b-0 sm:pb-2 lg:px-6 py-2">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Total Clients</p>
-                    <p className="text-2xl font-bold text-gray-900">{dashboardData.clients.toLocaleString()}</p>
+                    <p className="text-sm font-semibold text-gray-500">Total Clients</p>
+                    <p className="text-3xl font-extrabold text-gray-900 mt-1">{dashboardData.clients.toLocaleString()}</p>
                   </div>
-                  <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <div className="w-12 h-12 bg-purple-100/80 rounded-xl flex items-center justify-center flex-shrink-0">
                     <Icons.users className="w-6 h-6 text-purple-600" />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
 
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
+                {/* Total Vendors */}
+                <div className="flex items-center justify-between border-b border-gray-100 last:border-b-0 pb-4 last:pb-2 sm:border-b-0 sm:pb-2 lg:px-6 py-2">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Total Vendors</p>
-                    <p className="text-2xl font-bold text-gray-900">{dashboardData.vendors.toLocaleString()}</p>
+                    <p className="text-sm font-semibold text-gray-500">Total Vendors</p>
+                    <p className="text-3xl font-extrabold text-gray-900 mt-1">{dashboardData.vendors.toLocaleString()}</p>
                   </div>
-                  <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
+                  <div className="w-12 h-12 bg-indigo-100/80 rounded-xl flex items-center justify-center flex-shrink-0">
                     <Icons.package className="w-6 h-6 text-indigo-600" />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
         ) : null}
 
         {/* Activity Analytics Section */}
@@ -655,11 +649,30 @@ export default function AdminDashboard() {
                 {pendingListings.map((listing) => (
                   <div key={listing.id} className="bg-gray-50 rounded-lg overflow-hidden">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4">
+                      {/* Image Preview */}
+                      <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 flex items-center justify-center border border-gray-200/80">
+                        {listing.imageUrl ? (
+                          <img 
+                            src={listing.imageUrl} 
+                            alt={listing.device} 
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = '/api/placeholder/100/100'
+                            }}
+                          />
+                        ) : (
+                          <Icons.camera className="w-6 h-6 text-gray-400" />
+                        )}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <h4 className="font-semibold text-gray-900 truncate">{listing.device}</h4>
-                        <p className="text-sm text-gray-600">
-                          Seller: {listing.seller} • Submitted: {listing.submittedAt} • Price: ₹{listing.askingPrice.toLocaleString()}
-                        </p>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs sm:text-sm text-gray-600 mt-1">
+                          <span>Seller: <span className="font-medium text-gray-900">{listing.seller}</span></span>
+                          <span className="text-gray-300">•</span>
+                          <span>Submitted: <span className="font-medium text-gray-900">{listing.submittedAt}</span></span>
+                          <span className="text-gray-300">•</span>
+                          <span>Price: <span className="font-semibold text-green-700">₹{listing.askingPrice.toLocaleString()}</span></span>
+                        </div>
                       </div>
                       
                       <div className="flex flex-wrap items-center gap-2">

@@ -380,52 +380,21 @@ export default function AgentDashboard() {
 
   const formattedTasks = formatApiTasksForComponent(tasks)
 
-  // Sort tasks based on selected card
-  const getSortedTasks = () => {
-    const sorted = [...formattedTasks]
+  // Filter and sort tasks based on selected card
+  const getFilteredAndSortedTasks = () => {
+    let result = [...formattedTasks]
+
     if (activeSortBox === 'verifications') {
-      // Sort 'verification' status to top, followed by 'agent_assigned'
-      return sorted.sort((a, b) => {
-        if (a.status === 'verification' && b.status !== 'verification') return -1;
-        if (a.status !== 'verification' && b.status === 'verification') return 1;
-        if (a.status === 'agent_assigned' && b.status === 'ready_for_pickup') return -1;
-        if (a.status === 'ready_for_pickup' && b.status === 'agent_assigned') return 1;
-        return 0;
-      });
+      result = result.filter(t => t.status === 'verification')
+    } else if (activeSortBox === 'pending') {
+      result = result.filter(t => t.status === 'agent_assigned')
+    } else if (activeSortBox === 'pickups') {
+      result = result.filter(t => t.status === 'ready_for_pickup')
+    } else if (activeSortBox === 'deliveries') {
+      result = result.filter(t => t.status === 'completed')
     }
-    if (activeSortBox === 'pending') {
-      // Sort 'agent_assigned' status to top, and sort by priority (high -> medium -> low)
-      return sorted.sort((a, b) => {
-        if (a.status === 'agent_assigned' && b.status !== 'agent_assigned') return -1;
-        if (a.status !== 'agent_assigned' && b.status === 'agent_assigned') return 1;
-        
-        // Priority sort
-        const priorityWeight = { high: 3, medium: 2, low: 1 };
-        const weightA = priorityWeight[a.priority as keyof typeof priorityWeight] || 0;
-        const weightB = priorityWeight[b.priority as keyof typeof priorityWeight] || 0;
-        return weightB - weightA;
-      });
-    }
-    if (activeSortBox === 'pickups') {
-      // Sort 'ready_for_pickup' status to top
-      return sorted.sort((a, b) => {
-        if (a.status === 'ready_for_pickup' && b.status !== 'ready_for_pickup') return -1;
-        if (a.status !== 'ready_for_pickup' && b.status === 'ready_for_pickup') return 1;
-        return 0;
-      });
-    }
-    if (activeSortBox === 'deliveries') {
-      // Sort by status ready_for_pickup first (closest to delivery) and then by priority
-      return sorted.sort((a, b) => {
-        if (a.status === 'ready_for_pickup' && b.status !== 'ready_for_pickup') return -1;
-        if (a.status !== 'ready_for_pickup' && b.status === 'ready_for_pickup') return 1;
-        const priorityWeight = { high: 3, medium: 2, low: 1 };
-        const weightA = priorityWeight[a.priority as keyof typeof priorityWeight] || 0;
-        const weightB = priorityWeight[b.priority as keyof typeof priorityWeight] || 0;
-        return weightB - weightA;
-      });
-    }
-    return sorted; // Default sort
+
+    return result
   }
   const performanceData = getPerformanceData()
   const completionRate = getCompletionRate()
@@ -715,8 +684,18 @@ export default function AgentDashboard() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {getSortedTasks().map((task: any) => (
-                    <div key={task.id} className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all cursor-pointer">
+                  {getFilteredAndSortedTasks().map((task: any) => (
+                    <div 
+                      key={task.id} 
+                      onClick={() => {
+                        if (task.status !== 'completed') {
+                          router.push(`/agent/verification?taskId=${task.listingId}`)
+                        } else {
+                          handleViewVerification(task.listingId, task.device, task.timeLeft)
+                        }
+                      }}
+                      className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all cursor-pointer"
+                    >
                       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                           <img 
@@ -740,7 +719,7 @@ export default function AgentDashboard() {
                               <MapPinIcon className="w-4 h-4 mr-1" />
                               {task.location}
                             </div>
-                            <p className="text-xs text-gray-400 mt-1" title={task.fullAddress}>
+                            <p className="text-xs text-gray-400 mt-1 break-words" title={task.fullAddress}>
                               Full address: {task.fullAddress}
                             </p>
                           </div>
@@ -766,11 +745,11 @@ export default function AgentDashboard() {
                           )}
                         </div>
                       </div>
-                      <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-100">
-                          <div className="text-sm text-gray-600">
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mt-4 pt-4 border-t border-gray-100">
+                          <div className="text-sm text-gray-600 break-all">
                             Task ID: {task.id}
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             {['ready_for_pickup', 'completed'].includes(task.status) && (
                               <Button
                                 onClick={(e) => {
@@ -793,6 +772,7 @@ export default function AgentDashboard() {
                             {task.status === 'ready_for_pickup' ? (
                               <Link
                                 href={`/agent/verification?taskId=${task.listingId}`}
+                                onClick={(e) => e.stopPropagation()}
                                 className="inline-flex items-center px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-lg hover:bg-orange-700 transition-colors"
                               >
                                 <TruckIcon className="w-4 h-4 mr-2" />
@@ -801,6 +781,7 @@ export default function AgentDashboard() {
                             ) : task.status !== 'completed' ? (
                               <Link
                                 href={`/agent/verification?taskId=${task.listingId}`}
+                                onClick={(e) => e.stopPropagation()}
                                 className="inline-flex items-center px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
                               >
                                 {task.status === 'verification' ? 'Continue' : 'Start'} Verification
@@ -852,18 +833,18 @@ export default function AgentDashboard() {
                 <div className="space-y-4">
                   {pendingDeliveries.map((delivery) => (
                     <div key={delivery.listing_id} className="border-l-4 border-orange-500 pl-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="font-medium text-gray-900">{delivery.name}</h3>
-                        <span className="text-sm text-purple-600 font-semibold">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2 gap-1">
+                        <h3 className="font-medium text-gray-900 break-words">{delivery.name}</h3>
+                        <span className="text-sm text-purple-600 font-semibold break-all">
                           #{delivery.deliver_to.vendor_code}/{delivery.listing_id}
                         </span>
                       </div>
                       <p className="text-sm text-gray-600 mb-1">Seller: {delivery.seller}</p>
-                      <div className="flex items-center justify-between text-sm mb-3">
+                      <div className="flex flex-col sm:flex-row sm:justify-between gap-2 text-sm mb-3">
                         <span className="text-gray-500">
                           {new Date(delivery.time).toLocaleString()}
                         </span>
-                        <div className="text-right">
+                        <div className="text-left sm:text-right">
                           <div className="text-xs text-gray-600">{delivery.deliver_to.name}</div>
                           <div className="text-xs text-gray-500">{delivery.deliver_to.city}</div>
                         </div>

@@ -23,8 +23,12 @@ export default function SignInPage() {
         
         if (user) {
           const userRole = (user.user_role || user.role || '').toLowerCase()
-          router.replace(`/${userRole}`)
-          return
+          if (userRole) {
+            router.replace(`/${userRole}`)
+            return
+          } else {
+            console.warn('⚠️ [LOGIN] User is logged in but user role is undefined; showing login screen.')
+          }
         }
         
       } catch (error) {

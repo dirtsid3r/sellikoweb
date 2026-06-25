@@ -249,7 +249,7 @@ export default function AdminListingDetailPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
             <div>
               <h1 className="text-xl font-bold text-gray-900">{device.device}</h1>
               <p className="text-sm text-gray-600">
@@ -259,7 +259,7 @@ export default function AdminListingDetailPage() {
                 {device.color && ` | Color: ${device.color}`}
               </p>
             </div>
-            <Badge className={`${statusInfo.color} border font-medium`}>
+            <Badge className={`${statusInfo.color} border font-medium w-fit`}>
               <StatusIcon className="w-3 h-3 mr-1" />
               {statusInfo.label}
             </Badge>
@@ -329,7 +329,7 @@ export default function AdminListingDetailPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm font-medium text-gray-500">Storage</p>
                     <p className="text-lg font-semibold text-gray-900">{device.storage || 'N/A'}</p>
@@ -355,7 +355,7 @@ export default function AdminListingDetailPage() {
                   <>
                     <div className="border-t pt-4">
                       <h4 className="font-semibold text-gray-900 mb-3">Technical Information</h4>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {device.deviceDetails.battery_health && (
                           <div>
                             <p className="text-sm font-medium text-gray-500">Battery Health</p>
@@ -372,7 +372,7 @@ export default function AdminListingDetailPage() {
                     </div>
                     <div className="border-t pt-4">
                       <h4 className="font-semibold text-gray-900 mb-3">Purchase & Warranty</h4>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {device.deviceDetails.purchase_date && (
                           <div>
                             <p className="text-sm font-medium text-gray-500">Purchase Date</p>

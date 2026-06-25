@@ -1443,8 +1443,8 @@ export default function AgentVerification() {
                 </button>
               </div>
             ) : (
-              <div className="flex items-start justify-between">
-                <div className="flex items-start space-x-4">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                <div className="flex items-start space-x-4 min-w-0">
                   <div className="w-20 h-20 bg-gray-100 rounded-xl overflow-hidden flex items-center justify-center">
                     {deviceInfo.images && deviceInfo.images.length > 0 ? (
                       <img 
@@ -1476,7 +1476,7 @@ export default function AgentVerification() {
                     )}
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="text-left sm:text-right flex-shrink-0">
                   <div className="text-2xl font-bold text-green-600">₹{deviceInfo.vendorBid.toLocaleString()}</div>
                   <div className="text-sm text-gray-500">Vendor Bid</div>
                   <div className="text-xs text-gray-400 mt-1">Ask: ₹{deviceInfo.askingPrice.toLocaleString()}</div>
@@ -1487,7 +1487,7 @@ export default function AgentVerification() {
             {!isLoadingDevice && !deviceLoadError && (
               <div className="border-t mt-4 pt-4">
                 {/* Basic Info */}
-                <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm mb-4">
                   <div>
                     <span className="text-gray-600">Seller:</span>
                     <span className="ml-2 font-medium">{deviceInfo.seller}</span>
@@ -1498,7 +1498,7 @@ export default function AgentVerification() {
                   </div>
                   <div>
                     <span className="text-gray-600">Email:</span>
-                    <span className="ml-2 font-medium">{deviceInfo.email || 'Not provided'}</span>
+                    <span className="ml-2 font-medium break-all">{deviceInfo.email || 'Not provided'}</span>
                   </div>
                   <div>
                     <span className="text-gray-600">Task ID:</span>
@@ -1512,11 +1512,16 @@ export default function AgentVerification() {
                     <h4 className="font-semibold text-blue-900 mb-2">Device Details</h4>
                     <div className="space-y-2 text-sm">
                       {deviceInfo.imei1 && (
-                        <div>
-                          <span className="text-blue-700">IMEI 1:</span>
-                          <span className="ml-2 font-mono">{deviceInfo.imei1}</span>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                          <div>
+                            <span className="text-blue-700">IMEI 1:</span>
+                            <span className="ml-2 font-mono break-all">{deviceInfo.imei1}</span>
+                          </div>
                           {deviceInfo.imei2 && (
-                            <span className="ml-4 text-blue-700">IMEI 2: <span className="font-mono">{deviceInfo.imei2}</span></span>
+                            <div>
+                              <span className="text-blue-700 sm:ml-2">IMEI 2:</span>
+                              <span className="ml-2 font-mono break-all">{deviceInfo.imei2}</span>
+                            </div>
                           )}
                         </div>
                       )}
@@ -1541,7 +1546,7 @@ export default function AgentVerification() {
                  (deviceInfo.status === 'agent_assigned' || deviceInfo.status === 'verification') && (
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
                     <h4 className="font-semibold text-green-900 mb-2">Purchase & Warranty</h4>
-                    <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                       {deviceInfo.hasBill && (
                         <div>
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -1590,7 +1595,7 @@ export default function AgentVerification() {
                       </div>
                       <div>
                         <span className="text-purple-700">Address:</span>
-                        <p className="ml-2 text-purple-800">{deviceInfo.fullAddress}</p>
+                        <p className="ml-2 text-purple-800 break-words">{deviceInfo.fullAddress}</p>
                       </div>
                       <div>
                         <span className="text-purple-700">City & PIN:</span>
@@ -1605,7 +1610,7 @@ export default function AgentVerification() {
                  (deviceInfo.status === 'agent_assigned' || deviceInfo.status === 'verification') && (
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                     <h4 className="font-semibold text-yellow-900 mb-2">Payment Details</h4>
-                    <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                       {deviceInfo.bankName && (
                         <div>
                           <span className="text-yellow-700">Bank:</span>
@@ -1769,7 +1774,7 @@ export default function AgentVerification() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Progress Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
             <h1 className="text-2xl font-bold text-gray-900">
               {deviceInfo && (deviceInfo.status === 'agent_assigned' || deviceInfo.status === 'verification') 
                 ? 'Device Verification' 

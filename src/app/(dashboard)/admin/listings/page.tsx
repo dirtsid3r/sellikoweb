@@ -84,29 +84,37 @@ export default function AdminListingsPage() {
         // Transform to admin shape; fallback/compat logic exactly as in MarketplaceTab
         const transformedListings: MarketplaceListing[] = response.listings.map((item: any) => {
           const device = (item.devices && item.devices[0]) || {}
-          const brand = device.brand || item.brand || 'Unknown'
-          const model = device.model || item.model || ''
-          const storage = device.variant || device.storage || ''
-          const ram = device.ram || ''
-          const color = device.color || ''
-          const askingPrice = item.highest_bid_value ?? 0
+          const brand = item.brand || device.brand || 'Unknown'
+          const model = item.model || device.model || ''
+          const storage = item.storage || device.variant || device.storage || ''
+          const ram = item.ram || device.ram || ''
+          const color = item.color || device.color || ''
+          const condition = item.condition || device.condition || ''
+          const askingPrice = (item.expected_price || item.asking_price || 0) / 100
 
           // Bids and winning bid (admin listings may differ in fields)
           const bids = Array.isArray(item.bids)
             ? item.bids.map((bid: any) => ({
                 id: bid.bid_id?.toString() || '',
-                amount: bid.bid_amount ?? 0,
+                amount: (bid.bid_amount ?? 0) / 100,
                 vendor_id: bid.user_id || '',
-                vendor_name: '',
+                vendor_name: bid.vendor_name || 'Vendor',
                 created_at: bid.created_at || '',
                 instant_win: !!bid.instant_win,
-                status: 'active',
+                status: bid.status || 'active',
               }))
             : []
           const totalBids = bids.length
           // Sort for currentBidInfo/winningBid logic
           const highestBid = bids.reduce((max: any, b: any) => b.amount > max.amount ? b : max, { amount: 0 })
           
+          const clientAddress = item.addresses?.find((addr: any) => addr.type === 'client') || {}
+          const sellerName = item.seller?.name || 
+                             item.contact_name || 
+                             clientAddress.contact_name || 
+                             clientAddress.name || 
+                             'Unknown Seller'
+
           return {
             id: (item.id || '').toString(),
             status: item.status || '',
@@ -114,7 +122,7 @@ export default function AdminListingsPage() {
             brand,
             storage,
             color,
-            condition: item.condition || '',
+            condition,
             askingPrice,
             currentBidInfo: highestBid && highestBid.amount > 0 ? highestBid : null,
             bids,
@@ -123,7 +131,7 @@ export default function AdminListingsPage() {
             timeLeft: '', // If not in API, fallback
             timeRemaining: '',
             location: (item.addresses && item.addresses[0]?.city) || '',
-            seller: { name: '', rating: 5, isVerified: false },
+            seller: { name: sellerName, rating: 5, isVerified: false },
             images: item.images || [],
             isHot: false,
             isInstantWin: false,
@@ -231,6 +239,15 @@ export default function AdminListingsPage() {
     if (listing.status === 'bidding_ended') {
       return <Badge className="bg-gray-500 text-white">⏰ Bidding Ended</Badge>
     }
+    if (listing.status === 'pending_approval') {
+      return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">🕒 Pending Approval</Badge>
+    }
+    if (listing.status === 'rejected') {
+      return <Badge className="bg-red-100 text-red-800 border-red-200">❌ Rejected</Badge>
+    }
+    if (listing.status === 'cancelled') {
+      return <Badge className="bg-gray-100 text-gray-800 border-gray-200">🚫 Cancelled</Badge>
+    }
     if (!listing.isBiddable) {
       return <Badge className="bg-gray-500 text-white">🚫 Not Available</Badge>
     }
@@ -239,6 +256,9 @@ export default function AdminListingsPage() {
     }
     if (listing.totalBids > 0 && listing.status !== 'receiving_bids') {
       return <Badge className="bg-blue-500 text-white">📈 Bidded</Badge>
+    }
+    if (listing.status) {
+      return <Badge className="bg-blue-100 text-blue-800 border-blue-200">{listing.status}</Badge>
     }
     return null
   }
@@ -382,15 +402,16 @@ export default function AdminListingsPage() {
                         <span>Color: <span className="font-semibold text-gray-800">{listing.color || 'N/A'}</span></span>
                       </div>
                       <div className="flex flex-wrap gap-2 text-gray-600 text-xs mb-1">
+                        <span>Seller: <span className="font-semibold text-gray-800">{listing.seller?.name || 'Unknown'}</span></span>
                         <span>Location: <span className="font-semibold text-gray-800">{listing.location || 'N/A'}</span></span>
                         <span>Listed: <span className="font-semibold text-gray-800">{listing.listingDate || 'N/A'}</span></span>
                       </div>
                       <p className="text-gray-700 text-sm mb-1">{listing.description}</p>
-                      <div className="flex items-center justify-between text-gray-700 text-sm mb-2">
-                        <span>Asking Price: <Badge className="bg-blue-500 text-white">{listing.askingPrice.toLocaleString()}</Badge></span>
-                        <span>Current Bid: <Badge className="bg-green-500 text-white">{listing.currentBidInfo?.amount.toLocaleString()}</Badge></span>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-gray-700 text-sm mb-2">
+                        <span>Asking Price: <Badge className="bg-blue-500 text-white">₹{listing.askingPrice.toLocaleString()}</Badge></span>
+                        <span>Current Bid: <Badge className="bg-green-500 text-white">₹{(listing.currentBidInfo?.amount || 0).toLocaleString()}</Badge></span>
                       </div>
-                      <div className="flex items-center justify-between text-gray-700 text-sm mb-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-gray-700 text-sm mb-2">
                         <span>Bids: <Badge className={`${getBidStatusColor(listing.totalBids)}`}>{listing.totalBids}</Badge></span>
                         <span>Time Left: <Badge className={`${getTimeLeftColor(listing.timeRemaining || listing.timeLeft)}`}>{listing.timeRemaining || listing.timeLeft}</Badge></span>
                       </div>
