@@ -220,12 +220,52 @@ export default function AgentDashboard() {
     }
   }
 
-  // Fetch agent dashboard data on mount/auth success
+  // Check auth and role on mount
   useEffect(() => {
-    if (!isAuthChecking && user) {
+    const checkAuthAndRole = async () => {
+      console.log('🔒 [AGENT-DASH] Checking authentication and role...')
+      try {
+        const currentUser = await sellikoClient.getCurrentUser()
+        console.log('👤 [AGENT-DASH] Current user:', currentUser ? {
+          id: currentUser.id,
+          role: currentUser.user_role || currentUser.role,
+        } : 'No user found')
+        
+        if (!currentUser) {
+          console.log('❌ [AGENT-DASH] No user found, redirecting to login')
+          toast.error('Please login to continue')
+          router.replace('/login')
+          return
+        }
+
+        const userRole = (currentUser.user_role || currentUser.role || '').toLowerCase()
+        console.log('👑 [AGENT-DASH] User role:', userRole)
+        
+        if (userRole !== 'agent') {
+          console.log(`⚠️ [AGENT-DASH] Invalid role access attempt: ${userRole}`)
+          toast.error('Access denied. Redirecting to your dashboard.')
+          router.replace(`/${userRole}`)
+          return
+        }
+
+        console.log('✅ [AGENT-DASH] Role verification successful')
+        setIsAuthChecking(false)
+      } catch (error) {
+        console.error('💥 [AGENT-DASH] Auth check error:', error)
+        toast.error('Authentication error')
+        router.replace('/login')
+      }
+    }
+
+    checkAuthAndRole()
+  }, [router])
+
+  // Fetch agent dashboard data on auth success
+  useEffect(() => {
+    if (!isAuthChecking) {
       fetchDashboardData()
     }
-  }, [isAuthChecking, user])
+  }, [isAuthChecking])
 
   // Fetch tasks from API
   const fetchTasks = async () => {
@@ -313,25 +353,24 @@ export default function AgentDashboard() {
     }
   }
 
-  // Load tasks and pending deliveries when component mounts
+  // Load tasks and pending deliveries when auth check completes
   useEffect(() => {
-    if (user && (user as any).user_role?.toUpperCase() === 'AGENT') {
+    if (!isAuthChecking) {
       fetchTasks()
       fetchPendingDeliveries()
-      setIsAuthChecking(false)
     }
-  }, [user])
+  }, [isAuthChecking])
 
   // Auto-refresh tasks and deliveries every 2 minutes
   useEffect(() => {
-    if (user && (user as any).user_role?.toUpperCase() === 'AGENT') {
+    if (!isAuthChecking) {
       const interval = setInterval(() => {
         fetchTasks()
         fetchPendingDeliveries()
       }, 120000) // 2 minutes
       return () => clearInterval(interval)
     }
-  }, [user])
+  }, [isAuthChecking])
 
   if (isLoading || isAuthChecking) {
     return (
@@ -424,16 +463,16 @@ export default function AgentDashboard() {
 
         {/* Main Dashboard Stats */}
         {isLoadingDashboard ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="card-mobile bg-white/80 backdrop-blur-sm p-6">
+              <div key={i} className="card-mobile bg-white/80 backdrop-blur-sm p-4 sm:p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <div className="h-4 bg-gray-200 rounded animate-pulse mb-2"></div>
                     <div className="h-8 bg-gray-200 rounded animate-pulse mb-1"></div>
                     <div className="h-3 bg-gray-200 rounded animate-pulse"></div>
                   </div>
-                  <div className="w-12 h-12 bg-gray-200 rounded-xl animate-pulse"></div>
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-200 rounded-xl animate-pulse flex-shrink-0"></div>
                 </div>
               </div>
             ))}
@@ -457,10 +496,10 @@ export default function AgentDashboard() {
             </CardContent>
           </Card>
         ) : dashboardData ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
             <div 
               onClick={() => setActiveSortBox(activeSortBox === 'verifications' ? 'all' : 'verifications')}
-              className={`card-mobile cursor-pointer p-6 transition-all duration-200 hover:shadow-md hover:scale-[1.02] border-2 ${
+              className={`card-mobile cursor-pointer p-4 sm:p-6 transition-all duration-200 hover:shadow-md hover:scale-[1.02] border-2 ${
                 activeSortBox === 'verifications' 
                   ? 'bg-purple-50/50 border-purple-500 shadow-md ring-2 ring-purple-500/20' 
                   : 'bg-white/80 border-transparent hover:border-purple-200'
@@ -468,19 +507,19 @@ export default function AgentDashboard() {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600 font-semibold">Total Verifications</p>
-                  <p className="text-3xl font-bold text-purple-600">{dashboardData.verifications.toLocaleString()}</p>
-                  <p className="text-xs text-gray-500 mt-1">Click to sort: active first</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-600 font-semibold">Total Verifications</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl font-bold text-purple-600 mt-1">{dashboardData.verifications.toLocaleString()}</p>
+                  <p className="text-[10px] sm:text-xs text-gray-500 mt-1 leading-tight">Click to sort: active first</p>
                 </div>
-                <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <CheckCircleIcon className="w-6 h-6 text-purple-600" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <CheckCircleIcon className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
                 </div>
               </div>
             </div>
 
             <div 
               onClick={() => setActiveSortBox(activeSortBox === 'pending' ? 'all' : 'pending')}
-              className={`card-mobile cursor-pointer p-6 transition-all duration-200 hover:shadow-md hover:scale-[1.02] border-2 ${
+              className={`card-mobile cursor-pointer p-4 sm:p-6 transition-all duration-200 hover:shadow-md hover:scale-[1.02] border-2 ${
                 activeSortBox === 'pending' 
                   ? 'bg-blue-50/50 border-blue-500 shadow-md ring-2 ring-blue-500/20' 
                   : 'bg-white/80 border-transparent hover:border-blue-200'
@@ -488,19 +527,19 @@ export default function AgentDashboard() {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600 font-semibold">Pending Tasks</p>
-                  <p className="text-3xl font-bold text-blue-600">{tasks.length}</p>
-                  <p className="text-xs text-gray-500 mt-1">Click to sort: assigned first</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-600 font-semibold">Pending Tasks</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl font-bold text-blue-600 mt-1">{tasks.length}</p>
+                  <p className="text-[10px] sm:text-xs text-gray-500 mt-1 leading-tight">Click to sort: assigned first</p>
                 </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <DevicePhoneMobileIcon className="w-6 h-6 text-blue-600" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <DevicePhoneMobileIcon className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
                 </div>
               </div>
             </div>
 
             <div 
               onClick={() => setActiveSortBox(activeSortBox === 'pickups' ? 'all' : 'pickups')}
-              className={`card-mobile cursor-pointer p-6 transition-all duration-200 hover:shadow-md hover:scale-[1.02] border-2 ${
+              className={`card-mobile cursor-pointer p-4 sm:p-6 transition-all duration-200 hover:shadow-md hover:scale-[1.02] border-2 ${
                 activeSortBox === 'pickups' 
                   ? 'bg-green-50/50 border-green-500 shadow-md ring-2 ring-green-500/20' 
                   : 'bg-white/80 border-transparent hover:border-green-200'
@@ -508,19 +547,19 @@ export default function AgentDashboard() {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600 font-semibold">Today's Pickups</p>
-                  <p className="text-3xl font-bold text-green-600">{dashboardData.pickupsToday}</p>
-                  <p className="text-xs text-gray-500 mt-1">Click to sort: pickups first</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-600 font-semibold">Today's Pickups</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl font-bold text-green-600 mt-1">{dashboardData.pickupsToday}</p>
+                  <p className="text-[10px] sm:text-xs text-gray-500 mt-1 leading-tight">Click to sort: pickups first</p>
                 </div>
-                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <TruckIcon className="w-6 h-6 text-green-600" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <TruckIcon className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
                 </div>
               </div>
             </div>
 
             <div 
               onClick={() => setActiveSortBox(activeSortBox === 'deliveries' ? 'all' : 'deliveries')}
-              className={`card-mobile cursor-pointer p-6 transition-all duration-200 hover:shadow-md hover:scale-[1.02] border-2 ${
+              className={`card-mobile cursor-pointer p-4 sm:p-6 transition-all duration-200 hover:shadow-md hover:scale-[1.02] border-2 ${
                 activeSortBox === 'deliveries' 
                   ? 'bg-orange-50/50 border-orange-500 shadow-md ring-2 ring-orange-500/20' 
                   : 'bg-white/80 border-transparent hover:border-orange-200'
@@ -528,12 +567,12 @@ export default function AgentDashboard() {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600 font-semibold">Today's Deliveries</p>
-                  <p className="text-3xl font-bold text-orange-600">{dashboardData.deliveriesToday}</p>
-                  <p className="text-xs text-gray-500 mt-1">Click to sort: priority first</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-600 font-semibold">Today's Deliveries</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl font-bold text-orange-600 mt-1">{dashboardData.deliveriesToday}</p>
+                  <p className="text-[10px] sm:text-xs text-gray-500 mt-1 leading-tight">Click to sort: priority first</p>
                 </div>
-                <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <CheckCircleIcon className="w-6 h-6 text-orange-600" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-orange-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <CheckCircleIcon className="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
                 </div>
               </div>
             </div>
@@ -580,26 +619,26 @@ export default function AgentDashboard() {
             </CardHeader>
             <CardContent>
               {performanceData && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="text-center p-6 bg-blue-50 rounded-lg">
-                    <div className="text-3xl font-bold text-blue-600 mb-2">{performanceData.pickupsToday || 0}</div>
-                    <div className="text-sm text-gray-600">Pickups Completed</div>
-                    <div className="text-xs text-gray-500 mt-1">
+                <div className="grid grid-cols-3 md:grid-cols-3 gap-3 md:gap-6">
+                  <div className="text-center p-3 sm:p-6 bg-blue-50 rounded-lg">
+                    <div className="text-lg sm:text-2xl md:text-3xl font-bold text-blue-600 mb-1 sm:mb-2">{performanceData.pickupsToday || 0}</div>
+                    <div className="text-xs sm:text-sm text-gray-600 font-medium">Pickups Completed</div>
+                    <div className="text-[9px] sm:text-xs text-gray-500 mt-1 leading-tight">
                       {selectedTimeframe === 'today' ? 'Last 24 hours' : 
                        selectedTimeframe === 'week' ? 'Last 7 days' :
                        selectedTimeframe === 'month' ? 'Last 30 days' : 
                        'Last 365 days'}
                     </div>
                   </div>
-                  <div className="text-center p-6 bg-green-50 rounded-lg">
-                    <div className="text-3xl font-bold text-green-600 mb-2">{performanceData.deliveriesToday || 0}</div>
-                    <div className="text-sm text-gray-600">Deliveries Made</div>
-                    <div className="text-xs text-gray-500 mt-1">Successfully delivered</div>
+                  <div className="text-center p-3 sm:p-6 bg-green-50 rounded-lg">
+                    <div className="text-lg sm:text-2xl md:text-3xl font-bold text-green-600 mb-1 sm:mb-2">{performanceData.deliveriesToday || 0}</div>
+                    <div className="text-xs sm:text-sm text-gray-600 font-medium">Deliveries Made</div>
+                    <div className="text-[9px] sm:text-xs text-gray-500 mt-1 leading-tight">Successfully delivered</div>
                   </div>
-                  <div className="text-center p-6 bg-purple-50 rounded-lg">
-                    <div className="text-3xl font-bold text-purple-600 mb-2">{completionRate}%</div>
-                    <div className="text-sm text-gray-600">Completion Rate</div>
-                    <div className="text-xs text-gray-500 mt-1">Pickup to delivery ratio</div>
+                  <div className="text-center p-3 sm:p-6 bg-purple-50 rounded-lg">
+                    <div className="text-lg sm:text-2xl md:text-3xl font-bold text-purple-600 mb-1 sm:mb-2">{completionRate}%</div>
+                    <div className="text-xs sm:text-sm text-gray-600 font-medium">Completion Rate</div>
+                    <div className="text-[9px] sm:text-xs text-gray-500 mt-1 leading-tight">Pickup to delivery ratio</div>
                   </div>
                 </div>
               )}

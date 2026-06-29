@@ -309,7 +309,7 @@ const NotificationButton: React.FC<NotificationButtonProps> = ({ hasNewNotificat
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                           <h4 className={cn(
-                            "text-sm font-medium leading-tight",
+                            "text-sm font-medium leading-tight break-words whitespace-pre-wrap",
                             !notification.read ? "text-gray-900 dark:text-white" : "text-gray-600 dark:text-gray-400"
                           )}>
                             {notification.title || 'Notification'}
@@ -319,7 +319,7 @@ const NotificationButton: React.FC<NotificationButtonProps> = ({ hasNewNotificat
                           )}
                         </div>
                         
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 break-words whitespace-pre-wrap">
                           {notification.message || notification.content || 'No content available'}
                         </p>
                         

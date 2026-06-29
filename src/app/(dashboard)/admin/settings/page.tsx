@@ -281,19 +281,30 @@ function UserManagement() {
 
   // Add User Handler
   const handleAddUser = async () => {
-    if (!addUserData.mobile_number.trim()) {
+    const cleanMobile = addUserData.mobile_number.trim()
+    if (!cleanMobile) {
       toast.error('Mobile number is required')
+      return
+    }
+    if (!/^(?:\+91|0)?[6-9]\d{9}$/.test(cleanMobile)) {
+      toast.error('Please enter a valid 10-digit Indian mobile number (e.g. 9876543210).')
+      return
+    }
+
+    const allowedRoles = ['admin', 'agent', 'vendor', 'client', 'anon']
+    if (!allowedRoles.includes(addUserData.user_role)) {
+      toast.error('Please select a valid user role.')
       return
     }
 
     setIsAddingUser(true)
     try {
       console.log('👥 [USER-MGMT] Adding user:', {
-        mobile_number: addUserData.mobile_number.substring(0, 5) + '***',
+        mobile_number: cleanMobile.substring(0, 5) + '***',
         user_role: addUserData.user_role
       })
 
-      const result = await sellikoClient.addUser(addUserData.mobile_number, addUserData.user_role) as any
+      const result = await sellikoClient.addUser(cleanMobile, addUserData.user_role) as any
 
       if (result.success) {
         toast.success('User created successfully!')
@@ -986,9 +997,47 @@ function VendorManagement({ availableCities, configLoading }: {
       return
     }
 
+    const cleanName = (vendorData.name || '').trim()
+    const cleanEmail = (vendorData.email || '').trim()
+    const cleanNumber = (vendorData.number || '').trim()
+
     // Validate required fields
-    if (!vendorData.name || !vendorData.email || !vendorData.number) {
+    if (!cleanName || !cleanEmail || !cleanNumber) {
       toast.error('Name, email, and phone number are required')
+      return
+    }
+
+    if (cleanName.length < 3) {
+      toast.error('Name must be at least 3 characters long.')
+      return
+    }
+    if (!/^[a-zA-Z\s.-]{3,50}$/.test(cleanName)) {
+      toast.error('Name should contain only letters, spaces, dots, or hyphens.')
+      return
+    }
+
+    if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(cleanEmail)) {
+      toast.error('Please enter a valid email address.')
+      return
+    }
+
+    if (!/^(?:\+91|0)?[6-9]\d{9}$/.test(cleanNumber)) {
+      toast.error('Please enter a valid 10-digit Indian phone number.')
+      return
+    }
+
+    if (vendorData.pincode && !/^\d{6}$/.test(vendorData.pincode.trim())) {
+      toast.error('Pincode must be exactly 6 digits.')
+      return
+    }
+
+    if (vendorData.base_price && (isNaN(parseFloat(vendorData.base_price)) || parseFloat(vendorData.base_price) < 0)) {
+      toast.error('Base price must be a valid non-negative number.')
+      return
+    }
+
+    if (vendorData.contact_person_phone && !/^(?:\+91|0)?[6-9]\d{9}$/.test(vendorData.contact_person_phone.trim())) {
+      toast.error('Contact person phone must be a valid 10-digit mobile number.')
       return
     }
 
@@ -1004,16 +1053,16 @@ function VendorManagement({ availableCities, configLoading }: {
       // Prepare update payload - only include fields that can be updated
       const updatePayload = {
         vendor_id: vendorData.vendor_id,
-        name: vendorData.name,
-        email: vendorData.email,
-        number: vendorData.number,
-        address: vendorData.address,
+        name: cleanName,
+        email: cleanEmail,
+        number: cleanNumber,
+        address: (vendorData.address || '').trim(),
         city: vendorData.city,
-        pincode: vendorData.pincode,
+        pincode: (vendorData.pincode || '').trim(),
         state: vendorData.state,
-        landmark: vendorData.landmark,
-        contact_person: vendorData.contact_person,
-        contact_person_phone: vendorData.contact_person_phone,
+        landmark: (vendorData.landmark || '').trim(),
+        contact_person: (vendorData.contact_person || '').trim(),
+        contact_person_phone: (vendorData.contact_person_phone || '').trim(),
         working_pincodes: vendorData.working_pincodes,
         base_price: parseFloat(vendorData.base_price) || 0 // Include base_price, convert to number
       }
@@ -1664,9 +1713,42 @@ function AgentManagement({ availableCities, configLoading }: {
       return
     }
 
+    const cleanName = (agentData.name || '').trim()
+    const cleanEmail = (agentData.email || '').trim()
+    const cleanNumber = (agentData.number || '').trim()
+
     // Validate required fields
-    if (!agentData.name || !agentData.email || !agentData.number) {
+    if (!cleanName || !cleanEmail || !cleanNumber) {
       toast.error('Name, email, and phone number are required')
+      return
+    }
+
+    if (cleanName.length < 3) {
+      toast.error('Name must be at least 3 characters long.')
+      return
+    }
+    if (!/^[a-zA-Z\s.-]{3,50}$/.test(cleanName)) {
+      toast.error('Name should contain only letters, spaces, dots, or hyphens.')
+      return
+    }
+
+    if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(cleanEmail)) {
+      toast.error('Please enter a valid email address.')
+      return
+    }
+
+    if (!/^(?:\+91|0)?[6-9]\d{9}$/.test(cleanNumber)) {
+      toast.error('Please enter a valid 10-digit Indian phone number.')
+      return
+    }
+
+    if (agentData.pincode && !/^\d{6}$/.test(agentData.pincode.trim())) {
+      toast.error('Pincode must be exactly 6 digits.')
+      return
+    }
+
+    if (agentData.contact_person_phone && !/^(?:\+91|0)?[6-9]\d{9}$/.test(agentData.contact_person_phone.trim())) {
+      toast.error('Contact person phone must be a valid 10-digit mobile number.')
       return
     }
 
@@ -1676,16 +1758,16 @@ function AgentManagement({ availableCities, configLoading }: {
 
       // Prepare update payload - only include fields that can be updated
       const updatePayload: any = {
-        name: agentData.name,
-        email: agentData.email,
-        number: agentData.number,
-        address: agentData.address,
+        name: cleanName,
+        email: cleanEmail,
+        number: cleanNumber,
+        address: (agentData.address || '').trim(),
         city: agentData.city,
-        pincode: agentData.pincode,
+        pincode: (agentData.pincode || '').trim(),
         state: agentData.state,
-        landmark: agentData.landmark,
-        contact_person: agentData.contact_person,
-        contact_person_phone: agentData.contact_person_phone,
+        landmark: (agentData.landmark || '').trim(),
+        contact_person: (agentData.contact_person || '').trim(),
+        contact_person_phone: (agentData.contact_person_phone || '').trim(),
         working_pincodes: agentData.working_pincodes
       }
 
@@ -2140,16 +2222,29 @@ function PasswordManagement() {
   const [isSettingPassword, setIsSettingPassword] = useState(false)
 
   const handleSetPassword = async () => {
-    if (!passwordData.email.trim() || !passwordData.password.trim()) {
+    const cleanEmail = passwordData.email.trim()
+    const cleanPassword = passwordData.password.trim()
+
+    if (!cleanEmail || !cleanPassword) {
       toast.error('Email and password are required')
+      return
+    }
+
+    if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(cleanEmail)) {
+      toast.error('Please enter a valid email address.')
+      return
+    }
+
+    if (cleanPassword.length < 6) {
+      toast.error('Password must be at least 6 characters long.')
       return
     }
 
     setIsSettingPassword(true)
     try {
-      console.log('🔐 [PASSWORD-MGMT] Setting password for:', passwordData.email)
+      console.log('🔐 [PASSWORD-MGMT] Setting password for:', cleanEmail)
 
-      const result = await sellikoClient.setPassword(passwordData.email, passwordData.password) as any
+      const result = await sellikoClient.setPassword(cleanEmail, cleanPassword) as any
 
       if (result.success) {
         toast.success(result.message || 'Password updated successfully!')

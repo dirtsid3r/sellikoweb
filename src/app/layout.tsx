@@ -125,7 +125,7 @@ export default function RootLayout({
       >
         <ClientProviders>
           {/* Main app container */}
-          <div className="relative min-h-screen">
+          <div className="relative min-h-screen w-full overflow-x-hidden">
             {children}
           </div>
           

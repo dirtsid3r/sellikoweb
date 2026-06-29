@@ -467,9 +467,9 @@ export default function ClientDashboard() {
                       </div>
                       
                       {/* Card Content */}
-                      <div className="p-6">
+                      <div className="p-4 sm:p-6">
                         <div className="mb-4">
-                          <h4 className="text-xl font-bold text-gray-900 mb-2">{listing.device}</h4>
+                          <h4 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">{listing.device}</h4>
                           <p className="text-gray-500 text-sm leading-relaxed">{statusInfo.description}</p>
                         </div>
                         
@@ -478,7 +478,7 @@ export default function ClientDashboard() {
                           <div className="space-y-3 mb-6">
                             <div className="flex justify-between items-center py-2">
                               <span className="text-gray-500 text-sm font-medium">Highest Bid</span>
-                              <span className="font-bold text-xl text-emerald-600">₹{listing.currentBid.toLocaleString()}</span>
+                              <span className="font-bold text-lg sm:text-xl text-emerald-600">₹{listing.currentBid.toLocaleString()}</span>
                             </div>
                             <div className="flex justify-between items-center py-1">
                               <span className="text-gray-500 text-sm">{listing.bidsCount} bids</span>
@@ -501,7 +501,7 @@ export default function ClientDashboard() {
                           <div className="mb-6">
                             <div className="flex justify-between items-center py-3">
                               <span className="text-gray-500 text-sm font-medium">Asking Price</span>
-                              <span className="font-bold text-xl text-gray-900">₹{listing.askingPrice.toLocaleString()}</span>
+                              <span className="font-bold text-lg sm:text-xl text-gray-900">₹{listing.askingPrice.toLocaleString()}</span>
                             </div>
                           </div>
                         )}

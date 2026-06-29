@@ -771,12 +771,12 @@ export default function AgentVerification() {
             <label className="block text-sm font-medium text-gray-700 mb-3">
               {step.title}
             </label>
-            <div className="flex space-x-4">
+            <div className="flex gap-3">
               <button
                 onClick={() => updateStepValue(step.id, true)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                className={`flex-1 py-3 rounded-lg font-medium text-center transition-colors ${
                   step.value === true 
-                    ? 'bg-green-600 text-white' 
+                    ? 'bg-green-600 text-white shadow-sm' 
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
               >
@@ -784,9 +784,9 @@ export default function AgentVerification() {
               </button>
               <button
                 onClick={() => updateStepValue(step.id, false)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                className={`flex-1 py-3 rounded-lg font-medium text-center transition-colors ${
                   step.value === false 
-                    ? 'bg-red-600 text-white' 
+                    ? 'bg-red-600 text-white shadow-sm' 
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
               >
@@ -834,7 +834,7 @@ export default function AgentVerification() {
   }
 
   // Function to collect all verification data as JSON
-  const collectVerificationData = () => {
+  const collectVerificationData = (overriddenBankDetails = bankDetails) => {
     const finalOfferValue = deviceInfo.vendorBid - deductions.reduce((sum, d) => sum + d.amount, 0)
     
     const verificationData = steps.map(step => ({
@@ -856,7 +856,7 @@ export default function AgentVerification() {
         severity: deduction.severity
       })),
       offer_value: finalOfferValue,
-      bank_details: bankDetails
+      bank_details: overriddenBankDetails
     }
 
     console.log('🚀 [VERIFICATION-COMPLETE] Collected Form Data:', JSON.stringify(collectedData, null, 2))
@@ -866,10 +866,56 @@ export default function AgentVerification() {
   const completeDeductionsAndMakeOffer = async () => {
     if (isSubmittingVerification) return
 
-    if (!bankDetails.bankName || !bankDetails.ifscCode || !bankDetails.accountNumber || !bankDetails.accountHolderName) {
-      toast.error('Please fill out all bank information fields.');
-      return;
+    const cleanBankName = (bankDetails.bankName || '').trim()
+    const cleanIfscCode = (bankDetails.ifscCode || '').trim().toUpperCase()
+    const cleanAccountNumber = (bankDetails.accountNumber || '').trim()
+    const cleanAccountHolder = (bankDetails.accountHolderName || '').trim()
+
+    if (!cleanBankName || cleanBankName.length < 3) {
+      toast.error('Bank name must be at least 3 characters long.')
+      return
     }
+    if (!/^[a-zA-Z\s.-]{3,50}$/.test(cleanBankName)) {
+      toast.error('Bank name should contain only letters, spaces, dots, or hyphens.')
+      return
+    }
+
+    if (!cleanIfscCode) {
+      toast.error('IFSC code is required.')
+      return
+    }
+    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(cleanIfscCode)) {
+      toast.error('Please enter a valid 11-character Indian IFSC code (e.g. SBIN0001234).')
+      return
+    }
+
+    if (!cleanAccountNumber) {
+      toast.error('Account number is required.')
+      return
+    }
+    if (!/^\d{9,18}$/.test(cleanAccountNumber)) {
+      toast.error('Account number must be numeric and between 9 and 18 digits.')
+      return
+    }
+
+    if (!cleanAccountHolder || cleanAccountHolder.length < 3) {
+      toast.error('Account holder name must be at least 3 characters long.')
+      return
+    }
+    if (!/^[a-zA-Z\s.]{3,50}$/.test(cleanAccountHolder)) {
+      toast.error('Account holder name should contain only letters, spaces, or dots.')
+      return
+    }
+
+    const cleanedDetails = {
+      bankName: cleanBankName,
+      ifscCode: cleanIfscCode,
+      accountNumber: cleanAccountNumber,
+      accountHolderName: cleanAccountHolder,
+    }
+    
+    // Save cleaned back to state to display it nicely
+    setBankDetails(cleanedDetails)
 
     setIsSubmittingVerification(true)
     
@@ -880,8 +926,8 @@ export default function AgentVerification() {
         return
       }
 
-      // Collect all verification data
-      const verificationData = collectVerificationData()
+      // Collect all verification data using the validated bank details
+      const verificationData = collectVerificationData(cleanedDetails)
       
       console.log('🚀 [VERIFICATION] Submitting verification to server...')
       
@@ -1050,18 +1096,18 @@ export default function AgentVerification() {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex space-x-4">
-              <button
-                onClick={completeVerificationWithNotes}
-                className="flex-1 px-6 py-4 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors font-semibold text-lg"
-              >
-                Complete Verification & Continue
-              </button>
+            <div className="flex flex-col-reverse sm:flex-row gap-3">
               <button
                 onClick={() => setCurrentBatch(Math.max(0, currentBatch - 1))}
-                className="px-6 py-4 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-semibold"
+                className="w-full sm:w-auto px-6 py-3.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-semibold text-center text-sm sm:text-base"
               >
                 Back to Review
+              </button>
+              <button
+                onClick={completeVerificationWithNotes}
+                className="w-full sm:flex-1 px-6 py-3.5 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors font-semibold text-center text-sm sm:text-base"
+              >
+                Complete Verification & Continue
               </button>
             </div>
           </div>
@@ -1259,21 +1305,21 @@ export default function AgentVerification() {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex space-x-4">
+            <div className="flex flex-col-reverse sm:flex-row gap-3">
               <button
                 onClick={() => {
                   setShowDeductionsStep(false)
                   setShowVerificationNotes(true)
                 }}
                 disabled={isSubmittingVerification}
-                className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full sm:w-auto px-6 py-3.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-center text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Back to Notes
               </button>
               <button
                 onClick={completeDeductionsAndMakeOffer}
                 disabled={isSubmittingVerification}
-                className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full sm:flex-1 px-6 py-3.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold text-center text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmittingVerification ? (
                   <div className="flex items-center justify-center">
@@ -1377,13 +1423,13 @@ export default function AgentVerification() {
               </div>
             </div>
 
-            <div className="flex space-x-4 justify-center">
-              <button className="px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-medium">
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button className="w-full sm:w-auto px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-medium text-center text-sm sm:text-base">
                 Send Offer to Customer
               </button>
               <Link
                 href="/agent"
-                className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium"
+                className="w-full sm:w-auto px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium text-center text-sm sm:text-base"
               >
                 Back to Dashboard
               </Link>
@@ -1722,7 +1768,7 @@ export default function AgentVerification() {
               <button
                 onClick={handlePickupOtp}
                 disabled={isSubmittingPickup || !pickupOtp || pickupOtp.length !== 4}
-                className={`inline-flex items-center px-8 py-4 text-lg font-semibold rounded-xl transition-colors shadow-lg ${
+                className={`inline-flex items-center justify-center w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 text-sm sm:text-base md:text-lg font-semibold rounded-xl transition-colors shadow-lg ${
                   isSubmittingPickup || !pickupOtp || pickupOtp.length !== 4
                     ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
                     : 'bg-orange-600 text-white hover:bg-orange-700'
@@ -1730,12 +1776,12 @@ export default function AgentVerification() {
               >
                 {isSubmittingPickup ? (
                   <>
-                    <div className="w-6 h-6 mr-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                     Confirming Pickup...
                   </>
                 ) : (
                   <>
-                    <TruckIcon className="w-6 h-6 mr-3" />
+                    <TruckIcon className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3" />
                     Confirm Pickup with OTP
                   </>
                 )}
@@ -1744,7 +1790,7 @@ export default function AgentVerification() {
               <button
                 onClick={startVerification}
                 disabled={isStartingVerification}
-                className={`inline-flex items-center px-8 py-4 text-lg font-semibold rounded-xl transition-colors shadow-lg ${
+                className={`inline-flex items-center justify-center w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 text-sm sm:text-base md:text-lg font-semibold rounded-xl transition-colors shadow-lg ${
                   isStartingVerification
                     ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
                     : 'bg-purple-600 text-white hover:bg-purple-700'
@@ -1752,12 +1798,12 @@ export default function AgentVerification() {
               >
                 {isStartingVerification ? (
                   <>
-                    <div className="w-6 h-6 mr-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                     Starting Verification...
                   </>
                 ) : (
                   <>
-                    <PlayIcon className="w-6 h-6 mr-3" />
+                    <PlayIcon className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3" />
                     Start Verification Process
                   </>
                 )}
@@ -1823,11 +1869,19 @@ export default function AgentVerification() {
                 ))}
               </div>
 
-              <div className="mt-8 flex space-x-4">
+              <div className="mt-8 flex flex-col-reverse sm:flex-row gap-3">
+                {currentBatch > 0 && (
+                  <button
+                    onClick={() => setCurrentBatch(currentBatch - 1)}
+                    className="w-full sm:w-auto px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-center text-sm sm:text-base"
+                  >
+                    Previous Batch
+                  </button>
+                )}
                 <button
                   onClick={completeCurrentBatch}
                   disabled={!canCompleteBatch()}
-                  className={`flex-1 px-6 py-3 rounded-lg font-medium transition-colors ${
+                  className={`w-full sm:flex-1 px-6 py-3 rounded-lg font-medium transition-colors text-center text-sm sm:text-base ${
                     canCompleteBatch()
                       ? 'bg-purple-600 text-white hover:bg-purple-700'
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
@@ -1835,14 +1889,6 @@ export default function AgentVerification() {
                 >
                   {currentBatch < totalBatches - 1 ? 'Complete Batch & Continue' : 'Complete Final Batch'}
                 </button>
-                {currentBatch > 0 && (
-                  <button
-                    onClick={() => setCurrentBatch(currentBatch - 1)}
-                    className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
-                  >
-                    Previous Batch
-                  </button>
-                )}
               </div>
             </div>
           </div>

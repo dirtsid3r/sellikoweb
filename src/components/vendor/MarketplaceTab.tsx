@@ -50,6 +50,7 @@ interface MarketplaceListing {
   winningBid: BidInfo | null // Details of accepted/winning bid (null if none)
   totalBids: number
   timeLeft: string
+  time_approved?: string // Timestamp of approval for expiry calculation
   timeRemaining?: string // New field from API for accepting_bids status
   location: string
   seller: {
@@ -218,9 +219,38 @@ export function MarketplaceTab() {
     return () => clearTimeout(delayedSearch)
   }, [searchQuery])
 
+  const isListingExpired = (listing: MarketplaceListing) => {
+    if (listing.status !== 'receiving_bids') {
+      return true
+    }
+    if (listing.timeLeft === 'Expired') {
+      return true
+    }
+    if (!listing.time_approved) return false
+    const approvedTime = new Date(listing.time_approved)
+    const endTime = new Date(approvedTime.getTime() + (24 * 60 * 60 * 1000))
+    const now = new Date()
+    return now > endTime
+  }
+
+  const isListingExpiredOver2Hours = (listing: MarketplaceListing) => {
+    if (!listing.time_approved) {
+      return listing.timeLeft === 'Expired'
+    }
+    const approvedTime = new Date(listing.time_approved)
+    const endTime = new Date(approvedTime.getTime() + (24 * 60 * 60 * 1000))
+    const now = new Date()
+    return (now.getTime() - endTime.getTime()) > (2 * 60 * 60 * 1000)
+  }
+
   const filteredListings = listings.filter(listing => {
+    // Hide card if expired for more than 2 hours
+    if (isListingExpiredOver2Hours(listing)) {
+      return false
+    }
+
     const matchesSearch = listing.device.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         listing.brand.toLowerCase().includes(searchQuery.toLowerCase())
+                          listing.brand.toLowerCase().includes(searchQuery.toLowerCase())
     
     if (selectedFilter === 'all') return matchesSearch
     if (selectedFilter === 'instant-win') return matchesSearch && listing.isInstantWin
@@ -255,6 +285,11 @@ export function MarketplaceTab() {
   }
 
   const getStatusBadge = (listing: MarketplaceListing) => {
+    // Check if expired first
+    if (isListingExpired(listing)) {
+      return <Badge className="bg-red-500 text-white">⏰ Expired</Badge>
+    }
+
     // New: accepting_bids (receiving_bids)
     if (listing.status === 'receiving_bids') {
       return <Badge className="bg-orange-500 text-white">⏳ Accepting Bids</Badge>
@@ -498,7 +533,14 @@ export function MarketplaceTab() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredListings.map((listing) => (
-            <Card key={listing.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+            <Card 
+              key={listing.id} 
+              className={`overflow-hidden hover:shadow-lg transition-all ${
+                isListingExpired(listing) 
+                  ? 'opacity-60 bg-gray-50 border-gray-200' 
+                  : 'hover:scale-[1.01]'
+              }`}
+            >
               <div className="relative">
                 <img 
                   src={listing.image || (listing.images && listing.images.length > 0 ? listing.images[0] : '/api/placeholder/300/200')} 
@@ -527,8 +569,8 @@ export function MarketplaceTab() {
                 )}
                 
                 {listing.status === 'receiving_bids' && (
-                  <div className={`absolute bottom-2 left-2 px-2 py-1 rounded text-sm font-medium ${getTimeLeftColor(listing.timeRemaining || listing.timeLeft)}`}>
-                    ⏱️ {listing.timeRemaining || listing.timeLeft}
+                  <div className={`absolute bottom-2 left-2 px-2 py-1 rounded text-sm font-medium ${isListingExpired(listing) ? 'text-red-600 bg-red-100' : getTimeLeftColor(listing.timeRemaining || listing.timeLeft)}`}>
+                    ⏱️ {isListingExpired(listing) ? 'Expired' : (listing.timeRemaining || listing.timeLeft)}
                   </div>
                 )}
               </div>
@@ -628,8 +670,8 @@ export function MarketplaceTab() {
                     </>
                   ) : (
                     <>
-                      {/* Show Place Bid button when status is receiving_bids */}
-                      {listing.status === 'receiving_bids' ? (
+                      {/* Show Place Bid button when status is receiving_bids and NOT expired */}
+                      {listing.status === 'receiving_bids' && !isListingExpired(listing) ? (
                         <>
                           <Button 
                             size="sm" 
@@ -653,8 +695,9 @@ export function MarketplaceTab() {
                           )}
                         </>
                       ) : (
-                        <div className="flex-1 text-center text-sm text-gray-500 py-2">
-                          {listing.status === 'bid_accepted' ? 'Sold' : 
+                        <div className="flex-1 text-center text-sm font-semibold text-red-600 bg-red-50 py-2 rounded-lg border border-red-200">
+                          {isListingExpired(listing) ? 'Expired' :
+                           listing.status === 'bid_accepted' ? 'Sold' : 
                            listing.status === 'agent_assigned' ? 'Agent Assigned' :
                            listing.status === 'verification' ? 'Under Verification' :
                            listing.status === 'ready_for_pickup' ? 'Ready for Pickup' :

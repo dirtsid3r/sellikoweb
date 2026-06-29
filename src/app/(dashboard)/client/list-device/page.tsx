@@ -307,7 +307,118 @@ export default function ListDevice() {
     }))
   }
 
+  const getValidationError = (): string | null => {
+    switch (currentStep) {
+      case 0: // Device Images
+        const uploadedCount = Object.values(data.images).filter(Boolean).length
+        if (uploadedCount < 2) {
+          return `Please upload at least 2 device images (e.g. front and back views) to proceed. Current uploads: ${uploadedCount}/2.`
+        }
+        return null
+      case 1: // IMEI Numbers
+        if (!data.imei1 || data.imei1.trim().length < 10) {
+          return "Please enter a valid IMEI 1 number (minimum 10 characters)."
+        }
+        return null
+      case 2: // Device Details
+        const missingDetails = []
+        if (!data.brand) missingDetails.push('Brand')
+        if (!data.model) missingDetails.push('Model')
+        if (!data.storage) missingDetails.push('Storage')
+        if (!data.ram) missingDetails.push('RAM')
+        if (!data.condition) missingDetails.push('Condition')
+        if (missingDetails.length > 0) {
+          return `Please select all required device details. Missing: ${missingDetails.join(', ')}.`
+        }
+        return null
+      case 3: // Warranty Info
+        if (!data.warrantyStatus) {
+          return "Please select your device's warranty status (Active or Expired)."
+        }
+        if (data.warrantyStatus === 'active' && !data.warrantyExpiry) {
+          return "Please enter the warranty expiry date."
+        }
+        return null
+      case 4: // Bill Details
+        if (data.warrantyStatus === 'active') {
+          if (!data.purchaseDate) {
+            return "Please enter the purchase date for active warranty verification."
+          }
+          const purchase = new Date(data.purchaseDate)
+          const expiry = new Date(data.warrantyExpiry)
+          const minExpiry = new Date(purchase)
+          minExpiry.setMonth(minExpiry.getMonth() + 6)
+          if (expiry < minExpiry) {
+            return "Warranty expiry date must be at least 6 months after the purchase date."
+          }
+        }
+        if (data.hasBill) {
+          if (!data.purchaseDate) {
+            return "Please enter the purchase date."
+          }
+          const purchase = new Date(data.purchaseDate)
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          if (purchase >= today) {
+            return "Purchase date cannot be in the future."
+          }
+        }
+        if (data.hasBill === undefined) {
+          return "Please specify if you have the original bill."
+        }
+        return null
+      case 5: // Pricing
+        if (!data.expectedPrice || isNaN(parseInt(data.expectedPrice)) || parseInt(data.expectedPrice) <= 0) {
+          return "Please enter a valid expected price greater than ₹0."
+        }
+        return null
+      case 6: // Personal Info
+        const missingInfo = []
+        if (!data.name || !data.name.trim()) missingInfo.push('Name')
+        if (!data.mobile || !data.mobile.trim()) missingInfo.push('Mobile')
+        if (!data.email || !data.email.trim()) missingInfo.push('Email')
+        if (missingInfo.length > 0) {
+          return `Please fill in all personal details. Missing: ${missingInfo.join(', ')}.`
+        }
+        return null
+      case 7: // Address
+        const missingAddr = []
+        if (!data.address || !data.address.trim()) missingAddr.push('Address')
+        if (!data.city || !data.city.trim()) missingAddr.push('City')
+        if (!data.pincode || !data.pincode.trim()) missingAddr.push('Pincode')
+        if (missingAddr.length > 0) {
+          return `Please enter your complete address details. Missing: ${missingAddr.join(', ')}.`
+        }
+        return null
+      case 8: // Pickup Address
+        const missingPickup = []
+        if (!data.pickupAddress || !data.pickupAddress.trim()) missingPickup.push('Pickup Address')
+        if (!data.pickupCity || !data.pickupCity.trim()) missingPickup.push('Pickup City')
+        if (!data.pickupPincode || !data.pickupPincode.trim()) missingPickup.push('Pickup Pincode')
+        if (missingPickup.length > 0) {
+          return `Please enter your complete pickup address details. Missing: ${missingPickup.join(', ')}.`
+        }
+        return null
+      case 9: // Terms
+        const missingConsents = []
+        if (!data.termsAccepted) missingConsents.push('Terms of Service')
+        if (!data.privacyAccepted) missingConsents.push('Privacy Policy')
+        if (!data.whatsappConsent) missingConsents.push('WhatsApp Updates')
+        if (missingConsents.length > 0) {
+          return `Please accept the required agreements. Missing: ${missingConsents.join(', ')}.`
+        }
+        return null
+      default:
+        return null
+    }
+  }
+
   const nextStep = () => {
+    const error = getValidationError()
+    if (error) {
+      toast.error(error)
+      return
+    }
     if (currentStep < steps.length - 1) {
       setCurrentStep(prev => prev + 1)
     }
@@ -320,6 +431,11 @@ export default function ListDevice() {
   }
 
   const handleSubmit = async () => {
+    const error = getValidationError()
+    if (error) {
+      toast.error(error)
+      return
+    }
     setIsSubmitting(true)
     
     try {
@@ -348,48 +464,7 @@ export default function ListDevice() {
   }
 
   const canProceed = () => {
-    switch (currentStep) {
-      case 0: // Device Images
-        return Object.values(data.images).filter(Boolean).length >= 2
-      case 1: // IMEI Numbers
-        return data.imei1.length >= 10
-      case 2: // Device Details
-        return data.brand && data.model && data.storage && data.ram && data.condition
-      case 3: // Warranty Info
-        if (data.warrantyStatus === 'active') {
-          return !!data.warrantyExpiry
-        }
-        return data.warrantyStatus === 'expired'
-      case 4: // Bill Details
-        if (data.warrantyStatus === 'active') {
-          if (!data.purchaseDate) return false
-          const purchase = new Date(data.purchaseDate)
-          const expiry = new Date(data.warrantyExpiry)
-          const minExpiry = new Date(purchase)
-          minExpiry.setMonth(minExpiry.getMonth() + 6)
-          if (expiry < minExpiry) return false
-        }
-        if (data.hasBill) {
-          if (!data.purchaseDate) return false
-          const purchase = new Date(data.purchaseDate)
-          const today = new Date()
-          today.setHours(0, 0, 0, 0)
-          return purchase < today
-        }
-        return data.hasBill !== undefined
-      case 5: // Pricing
-        return data.expectedPrice && parseInt(data.expectedPrice) > 0
-      case 6: // Personal Info
-        return data.name && data.mobile && data.email
-      case 7: // Address
-        return data.address && data.city && data.pincode
-      case 8: // Pickup Address
-        return data.pickupAddress && data.pickupCity && data.pickupPincode
-      case 9: // Terms
-        return data.termsAccepted && data.privacyAccepted && data.whatsappConsent
-      default:
-        return true
-    }
+    return getValidationError() === null
   }
 
   const renderStep = () => {
@@ -470,6 +545,14 @@ export default function ListDevice() {
           </CardContent>
         </Card>
 
+        {/* Validation Error Message Banner */}
+        {getValidationError() && (
+          <div className="mb-6 p-3.5 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center gap-2">
+            <Icons.alertCircle className="w-5 h-5 text-red-500 flex-shrink-0 animate-bounce" />
+            <span>{getValidationError()}</span>
+          </div>
+        )}
+
         {/* Navigation */}
         <div className="flex justify-between">
           <Button
@@ -485,7 +568,7 @@ export default function ListDevice() {
           {currentStep === steps.length - 1 ? (
             <Button
               onClick={handleSubmit}
-              disabled={!canProceed() || isSubmitting}
+              disabled={isSubmitting}
               className="px-6 bg-green-600 hover:bg-green-700"
             >
               {isSubmitting ? (
@@ -503,7 +586,6 @@ export default function ListDevice() {
           ) : (
             <Button
               onClick={nextStep}
-              disabled={!canProceed()}
               className="px-6"
             >
               Next

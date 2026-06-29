@@ -233,12 +233,12 @@ export function NotificationsTab() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1">
-                          <h4 className={`font-semibold text-gray-900 mb-1 ${
+                          <h4 className={`font-semibold text-gray-900 mb-1 break-words whitespace-pre-wrap ${
                             !notification.isRead ? 'text-gray-900' : 'text-gray-700'
                           }`}>
                             {notification.title}
                           </h4>
-                          <p className={`text-sm mb-2 ${
+                          <p className={`text-sm mb-2 break-words whitespace-pre-wrap ${
                             !notification.isRead ? 'text-gray-800' : 'text-gray-600'
                           }`}>
                             {notification.message}

@@ -166,23 +166,50 @@ export default function VendorDashboard() {
       <Header variant="vendor" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Mobile Tab Selector Dropdown */}
+        <div className="block sm:hidden mb-6">
+          <label htmlFor="tab-select" className="sr-only">Select Tab</label>
+          <div className="relative">
+            <select
+              id="tab-select"
+              value={activeTab}
+              onChange={(e) => setActiveTab(e.target.value)}
+              className="w-full p-3.5 pl-10 pr-10 bg-white border border-gray-300 rounded-xl shadow-sm text-gray-900 font-medium focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none"
+            >
+              <option value="dashboard">🏠 Dashboard</option>
+              <option value="marketplace">📱 Marketplace</option>
+              <option value="my-bids">📋 My Bids</option>
+              <option value="notifications">🔔 Notifications</option>
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
+              <Icons.chevronDown className="h-5 w-5" />
+            </div>
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-500">
+              {activeTab === 'dashboard' && <Icons.home className="h-5 w-5 text-green-600" />}
+              {activeTab === 'marketplace' && <Icons.smartphone className="h-5 w-5 text-green-600" />}
+              {activeTab === 'my-bids' && <Icons.list className="h-5 w-5 text-green-600" />}
+              {activeTab === 'notifications' && <Icons.bell className="h-5 w-5 text-green-600" />}
+            </div>
+          </div>
+        </div>
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-8">
+          <TabsList className="hidden sm:grid w-full grid-cols-4 mb-8">
             <TabsTrigger value="dashboard" className="flex items-center justify-center gap-2">
               <Icons.home className="w-4 h-4 flex-shrink-0" />
-              <span className="hidden sm:inline">Dashboard</span>
+              <span>Dashboard</span>
             </TabsTrigger>
             <TabsTrigger value="marketplace" className="flex items-center justify-center gap-2">
               <Icons.smartphone className="w-4 h-4 flex-shrink-0" />
-              <span className="hidden sm:inline">Marketplace</span>
+              <span>Marketplace</span>
             </TabsTrigger>
             <TabsTrigger value="my-bids" className="flex items-center justify-center gap-2">
               <Icons.list className="w-4 h-4 flex-shrink-0" />
-              <span className="hidden sm:inline">My Bids</span>
+              <span>My Bids</span>
             </TabsTrigger>
             <TabsTrigger value="notifications" className="flex items-center justify-center gap-2">
               <Icons.bell className="w-4 h-4 flex-shrink-0" />
-              <span className="hidden sm:inline">Notifications</span>
+              <span>Notifications</span>
             </TabsTrigger>
           </TabsList>
 
@@ -200,17 +227,17 @@ export default function VendorDashboard() {
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">📊 Your Business Summary</h3>
               {isLoadingStats ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                   {[1, 2, 3, 4].map((i) => (
                     <Card key={i} className="animate-pulse">
-                      <CardContent className="p-6">
+                      <CardContent className="p-4 sm:p-6">
                         <div className="flex items-center justify-between">
                           <div>
                             <div className="h-4 bg-gray-200 rounded w-16 mb-1"></div>
                             <div className="h-4 bg-gray-200 rounded w-20 mb-2"></div>
                             <div className="h-8 bg-gray-200 rounded w-12"></div>
                           </div>
-                          <div className="w-12 h-12 bg-gray-200 rounded-lg"></div>
+                          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-200 rounded-lg flex-shrink-0"></div>
                         </div>
                       </CardContent>
                     </Card>
@@ -231,62 +258,62 @@ export default function VendorDashboard() {
                   </CardContent>
                 </Card>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                   <Card>
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
+                    <CardContent className="p-4 sm:p-6">
+                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium text-gray-600">🔥 Active</p>
-                          <p className="text-sm font-medium text-gray-600">Bids</p>
-                          <p className="text-3xl font-bold text-gray-900 mt-2">{stats.activeBids}</p>
+                          <p className="text-xs sm:text-sm font-medium text-gray-600">🔥 Active</p>
+                          <p className="text-xs sm:text-sm font-medium text-gray-600">Bids</p>
+                          <p className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mt-1 sm:mt-2">{stats.activeBids}</p>
                         </div>
-                        <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                          <Icons.clock className="w-6 h-6 text-red-600" />
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Icons.clock className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" />
                         </div>
                       </div>
                     </CardContent>
                   </Card>
 
                   <Card>
-                    <CardContent className="p-6">
+                    <CardContent className="p-4 sm:p-6">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium text-gray-600">✅ Won</p>
-                          <p className="text-sm font-medium text-gray-600">This Month</p>
-                          <p className="text-3xl font-bold text-gray-900 mt-2">{stats.wonThisMonth}</p>
+                          <p className="text-xs sm:text-sm font-medium text-gray-600">✅ Won</p>
+                          <p className="text-xs sm:text-sm font-medium text-gray-600">This Month</p>
+                          <p className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mt-1 sm:mt-2">{stats.wonThisMonth}</p>
                         </div>
-                        <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                          <Icons.check className="w-6 h-6 text-green-600" />
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Icons.check className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
                         </div>
                       </div>
                     </CardContent>
                   </Card>
 
                   <Card>
-                    <CardContent className="p-6">
+                    <CardContent className="p-4 sm:p-6">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium text-gray-600">📱 Total</p>
-                          <p className="text-sm font-medium text-gray-600">Devices</p>
-                          <p className="text-3xl font-bold text-gray-900 mt-2">{stats.totalDevices}</p>
+                          <p className="text-xs sm:text-sm font-medium text-gray-600">📱 Total</p>
+                          <p className="text-xs sm:text-sm font-medium text-gray-600">Devices</p>
+                          <p className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mt-1 sm:mt-2">{stats.totalDevices}</p>
                         </div>
-                        <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                          <Icons.smartphone className="w-6 h-6 text-blue-600" />
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Icons.smartphone className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
                         </div>
                       </div>
                     </CardContent>
                   </Card>
 
                   <Card>
-                    <CardContent className="p-6">
+                    <CardContent className="p-4 sm:p-6">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium text-gray-600">⭐ Win</p>
-                          <p className="text-sm font-medium text-gray-600">Rate</p>
-                          <p className="text-3xl font-bold text-gray-900 mt-2">{stats.winRate}%</p>
+                          <p className="text-xs sm:text-sm font-medium text-gray-600">⭐ Win</p>
+                          <p className="text-xs sm:text-sm font-medium text-gray-600">Rate</p>
+                          <p className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mt-1 sm:mt-2">{stats.winRate}%</p>
                         </div>
-                        <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                          <Icons.star className="w-6 h-6 text-yellow-600" />
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-yellow-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Icons.star className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-600" />
                         </div>
                       </div>
                     </CardContent>

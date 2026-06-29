@@ -359,16 +359,16 @@ export default function AdminDashboard() {
 
         {/* Main Dashboard Stats */}
         {isLoadingDashboard ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6 mb-8">
             {[...Array(5)].map((_, i) => (
               <Card key={i}>
-                <CardContent className="p-6">
+                <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="h-4 bg-gray-200 rounded animate-pulse mb-2"></div>
                       <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
                     </div>
-                    <div className="w-12 h-12 bg-gray-200 rounded-lg animate-pulse"></div>
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-200 rounded-lg animate-pulse flex-shrink-0"></div>
                   </div>
                 </CardContent>
               </Card>
@@ -394,60 +394,60 @@ export default function AdminDashboard() {
           </Card>
         ) : dashboardData ? (
           <Card className="mb-8 overflow-hidden bg-white/80 backdrop-blur-sm border border-gray-200/60 shadow-sm rounded-2xl">
-            <CardContent className="p-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 lg:gap-0 lg:divide-x divide-gray-100">
+            <CardContent className="p-4 sm:p-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6 lg:gap-0 lg:divide-x divide-gray-100">
                 {/* Pending Approvals */}
                 <div className="flex items-center justify-between border-b border-gray-100 last:border-b-0 pb-4 last:pb-2 sm:border-b-0 sm:pb-2 lg:px-6 py-2">
                   <div>
-                    <p className="text-sm font-semibold text-gray-500">Pending Approvals</p>
-                    <p className="text-3xl font-extrabold text-gray-900 mt-1">{dashboardData.pendingApprovals.toLocaleString()}</p>
+                    <p className="text-xs sm:text-sm font-semibold text-gray-500">Pending Approvals</p>
+                    <p className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-900 mt-1">{dashboardData.pendingApprovals.toLocaleString()}</p>
                   </div>
-                  <div className="w-12 h-12 bg-yellow-100/80 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Icons.clock className="w-6 h-6 text-yellow-600" />
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-yellow-100/80 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Icons.clock className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-600" />
                   </div>
                 </div>
 
                 {/* Total Purchases */}
                 <div className="flex items-center justify-between border-b border-gray-100 last:border-b-0 pb-4 last:pb-2 sm:border-b-0 sm:pb-2 lg:px-6 py-2">
                   <div>
-                    <p className="text-sm font-semibold text-gray-500">Total Purchases</p>
-                    <p className="text-3xl font-extrabold text-gray-900 mt-1">{dashboardData.totalPurchases.toLocaleString()}</p>
+                    <p className="text-xs sm:text-sm font-semibold text-gray-500">Total Purchases</p>
+                    <p className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-900 mt-1">{dashboardData.totalPurchases.toLocaleString()}</p>
                   </div>
-                  <div className="w-12 h-12 bg-green-100/80 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Icons.download className="w-6 h-6 text-green-600" />
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100/80 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Icons.download className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
                   </div>
                 </div>
 
                 {/* Active Agents */}
                 <div className="flex items-center justify-between border-b border-gray-100 last:border-b-0 pb-4 last:pb-2 sm:border-b-0 sm:pb-2 lg:px-6 py-2">
                   <div>
-                    <p className="text-sm font-semibold text-gray-500">Active Agents</p>
-                    <p className="text-3xl font-extrabold text-gray-900 mt-1">{dashboardData.agents.toLocaleString()}</p>
+                    <p className="text-xs sm:text-sm font-semibold text-gray-500">Active Agents</p>
+                    <p className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-900 mt-1">{dashboardData.agents.toLocaleString()}</p>
                   </div>
-                  <div className="w-12 h-12 bg-blue-100/80 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Icons.user className="w-6 h-6 text-blue-600" />
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100/80 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Icons.user className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
                   </div>
                 </div>
 
                 {/* Total Clients */}
                 <div className="flex items-center justify-between border-b border-gray-100 last:border-b-0 pb-4 last:pb-2 sm:border-b-0 sm:pb-2 lg:px-6 py-2">
                   <div>
-                    <p className="text-sm font-semibold text-gray-500">Total Clients</p>
-                    <p className="text-3xl font-extrabold text-gray-900 mt-1">{dashboardData.clients.toLocaleString()}</p>
+                    <p className="text-xs sm:text-sm font-semibold text-gray-500">Total Clients</p>
+                    <p className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-900 mt-1">{dashboardData.clients.toLocaleString()}</p>
                   </div>
-                  <div className="w-12 h-12 bg-purple-100/80 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Icons.users className="w-6 h-6 text-purple-600" />
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-100/80 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Icons.users className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
                   </div>
                 </div>
 
                 {/* Total Vendors */}
-                <div className="flex items-center justify-between border-b border-gray-100 last:border-b-0 pb-4 last:pb-2 sm:border-b-0 sm:pb-2 lg:px-6 py-2">
+                <div className="flex items-center justify-between border-b border-gray-100 last:border-b-0 pb-4 last:pb-2 sm:border-b-0 sm:pb-2 lg:px-6 py-2 col-span-2 sm:col-span-1">
                   <div>
-                    <p className="text-sm font-semibold text-gray-500">Total Vendors</p>
-                    <p className="text-3xl font-extrabold text-gray-900 mt-1">{dashboardData.vendors.toLocaleString()}</p>
+                    <p className="text-xs sm:text-sm font-semibold text-gray-500">Total Vendors</p>
+                    <p className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-900 mt-1">{dashboardData.vendors.toLocaleString()}</p>
                   </div>
-                  <div className="w-12 h-12 bg-indigo-100/80 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Icons.package className="w-6 h-6 text-indigo-600" />
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-indigo-100/80 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Icons.package className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600" />
                   </div>
                 </div>
               </div>
@@ -496,29 +496,29 @@ export default function AdminDashboard() {
             <CardContent>
               {activityData && (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                  <div className="text-center p-4 bg-blue-50 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-600">{activityData.listingsAdded || 0}</div>
-                    <div className="text-sm text-gray-600">Listings Added</div>
+                  <div className="text-center p-3 sm:p-4 bg-blue-50 rounded-lg">
+                    <div className="text-lg sm:text-xl md:text-2xl font-bold text-blue-600">{activityData.listingsAdded || 0}</div>
+                    <div className="text-xs sm:text-sm text-gray-600 font-medium">Listings Added</div>
                   </div>
-                  <div className="text-center p-4 bg-green-50 rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">{activityData.bidsMade || 0}</div>
-                    <div className="text-sm text-gray-600">Bids Made</div>
+                  <div className="text-center p-3 sm:p-4 bg-green-50 rounded-lg">
+                    <div className="text-lg sm:text-xl md:text-2xl font-bold text-green-600">{activityData.bidsMade || 0}</div>
+                    <div className="text-xs sm:text-sm text-gray-600 font-medium">Bids Made</div>
                   </div>
-                  <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                    <div className="text-2xl font-bold text-yellow-600">{activityData.bidsWon || 0}</div>
-                    <div className="text-sm text-gray-600">Bids Won</div>
+                  <div className="text-center p-3 sm:p-4 bg-yellow-50 rounded-lg">
+                    <div className="text-lg sm:text-xl md:text-2xl font-bold text-yellow-600">{activityData.bidsWon || 0}</div>
+                    <div className="text-xs sm:text-sm text-gray-600 font-medium">Bids Won</div>
                   </div>
-                  <div className="text-center p-4 bg-purple-50 rounded-lg">
-                    <div className="text-2xl font-bold text-purple-600">{activityData.verificationsDone || 0}</div>
-                    <div className="text-sm text-gray-600">Verifications</div>
+                  <div className="text-center p-3 sm:p-4 bg-purple-50 rounded-lg">
+                    <div className="text-lg sm:text-xl md:text-2xl font-bold text-purple-600">{activityData.verificationsDone || 0}</div>
+                    <div className="text-xs sm:text-sm text-gray-600 font-medium">Verifications</div>
                   </div>
-                  <div className="text-center p-4 bg-indigo-50 rounded-lg">
-                    <div className="text-2xl font-bold text-indigo-600">{activityData.pickupsDone || 0}</div>
-                    <div className="text-sm text-gray-600">Pickups</div>
+                  <div className="text-center p-3 sm:p-4 bg-indigo-50 rounded-lg">
+                    <div className="text-lg sm:text-xl md:text-2xl font-bold text-indigo-600">{activityData.pickupsDone || 0}</div>
+                    <div className="text-xs sm:text-sm text-gray-600 font-medium">Pickups</div>
                   </div>
-                  <div className="text-center p-4 bg-red-50 rounded-lg">
-                    <div className="text-2xl font-bold text-red-600">{activityData.deliveries || 0}</div>
-                    <div className="text-sm text-gray-600">Deliveries</div>
+                  <div className="text-center p-3 sm:p-4 bg-red-50 rounded-lg">
+                    <div className="text-lg sm:text-xl md:text-2xl font-bold text-red-600">{activityData.deliveries || 0}</div>
+                    <div className="text-xs sm:text-sm text-gray-600 font-medium">Deliveries</div>
                   </div>
                 </div>
               )}
@@ -648,58 +648,61 @@ export default function AdminDashboard() {
               <div className="space-y-4">
                 {pendingListings.map((listing) => (
                   <div key={listing.id} className="bg-gray-50 rounded-lg overflow-hidden">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4">
-                      {/* Image Preview */}
-                      <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 flex items-center justify-center border border-gray-200/80">
-                        {listing.imageUrl ? (
-                          <img 
-                            src={listing.imageUrl} 
-                            alt={listing.device} 
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = '/api/placeholder/100/100'
-                            }}
-                          />
-                        ) : (
-                          <Icons.camera className="w-6 h-6 text-gray-400" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-gray-900 truncate">{listing.device}</h4>
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs sm:text-sm text-gray-600 mt-1">
-                          <span>Seller: <span className="font-medium text-gray-900">{listing.seller}</span></span>
-                          <span className="text-gray-300">•</span>
-                          <span>Submitted: <span className="font-medium text-gray-900">{listing.submittedAt}</span></span>
-                          <span className="text-gray-300">•</span>
-                          <span>Price: <span className="font-semibold text-green-700">₹{listing.askingPrice.toLocaleString()}</span></span>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4">
+                      {/* Image & Text Group - side by side on all screens */}
+                      <div className="flex items-center gap-4 flex-1 min-w-0">
+                        {/* Image Preview */}
+                        <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 flex items-center justify-center border border-gray-200/80">
+                          {listing.imageUrl ? (
+                            <img 
+                              src={listing.imageUrl} 
+                              alt={listing.device} 
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = '/api/placeholder/100/100'
+                              }}
+                            />
+                          ) : (
+                            <Icons.camera className="w-6 h-6 text-gray-400" />
+                          )}
+                        </div>
+                        {/* Text details */}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-gray-900 truncate text-sm sm:text-base">{listing.device}</h4>
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-gray-600 mt-1">
+                            <span>Seller: <span className="font-medium text-gray-900">{listing.seller}</span></span>
+                            <span className="text-gray-300">•</span>
+                            <span>Submitted: <span className="font-medium text-gray-900">{listing.submittedAt}</span></span>
+                            <span className="text-gray-300">•</span>
+                            <span>Price: <span className="font-semibold text-green-700">₹{listing.askingPrice.toLocaleString()}</span></span>
+                          </div>
                         </div>
                       </div>
                       
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge className="bg-yellow-100 text-yellow-800">Pending Review</Badge>
+                      {/* Actions Group */}
+                      <div className="flex flex-wrap items-center justify-end gap-2 w-full md:w-auto border-t border-gray-100 md:border-t-0 pt-3 md:pt-0">
+                        <Badge className="bg-yellow-100 text-yellow-800 mr-auto md:mr-0">Pending Review</Badge>
                         
                         {rejectingListingId === listing.id ? (
-                          // Show cancel button when in rejection mode
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={handleRejectCancel}
                             disabled={processingListingId === listing.id}
-                            className="text-gray-600 hover:text-gray-700"
+                            className="text-gray-600 hover:text-gray-700 text-xs sm:text-sm"
                           >
-                            <Icons.x className="w-4 h-4 mr-1" />
+                            <Icons.x className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
                             Cancel
                           </Button>
                         ) : (
-                          // Show reject button when not in rejection mode
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => handleRejectClick(listing.id)}
                             disabled={processingListingId === listing.id}
-                            className="text-red-600 hover:text-red-700"
+                            className="text-red-600 hover:text-red-700 text-xs sm:text-sm"
                           >
-                            <Icons.x className="w-4 h-4 mr-1" />
+                            <Icons.x className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
                             Reject
                           </Button>
                         )}
@@ -708,18 +711,17 @@ export default function AdminDashboard() {
                           size="sm"
                           onClick={() => handleApprove(listing.id)}
                           disabled={processingListingId === listing.id || rejectingListingId === listing.id}
-                          className="bg-green-600 hover:bg-green-700"
+                          className="bg-green-600 hover:bg-green-700 text-xs sm:text-sm"
                         >
                           {processingListingId === listing.id ? (
-                            <Icons.spinner className="w-4 h-4 mr-1 animate-spin" />
+                            <Icons.spinner className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 animate-spin" />
                           ) : (
-                            <Icons.check className="w-4 h-4 mr-1" />
+                            <Icons.check className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
                           )}
                           Approve
                         </Button>
                       </div>
                     </div>
-                    
                     {/* Rejection message input - only show when rejecting this listing */}
                     {rejectingListingId === listing.id && (
                       <div className="border-t border-gray-200 bg-red-50 p-4">

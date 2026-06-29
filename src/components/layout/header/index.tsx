@@ -114,16 +114,16 @@ export default function Header({
               {/* Logo - Clickable to user's role dashboard */}
               <Link 
                 href={`/${getUserRole()}`} 
-                className="flex items-center space-x-2 sm:space-x-3 hover:opacity-80 transition-opacity"
+                className="flex items-start space-x-2 sm:space-x-3 hover:opacity-80 transition-opacity pt-0.5"
               >
-                <div className={`${styles.logoClass} flex items-center justify-center`}>
+                <div className={`${styles.logoClass} flex items-center justify-center flex-shrink-0`}>
                   {variant === 'admin' ? (
                     <Icons.shield className={styles.iconClass} />
                   ) : (
                     <Icons.smartphone className={styles.iconClass} />
                   )}
                 </div>
-                <div>
+                <div className="hidden sm:block">
                   <h1 className={styles.titleClass}>
                     {title || (variant === 'admin' ? 'SELLIKO Admin' : 'SELLIKO')}
                   </h1>

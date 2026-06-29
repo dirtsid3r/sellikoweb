@@ -108,11 +108,11 @@ export default function MobileNavigation({}: MobileNavigationProps) {
       >
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2 group">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform">
+          <Link href="/" className="flex items-start space-x-2 group pt-0.5">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform flex-shrink-0">
               <DevicePhoneMobileIcon className="w-5 h-5 text-white" />
             </div>
-            <span className="text-xl font-bold text-gray-900">SELLIKO</span>
+            <span className="text-xl font-bold text-gray-900 leading-none pt-1">SELLIKO</span>
           </Link>
 
           {/* Desktop Navigation */}
