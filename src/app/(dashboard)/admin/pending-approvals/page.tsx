@@ -658,9 +658,6 @@ export default function PendingApprovals() {
                             <p className="text-2xl font-bold text-blue-700 mt-1">
                               ₹{listing.pricing.askingPrice.toLocaleString()}
                             </p>
-                            <p className="text-xs text-blue-600/80 mt-1">
-                              Est. Market: ₹{listing.pricing.estimatedValue.toLocaleString()}
-                            </p>
                           </div>
                         </div>
 
