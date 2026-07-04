@@ -20,6 +20,7 @@ interface VendorStats {
 }
 
 export default function VendorDashboard() {
+  const [activeTab, setActiveTab] = useState('marketplace')
   const [stats, setStats] = useState<VendorStats>({
     activeBids: 3,
     wonBids: 12,
@@ -87,32 +88,59 @@ export default function VendorDashboard() {
         </Card>
       </div>
 
+      {/* Mobile Tab Selector (shown on mobile/tablet screens) */}
+      <div className="block md:hidden mb-6">
+        <label htmlFor="tab-select" className="sr-only">Select Tab</label>
+        <div className="relative">
+          <select
+            id="tab-select"
+            value={activeTab}
+            onChange={(e) => setActiveTab(e.target.value)}
+            className="w-full p-3.5 pl-10 pr-10 bg-white border border-gray-300 rounded-xl shadow-sm text-gray-900 font-medium focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none"
+          >
+            <option value="marketplace">📱 Marketplace ({stats.marketplaceListings})</option>
+            <option value="bids">📋 My Bids ({stats.activeBids})</option>
+            <option value="orders">📦 Orders ({stats.wonBids})</option>
+            <option value="notifications">🔔 Notifications ({stats.notifications})</option>
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
+            <Icons.chevronDown className="h-5 w-5" />
+          </div>
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-500">
+            {activeTab === 'marketplace' && <Icons.search className="h-5 w-5 text-green-600" />}
+            {activeTab === 'bids' && <Icons.zap className="h-5 w-5 text-green-600" />}
+            {activeTab === 'orders' && <Icons.package className="h-5 w-5 text-green-600" />}
+            {activeTab === 'notifications' && <Icons.bell className="h-5 w-5 text-green-600" />}
+          </div>
+        </div>
+      </div>
+
       {/* Main Dashboard Tabs */}
-      <Tabs defaultValue="marketplace" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="marketplace" className="flex items-center space-x-2">
-            <Icons.search className="w-4 h-4" />
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="hidden md:grid w-full grid-cols-4 mb-8">
+          <TabsTrigger value="marketplace" className="flex items-center justify-center gap-2">
+            <Icons.search className="w-4 h-4 flex-shrink-0" />
             <span>Marketplace</span>
             <Badge variant="secondary" className="text-xs">
               {stats.marketplaceListings}
             </Badge>
           </TabsTrigger>
-          <TabsTrigger value="bids" className="flex items-center space-x-2">
-            <Icons.zap className="w-4 h-4" />
+          <TabsTrigger value="bids" className="flex items-center justify-center gap-2">
+            <Icons.zap className="w-4 h-4 flex-shrink-0" />
             <span>My Bids</span>
             <Badge variant="secondary" className="text-xs">
               {stats.activeBids}
             </Badge>
           </TabsTrigger>
-          <TabsTrigger value="orders" className="flex items-center space-x-2">
-            <Icons.package className="w-4 h-4" />
+          <TabsTrigger value="orders" className="flex items-center justify-center gap-2">
+            <Icons.package className="w-4 h-4 flex-shrink-0" />
             <span>Orders</span>
             <Badge variant="secondary" className="text-xs">
               {stats.wonBids}
             </Badge>
           </TabsTrigger>
-          <TabsTrigger value="notifications" className="flex items-center space-x-2">
-            <Icons.bell className="w-4 h-4" />
+          <TabsTrigger value="notifications" className="flex items-center justify-center gap-2">
+            <Icons.bell className="w-4 h-4 flex-shrink-0" />
             <span>Notifications</span>
             {stats.notifications > 0 && (
               <Badge variant="destructive" className="text-xs">

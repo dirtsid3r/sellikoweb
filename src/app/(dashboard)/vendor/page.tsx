@@ -167,7 +167,8 @@ export default function VendorDashboard() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Mobile Tab Selector Dropdown */}
-        <div className="block sm:hidden mb-6">
+        {/* Mobile Tab Selector (shown on mobile/tablet screens) */}
+        <div className="block md:hidden mb-6">
           <label htmlFor="tab-select" className="sr-only">Select Tab</label>
           <div className="relative">
             <select
@@ -194,7 +195,7 @@ export default function VendorDashboard() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="hidden sm:grid w-full grid-cols-4 mb-8">
+          <TabsList className="hidden md:grid w-full grid-cols-4 mb-8">
             <TabsTrigger value="dashboard" className="flex items-center justify-center gap-2">
               <Icons.home className="w-4 h-4 flex-shrink-0" />
               <span>Dashboard</span>
