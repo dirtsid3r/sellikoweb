@@ -11,40 +11,9 @@ import {
   UserGroupIcon
 } from '@heroicons/react/24/outline'
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid'
-import { cookies } from 'next/headers'
 import MobileNavigation from '@/components/navigation/MobileNavigation'
 
-async function getUser() {
-  const cookieStore = cookies()
-  const token = cookieStore.get('selliko_access_token')
-  
-  if (!token) {
-    return null
-  }
-
-  try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_SELLIKO_API_BASE || 'http://127.0.0.1:54321/'}functions/v1/auth-user`, {
-      headers: {
-        'Authorization': `Bearer ${token.value}`,
-        'Content-Type': 'application/json',
-      }
-    })
-
-    if (!response.ok) {
-      return null
-    }
-
-    const data = await response.json()
-    return data.user
-  } catch (error) {
-    console.error('Error fetching user:', error)
-    return null
-  }
-}
-
-export default async function HomePage() {
-  const user = await getUser()
-  const userRole = user?.user_role?.toLowerCase() || user?.role?.toLowerCase()
+export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
@@ -83,17 +52,10 @@ export default async function HomePage() {
             
             {/* CTA Button */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
-              {user ? (
-                <Link href="/list-device" className="btn-primary text-lg px-8 py-4 rounded-xl font-semibold text-white bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-lg transition-mobile inline-flex items-center justify-center">
-                  Sell Your Phone Now
-                  <ArrowRightIcon className="w-5 h-5 ml-2" />
-                </Link>
-              ) : (
-                <Link href="/login" className="btn-primary text-lg px-8 py-4 rounded-xl font-semibold text-white bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-lg transition-mobile inline-flex items-center justify-center">
-                  Sell Your Phone Now
-                  <ArrowRightIcon className="w-5 h-5 ml-2" />
-                </Link>
-              )}
+              <Link href="/list-device" className="btn-primary text-lg px-8 py-4 rounded-xl font-semibold text-white bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-lg transition-mobile inline-flex items-center justify-center">
+                Sell Your Phone Now
+                <ArrowRightIcon className="w-5 h-5 ml-2" />
+              </Link>
             </div>
 
             {/* Hero Phone Image */}
@@ -401,17 +363,10 @@ export default async function HomePage() {
           <p className="text-xl mb-8 text-green-100">
             Join thousands of satisfied sellers across Kerala.
           </p>
-          {user ? (
-            <Link href="/list-device" className="inline-flex items-center px-8 py-4 bg-white text-green-600 font-semibold text-lg rounded-xl hover:bg-gray-50 transition-mobile shadow-lg active-scale-sm">
-              Sell Your Phone Now
-              <ArrowRightIcon className="w-5 h-5 ml-2" />
-            </Link>
-          ) : (
-            <Link href="/login" className="inline-flex items-center px-8 py-4 bg-white text-green-600 font-semibold text-lg rounded-xl hover:bg-gray-50 transition-mobile shadow-lg active-scale-sm">
-              Sell Your Phone Now
-              <ArrowRightIcon className="w-5 h-5 ml-2" />
-            </Link>
-          )}
+          <Link href="/list-device" className="inline-flex items-center px-8 py-4 bg-white text-green-600 font-semibold text-lg rounded-xl hover:bg-gray-50 transition-mobile shadow-lg active-scale-sm">
+            Sell Your Phone Now
+            <ArrowRightIcon className="w-5 h-5 ml-2" />
+          </Link>
         </div>
       </section>
 
