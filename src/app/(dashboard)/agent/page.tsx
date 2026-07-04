@@ -585,7 +585,23 @@ export default function AgentDashboard() {
             <CardHeader>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <CardTitle>Performance Analytics</CardTitle>
-                <div className="flex flex-wrap items-center gap-2">
+                
+                {/* Mobile Selector Dropdown */}
+                <div className="sm:hidden w-full">
+                  <select
+                    value={selectedTimeframe}
+                    onChange={(e) => setSelectedTimeframe(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-lg text-sm bg-white font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="today">24 Hours</option>
+                    <option value="week">7 Days</option>
+                    <option value="month">30 Days</option>
+                    <option value="year">1 Year</option>
+                  </select>
+                </div>
+
+                {/* Desktop Buttons */}
+                <div className="hidden sm:flex flex-wrap items-center gap-2">
                   <Button
                     size="sm"
                     variant={selectedTimeframe === 'today' ? 'default' : 'outline'}
@@ -619,7 +635,7 @@ export default function AgentDashboard() {
             </CardHeader>
             <CardContent>
               {performanceData && (
-                <div className="grid grid-cols-3 md:grid-cols-3 gap-3 md:gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-6">
                   <div className="text-center p-3 sm:p-6 bg-blue-50 rounded-lg">
                     <div className="text-lg sm:text-2xl md:text-3xl font-bold text-blue-600 mb-1 sm:mb-2">{performanceData.pickupsToday || 0}</div>
                     <div className="text-xs sm:text-sm text-gray-600 font-medium">Pickups Completed</div>
