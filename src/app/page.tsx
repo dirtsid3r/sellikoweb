@@ -23,7 +23,7 @@ async function getUser() {
   }
 
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_SELLIKO_API_BASE}functions/v1/auth-user`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_SELLIKO_API_BASE || 'http://127.0.0.1:54321/'}functions/v1/auth-user`, {
       headers: {
         'Authorization': `Bearer ${token.value}`,
         'Content-Type': 'application/json',
