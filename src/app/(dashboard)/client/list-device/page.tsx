@@ -771,6 +771,8 @@ function DeviceDetailsStep({ data, updateData }: { data: DeviceData, updateData:
             <option value="Oppo">Oppo</option>
             <option value="Vivo">Vivo</option>
             <option value="Realme">Realme</option>
+            <option value="Moto">Moto</option>
+            <option value="Nothing">Nothing</option>
             <option value="Other">Other</option>
           </select>
         </div>

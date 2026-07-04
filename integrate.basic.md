@@ -148,7 +148,7 @@ class SellikoClient {
 
 #### Files Requiring Updates:
 1. **src/lib/auth.tsx** - Replace AuthAPI with Supabase calls
-2. **src/components/listing/DeviceListingWizard.tsx** - Update API calls
+2. **src/app/(dashboard)/client/list-device/page.tsx** - 11-step wizard page (DeviceListingWizard.tsx was removed)
 3. **src/app/my-listings/page.tsx** - Update fetch to use client
 4. **All dashboard components** - Centralize API calls
 
@@ -244,7 +244,7 @@ export async function middleware(request) {
 ### Component Updates:
 - `src/app/(auth)/login/page.tsx` - ✅ Updated to use selliko-client
 - `src/app/(auth)/verify-otp/page.tsx` - ✅ Updated to use selliko-client  
-- `src/components/listing/DeviceListingWizard.tsx` - Update API calls
+- `src/app/(dashboard)/client/list-device/page.tsx` - 11-step wizard page (DeviceListingWizard.tsx was removed)
 - `src/app/my-listings/page.tsx` - Update fetch to use client
 - All dashboard pages
 
