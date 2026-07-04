@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -31,10 +31,17 @@ export default function Header({
   title,
   subtitle 
 }: HeaderProps) {
-  const { user } = useAuth()
+  const { user, isLoading } = useAuth()
   const router = useRouter()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [showConfirmLogout, setShowConfirmLogout] = useState(false)
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      console.log('🔒 [HEADER] No authenticated user, redirecting to login')
+      router.push('/login')
+    }
+  }, [user, isLoading, router])
 
   const handleLogout = () => {
     console.log('🔄 [HEADER] Logout button clicked')
@@ -162,10 +169,7 @@ export default function Header({
               <NotificationButton hasNewNotifications={true} />
               <div className="text-right hidden sm:block">
                 <p className="text-sm font-semibold text-gray-900">
-                  {user?.name || 
-                   (variant === 'admin' ? 'Admin User' : 
-                    variant === 'vendor' ? 'Kochi Mobile Store' : 
-                    'Test User 1')}
+                  {user?.name || 'Loading...'}
                 </p>
                 <p className="text-xs text-gray-500">{styles.userSubtitle}</p>
               </div>
