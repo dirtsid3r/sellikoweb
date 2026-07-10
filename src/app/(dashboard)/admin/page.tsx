@@ -393,7 +393,6 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
         ) : dashboardData ? (
-        ) : dashboardData ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6 mb-8">
             {/* Pending Approvals */}
             <Card className="bg-white/90 backdrop-blur-sm border border-gray-200/60 shadow-sm hover:shadow-md transition-all duration-200">
