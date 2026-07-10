@@ -177,10 +177,10 @@ export default function VendorDashboard() {
               onChange={(e) => setActiveTab(e.target.value)}
               className="w-full p-3.5 pl-10 pr-10 bg-white border border-gray-300 rounded-xl shadow-sm text-gray-900 font-medium focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none"
             >
-              <option value="dashboard">🏠 Dashboard</option>
-              <option value="marketplace">📱 Marketplace</option>
-              <option value="my-bids">📋 My Bids</option>
-              <option value="notifications">🔔 Notifications</option>
+              <option value="dashboard">Dashboard</option>
+              <option value="marketplace">Marketplace</option>
+              <option value="my-bids">My Bids</option>
+              <option value="notifications">Notifications</option>
             </select>
             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
               <Icons.chevronDown className="h-5 w-5" />
@@ -226,7 +226,7 @@ export default function VendorDashboard() {
 
             {/* Business Summary Stats */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">📊 Your Business Summary</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2"><Icons.trendingUp className="w-5 h-5 text-green-600" /> Your Business Summary</h3>
               {isLoadingStats ? (
                 <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                   {[1, 2, 3, 4].map((i) => (
@@ -264,7 +264,7 @@ export default function VendorDashboard() {
                     <CardContent className="p-4 sm:p-6">
                        <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-xs sm:text-sm font-medium text-gray-600">🔥 Active</p>
+                          <p className="text-xs sm:text-sm font-medium text-gray-600 flex items-center gap-1"><Icons.zap className="w-3.5 h-3.5 text-red-500" /> Active</p>
                           <p className="text-xs sm:text-sm font-medium text-gray-600">Bids</p>
                           <p className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mt-1 sm:mt-2">{stats.activeBids}</p>
                         </div>
@@ -279,7 +279,7 @@ export default function VendorDashboard() {
                     <CardContent className="p-4 sm:p-6">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-xs sm:text-sm font-medium text-gray-600">✅ Won</p>
+                          <p className="text-xs sm:text-sm font-medium text-gray-600 flex items-center gap-1"><Icons.check className="w-3.5 h-3.5 text-green-500" /> Won</p>
                           <p className="text-xs sm:text-sm font-medium text-gray-600">This Month</p>
                           <p className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mt-1 sm:mt-2">{stats.wonThisMonth}</p>
                         </div>
@@ -294,7 +294,7 @@ export default function VendorDashboard() {
                     <CardContent className="p-4 sm:p-6">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-xs sm:text-sm font-medium text-gray-600">📱 Total</p>
+                          <p className="text-xs sm:text-sm font-medium text-gray-600 flex items-center gap-1"><Icons.smartphone className="w-3.5 h-3.5 text-blue-500" /> Total</p>
                           <p className="text-xs sm:text-sm font-medium text-gray-600">Devices</p>
                           <p className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mt-1 sm:mt-2">{stats.totalDevices}</p>
                         </div>
@@ -309,7 +309,7 @@ export default function VendorDashboard() {
                     <CardContent className="p-4 sm:p-6">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-xs sm:text-sm font-medium text-gray-600">⭐ Win</p>
+                          <p className="text-xs sm:text-sm font-medium text-gray-600 flex items-center gap-1"><Icons.star className="w-3.5 h-3.5 text-yellow-500" /> Win</p>
                           <p className="text-xs sm:text-sm font-medium text-gray-600">Rate</p>
                           <p className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mt-1 sm:mt-2">{stats.winRate}%</p>
                         </div>

@@ -666,10 +666,10 @@ export function BidModal({ listing, open, onOpenChange, currentUserId }: BidModa
                     <p className="text-sm text-gray-600">Condition: {currentListing.condition} • Location: {currentListing.location}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <Badge variant="outline" className="text-xs">
-                        📍 {currentListing.location}
+                        <Icons.mapPin className="w-3 h-3 mr-0.5 inline" /> {currentListing.location}
                       </Badge>
                       <Badge variant="outline" className="text-xs">
-                        ⭐ {currentListing.seller.rating}
+                        <Icons.star className="w-3 h-3 mr-0.5 inline" /> {currentListing.seller.rating}
                       </Badge>
                       {currentListing.seller.isVerified && (
                         <Badge variant="outline" className="text-xs text-green-600">
@@ -799,13 +799,13 @@ export function BidModal({ listing, open, onOpenChange, currentUserId }: BidModa
                             
                             return (
                               <p className="text-xs text-blue-600 mt-2">
-                                ⏰ You can bid again in {hoursLeft > 0 ? `${hoursLeft}h ` : ''}{minutesLeft}m
+                                <Icons.clock className="w-3 h-3 inline mr-0.5" /> You can bid again in {hoursLeft > 0 ? `${hoursLeft}h ` : ''}{minutesLeft}m
                               </p>
                             )
                           } else {
                             return (
                               <p className="text-xs text-green-600 mt-2">
-                                ✅ You can now place a new bid!
+                                <Icons.check className="w-3 h-3 inline mr-0.5" /> You can now place a new bid!
                               </p>
                             )
                           }

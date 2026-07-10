@@ -68,7 +68,7 @@ export default function Header({
       logoClass: 'w-8 h-8 sm:w-10 sm:h-10 rounded-xl shadow-lg',
       iconClass: 'w-4 h-4 sm:w-6 sm:h-6 text-white',
       titleClass: 'text-lg sm:text-xl font-bold text-gray-900',
-      subtitleClass: 'text-xs text-gray-500 hidden sm:block',
+      subtitleClass: 'text-xs text-gray-500',
     }
 
     switch (variant) {
@@ -105,14 +105,15 @@ export default function Header({
   return (
     <>
       <header className={styles.bgClass}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-2 sm:space-x-3">
+        <div className="max-w-7xl mx-auto px-3 md:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-3 md:py-4">
+            {/* Left side - Back button + Logo */}
+            <div className="flex items-center gap-2 md:gap-3 min-w-0">
               {/* Back Button (if needed) */}
               {showBackButton && (
                 <button
                   onClick={() => router.back()}
-                  className="p-2 hover:bg-gray-100 rounded-xl transition-colors mr-2"
+                  className="p-2 hover:bg-gray-100 rounded-xl transition-colors flex-shrink-0"
                 >
                   <Icons.arrowLeft className="w-5 h-5 text-gray-600" />
                 </button>
@@ -121,7 +122,7 @@ export default function Header({
               {/* Logo - Clickable to user's role dashboard */}
               <Link 
                 href={`/${getUserRole()}`} 
-                className="flex items-start space-x-2 sm:space-x-3 hover:opacity-80 transition-opacity pt-0.5"
+                className="flex items-center gap-2 md:gap-3 hover:opacity-80 transition-opacity min-w-0"
               >
                 <div className={`${styles.logoClass} flex items-center justify-center flex-shrink-0`}>
                   {variant === 'admin' ? (
@@ -130,7 +131,8 @@ export default function Header({
                     <Icons.smartphone className={styles.iconClass} />
                   )}
                 </div>
-                <div className="hidden sm:block">
+                {/* Title text - hidden on mobile phones */}
+                <div className="hidden md:block min-w-0">
                   <h1 className={styles.titleClass}>
                     {title || (variant === 'admin' ? 'SELLIKO Admin' : 'SELLIKO')}
                   </h1>
@@ -147,27 +149,18 @@ export default function Header({
                     <p className={styles.subtitleClass}>Vendor Portal</p>
                   )}
                 </div>
+                {/* Mobile-only compact title */}
+                <span className="md:hidden text-base font-bold text-gray-900 truncate">
+                  {title || 'SELLIKO'}
+                </span>
               </Link>
             </div>
             
-            {/* Right side - User info and logout */}
-  <style jsx>{`
-    .notification-button {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0.5rem;
-      border-radius: 0.375rem;
-      transition: background-color 0.2s;
-    }
-
-    .notification-button:hover {
-      background-color: rgba(0, 0, 0, 0.05);
-    }
-  `}</style>
-            <div className="flex items-center space-x-2 sm:space-x-4">
+            {/* Right side - Notification, User info and logout */}
+            <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
               <NotificationButton hasNewNotifications={true} />
-              <div className="text-right hidden sm:block">
+              {/* User name - hidden on mobile phones */}
+              <div className="text-right hidden md:block">
                 <p className="text-sm font-semibold text-gray-900">
                   {user?.name || 'Loading...'}
                 </p>
@@ -178,7 +171,7 @@ export default function Header({
                 size="sm"
                 onClick={handleLogout}
                 disabled={isLoggingOut}
-                className="hover:bg-gray-100"
+                className="hover:bg-gray-100 p-2"
               >
                 {isLoggingOut ? (
                   <Icons.spinner className="w-4 h-4 animate-spin" />

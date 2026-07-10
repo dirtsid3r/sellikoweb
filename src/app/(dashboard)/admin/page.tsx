@@ -393,103 +393,124 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
         ) : dashboardData ? (
-          <Card className="mb-8 overflow-hidden bg-white/80 backdrop-blur-sm border border-gray-200/60 shadow-sm rounded-2xl">
-            <CardContent className="p-4 sm:p-6">
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6 lg:gap-0 lg:divide-x divide-gray-100">
-                {/* Pending Approvals */}
-                <div className="flex items-center justify-between border-b border-gray-100 last:border-b-0 pb-4 last:pb-2 sm:border-b-0 sm:pb-2 lg:px-6 py-2">
-                  <div>
-                    <p className="text-xs sm:text-sm font-semibold text-gray-500">Pending Approvals</p>
-                    <p className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-900 mt-1">{dashboardData.pendingApprovals.toLocaleString()}</p>
-                  </div>
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-yellow-100/80 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Icons.clock className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-600" />
-                  </div>
+        ) : dashboardData ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6 mb-8">
+            {/* Pending Approvals */}
+            <Card className="bg-white/90 backdrop-blur-sm border border-gray-200/60 shadow-sm hover:shadow-md transition-all duration-200">
+              <CardContent className="p-4 flex items-center justify-between h-full">
+                <div className="min-w-0 flex-1 pr-2">
+                  <p className="text-xs font-semibold text-gray-500 truncate">Pending Approvals</p>
+                  <p className="text-lg sm:text-2xl font-extrabold text-gray-900 mt-1 truncate">{dashboardData.pendingApprovals.toLocaleString()}</p>
                 </div>
+                <div className="w-10 h-10 sm:w-11 sm:h-11 bg-yellow-50 rounded-xl flex items-center justify-center flex-shrink-0 border border-yellow-100">
+                  <Icons.clock className="w-5 h-5 text-yellow-600" />
+                </div>
+              </CardContent>
+            </Card>
 
-                {/* Total Purchases */}
-                <div className="flex items-center justify-between border-b border-gray-100 last:border-b-0 pb-4 last:pb-2 sm:border-b-0 sm:pb-2 lg:px-6 py-2">
-                  <div>
-                    <p className="text-xs sm:text-sm font-semibold text-gray-500">Total Purchases</p>
-                    <p className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-900 mt-1">{dashboardData.totalPurchases.toLocaleString()}</p>
-                  </div>
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100/80 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Icons.download className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
-                  </div>
+            {/* Total Purchases */}
+            <Card className="bg-white/90 backdrop-blur-sm border border-gray-200/60 shadow-sm hover:shadow-md transition-all duration-200">
+              <CardContent className="p-4 flex items-center justify-between h-full">
+                <div className="min-w-0 flex-1 pr-2">
+                  <p className="text-xs font-semibold text-gray-500 truncate">Total Purchases</p>
+                  <p className="text-lg sm:text-2xl font-extrabold text-gray-900 mt-1 truncate">{dashboardData.totalPurchases.toLocaleString()}</p>
                 </div>
+                <div className="w-10 h-10 sm:w-11 sm:h-11 bg-green-50 rounded-xl flex items-center justify-center flex-shrink-0 border border-green-100">
+                  <Icons.download className="w-5 h-5 text-green-600" />
+                </div>
+              </CardContent>
+            </Card>
 
-                {/* Active Agents */}
-                <div className="flex items-center justify-between border-b border-gray-100 last:border-b-0 pb-4 last:pb-2 sm:border-b-0 sm:pb-2 lg:px-6 py-2">
-                  <div>
-                    <p className="text-xs sm:text-sm font-semibold text-gray-500">Active Agents</p>
-                    <p className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-900 mt-1">{dashboardData.agents.toLocaleString()}</p>
-                  </div>
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100/80 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Icons.user className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
-                  </div>
+            {/* Active Agents */}
+            <Card className="bg-white/90 backdrop-blur-sm border border-gray-200/60 shadow-sm hover:shadow-md transition-all duration-200">
+              <CardContent className="p-4 flex items-center justify-between h-full">
+                <div className="min-w-0 flex-1 pr-2">
+                  <p className="text-xs font-semibold text-gray-500 truncate">Active Agents</p>
+                  <p className="text-lg sm:text-2xl font-extrabold text-gray-900 mt-1 truncate">{dashboardData.agents.toLocaleString()}</p>
                 </div>
+                <div className="w-10 h-10 sm:w-11 sm:h-11 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0 border border-blue-100">
+                  <Icons.user className="w-5 h-5 text-blue-600" />
+                </div>
+              </CardContent>
+            </Card>
 
-                {/* Total Clients */}
-                <div className="flex items-center justify-between border-b border-gray-100 last:border-b-0 pb-4 last:pb-2 sm:border-b-0 sm:pb-2 lg:px-6 py-2">
-                  <div>
-                    <p className="text-xs sm:text-sm font-semibold text-gray-500">Total Clients</p>
-                    <p className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-900 mt-1">{dashboardData.clients.toLocaleString()}</p>
-                  </div>
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-100/80 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Icons.users className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
-                  </div>
+            {/* Total Clients */}
+            <Card className="bg-white/90 backdrop-blur-sm border border-gray-200/60 shadow-sm hover:shadow-md transition-all duration-200">
+              <CardContent className="p-4 flex items-center justify-between h-full">
+                <div className="min-w-0 flex-1 pr-2">
+                  <p className="text-xs font-semibold text-gray-500 truncate">Total Clients</p>
+                  <p className="text-lg sm:text-2xl font-extrabold text-gray-900 mt-1 truncate">{dashboardData.clients.toLocaleString()}</p>
                 </div>
+                <div className="w-10 h-10 sm:w-11 sm:h-11 bg-purple-50 rounded-xl flex items-center justify-center flex-shrink-0 border border-purple-100">
+                  <Icons.users className="w-5 h-5 text-purple-600" />
+                </div>
+              </CardContent>
+            </Card>
 
-                {/* Total Vendors */}
-                <div className="flex items-center justify-between border-b border-gray-100 last:border-b-0 pb-4 last:pb-2 sm:border-b-0 sm:pb-2 lg:px-6 py-2 col-span-2 sm:col-span-1">
-                  <div>
-                    <p className="text-xs sm:text-sm font-semibold text-gray-500">Total Vendors</p>
-                    <p className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-900 mt-1">{dashboardData.vendors.toLocaleString()}</p>
-                  </div>
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-indigo-100/80 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Icons.package className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600" />
-                  </div>
+            {/* Total Vendors */}
+            <Card className="bg-white/90 backdrop-blur-sm border border-gray-200/60 shadow-sm hover:shadow-md transition-all duration-200 col-span-2 md:col-span-1 lg:col-span-1">
+              <CardContent className="p-4 flex items-center justify-between h-full">
+                <div className="min-w-0 flex-1 pr-2">
+                  <p className="text-xs font-semibold text-gray-500 truncate">Total Vendors</p>
+                  <p className="text-lg sm:text-2xl font-extrabold text-gray-900 mt-1 truncate">{dashboardData.vendors.toLocaleString()}</p>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+                <div className="w-10 h-10 sm:w-11 sm:h-11 bg-indigo-50 rounded-xl flex items-center justify-center flex-shrink-0 border border-indigo-100">
+                  <Icons.package className="w-5 h-5 text-indigo-600" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         ) : null}
 
         {/* Activity Analytics Section */}
         {dashboardData && (
           <Card className="mb-8">
-            <CardHeader>
+            <CardHeader className="pb-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <CardTitle>Platform Activity</CardTitle>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant={selectedTimeframe === 'inLastHour' ? 'default' : 'outline'}
+                <CardTitle className="text-lg font-bold text-gray-900">Platform Activity</CardTitle>
+                
+                {/* Premium Segmented Timeframe Selector */}
+                <div className="grid grid-cols-4 p-1 bg-gray-100/80 rounded-xl w-full sm:w-auto border border-gray-200/50 max-w-md">
+                  <button
                     onClick={() => setSelectedTimeframe('inLastHour')}
+                    className={`py-1.5 px-3 text-xs font-semibold rounded-lg transition-all duration-200 ${
+                      selectedTimeframe === 'inLastHour'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-900'
+                    }`}
                   >
                     Last Hour
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={selectedTimeframe === 'in24Hrs' ? 'default' : 'outline'}
+                  </button>
+                  <button
                     onClick={() => setSelectedTimeframe('in24Hrs')}
+                    className={`py-1.5 px-3 text-xs font-semibold rounded-lg transition-all duration-200 ${
+                      selectedTimeframe === 'in24Hrs'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-900'
+                    }`}
                   >
                     24 Hours
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={selectedTimeframe === 'inWeek' ? 'default' : 'outline'}
+                  </button>
+                  <button
                     onClick={() => setSelectedTimeframe('inWeek')}
+                    className={`py-1.5 px-3 text-xs font-semibold rounded-lg transition-all duration-200 ${
+                      selectedTimeframe === 'inWeek'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-900'
+                    }`}
                   >
                     7 Days
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={selectedTimeframe === 'inMonth' ? 'default' : 'outline'}
+                  </button>
+                  <button
                     onClick={() => setSelectedTimeframe('inMonth')}
+                    className={`py-1.5 px-3 text-xs font-semibold rounded-lg transition-all duration-200 ${
+                      selectedTimeframe === 'inMonth'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-900'
+                    }`}
                   >
                     30 Days
-                  </Button>
+                  </button>
                 </div>
               </div>
             </CardHeader>

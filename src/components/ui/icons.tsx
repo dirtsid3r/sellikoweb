@@ -51,6 +51,12 @@ import {
   Truck,
   Mail,
   LogIn,
+  Trophy,
+  PhoneCall,
+  CircleDot,
+  XCircle,
+  DollarSign,
+  PartyPopper,
 } from "lucide-react"
 
 export const Icons = {
@@ -106,4 +112,10 @@ export const Icons = {
   truck: Truck,
   mail: Mail,
   logIn: LogIn,
+  trophy: Trophy,
+  phoneCall: PhoneCall,
+  circleDot: CircleDot,
+  xCircle: XCircle,
+  dollarSign: DollarSign,
+  partyPopper: PartyPopper,
 } 

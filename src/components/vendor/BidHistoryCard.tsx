@@ -3,6 +3,7 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Icons } from '@/components/ui/icons'
 import { useRouter } from 'next/navigation'
 
 interface VendorBid {
@@ -40,12 +41,12 @@ export function BidHistoryCard({
   
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'won': return '🏆'
-      case 'completed': return '✅'
-      case 'active': return '🔥'
-      case 'pending': return '⏱️'
-      case 'lost': return '❌'
-      default: return '⚪'
+      case 'won': return <Icons.trophy className="w-4 h-4" />
+      case 'completed': return <Icons.check className="w-4 h-4" />
+      case 'active': return <Icons.zap className="w-4 h-4" />
+      case 'pending': return <Icons.clock className="w-4 h-4" />
+      case 'lost': return <Icons.xCircle className="w-4 h-4" />
+      default: return <Icons.circleDot className="w-4 h-4" />
     }
   }
 

@@ -166,7 +166,7 @@ export function MyBidsTab() {
     return (
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">📋 My Bids & Transaction History</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2 flex items-center gap-2"><Icons.list className="w-6 h-6 text-green-600" /> My Bids & Transaction History</h2>
           <p className="text-gray-600">Loading your bidding performance data...</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -188,7 +188,7 @@ export function MyBidsTab() {
     return (
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">📋 My Bids & Transaction History</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2 flex items-center gap-2"><Icons.list className="w-6 h-6 text-green-600" /> My Bids & Transaction History</h2>
           <p className="text-gray-600">Track your bid history, manage won auctions, and monitor your bidding performance.</p>
         </div>
         <Card>
@@ -221,7 +221,7 @@ export function MyBidsTab() {
         {/* Main Stats Card */}
         <Card className="md:col-span-2 lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-lg">📊 Bidding Overview</CardTitle>
+            <CardTitle className="text-lg flex items-center gap-2"><Icons.trendingUp className="w-5 h-5 text-green-600" /> Bidding Overview</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-center">

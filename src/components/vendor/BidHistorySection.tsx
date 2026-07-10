@@ -222,12 +222,12 @@ export function BidHistorySection({
   
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'won': return '🏆'
-      case 'completed': return '✅'
-      case 'active': return '🔥'
-      case 'pending': return '⏱️'
-      case 'lost': return '❌'
-      default: return '⚪'
+      case 'won': return <Icons.trophy className="w-4 h-4" />
+      case 'completed': return <Icons.check className="w-4 h-4" />
+      case 'active': return <Icons.zap className="w-4 h-4" />
+      case 'pending': return <Icons.clock className="w-4 h-4" />
+      case 'lost': return <Icons.xCircle className="w-4 h-4" />
+      default: return <Icons.circleDot className="w-4 h-4" />
     }
   }
 

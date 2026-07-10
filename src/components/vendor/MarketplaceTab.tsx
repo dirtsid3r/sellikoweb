@@ -292,7 +292,7 @@ export function MarketplaceTab() {
 
     // New: accepting_bids (receiving_bids)
     if (listing.status === 'receiving_bids') {
-      return <Badge className="bg-orange-500 text-white">⏳ Accepting Bids</Badge>
+      return <Badge className="bg-orange-500 text-white flex items-center gap-1"><Icons.clock className="w-3 h-3" /> Accepting Bids</Badge>
     }
 
     // Handle bid_accepted status with win/loss logic
@@ -302,43 +302,43 @@ export function MarketplaceTab() {
       if (isMyWinningBid) {
         // Show won badge based on instant_win flag
         if (listing.winningBid.instant_win) {
-          return <Badge className="bg-green-500 text-white">⚡ Instant Won!</Badge> // Green for won
+          return <Badge className="bg-green-500 text-white flex items-center gap-1"><Icons.zap className="w-3 h-3" /> Instant Won!</Badge> // Green for won
         } else {
-          return <Badge className="bg-green-500 text-white">🏆 You Won!</Badge> // Green for won
+          return <Badge className="bg-green-500 text-white flex items-center gap-1"><Icons.trophy className="w-3 h-3" /> You Won!</Badge> // Green for won
         }
       } else {
         // Show lost badge for other users
-        return <Badge className="bg-red-500 text-white">😔 You Lost</Badge> // Red for lost
+        return <Badge className="bg-red-500 text-white flex items-center gap-1"><Icons.x className="w-3 h-3" /> You Lost</Badge> // Red for lost
       }
     }
     
     // Existing order processing statuses (move these above the bidded check)
     if (listing.status === 'pickedup') {
-      return <Badge className="bg-orange-500 text-white">🚚 Picked Up</Badge>
+      return <Badge className="bg-orange-500 text-white flex items-center gap-1"><Icons.truck className="w-3 h-3" /> Picked Up</Badge>
     }
     if (listing.status === 'completed') {
-      return <Badge className="bg-green-600 text-white">🎉 Delivered</Badge>
+      return <Badge className="bg-green-600 text-white flex items-center gap-1"><Icons.partyPopper className="w-3 h-3" /> Delivered</Badge>
     }
     if (listing.status === 'agent_assigned') {
-      return <Badge className="bg-blue-500 text-white">👤 Agent Assigned</Badge>
+      return <Badge className="bg-blue-500 text-white flex items-center gap-1"><Icons.user className="w-3 h-3" /> Agent Assigned</Badge>
     }
     if (listing.status === 'verification') {
-      return <Badge className="bg-yellow-500 text-white">🔍 Verifying</Badge>
+      return <Badge className="bg-yellow-500 text-white flex items-center gap-1"><Icons.search className="w-3 h-3" /> Verifying</Badge>
     }
     if (listing.status === 'ready_for_pickup') {
-      return <Badge className="bg-purple-500 text-white">📦 Ready for Pickup</Badge>
+      return <Badge className="bg-purple-500 text-white flex items-center gap-1"><Icons.package className="w-3 h-3" /> Ready for Pickup</Badge>
     }
     if (listing.status === 'bidding_ended') {
-      return <Badge className="bg-gray-500 text-white">⏰ Bidding Ended</Badge>
+      return <Badge className="bg-gray-500 text-white flex items-center gap-1"><Icons.clock className="w-3 h-3" /> Bidding Ended</Badge>
     }
     if (listing.status === 'bid_accepted') {
-      return <Badge className="bg-green-500 text-white">✅ Bid Accepted</Badge>
+      return <Badge className="bg-green-500 text-white flex items-center gap-1"><Icons.check className="w-3 h-3" /> Bid Accepted</Badge>
     }
     if (!listing.isBiddable) {
-      return <Badge className="bg-gray-500 text-white">🚫 Not Available</Badge>
+      return <Badge className="bg-gray-500 text-white flex items-center gap-1"><Icons.x className="w-3 h-3" /> Not Available</Badge>
     }
     if (listing.isInstantWin) {
-      return <Badge className="bg-orange-100 text-orange-800 border-orange-200">⚡ Instant Win</Badge>
+      return <Badge className="bg-orange-100 text-orange-800 border-orange-200 flex items-center gap-1"><Icons.zap className="w-3 h-3" /> Instant Win</Badge>
     }
 
     // New: bidded (if not receiving_bids, but has bids)
@@ -434,7 +434,7 @@ export function MarketplaceTab() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">📱 Device Marketplace</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2 flex items-center gap-2"><Icons.smartphone className="w-6 h-6 text-green-600" /> Device Marketplace</h2>
           <p className="text-gray-600">Browse and bid on verified devices from trusted sellers across Kerala.</p>
         </div>
         <div className="flex items-center gap-2 self-end sm:self-auto">
@@ -559,18 +559,18 @@ export function MarketplaceTab() {
                 
                 {/* Check if user has the highest bid */}
                 {currentUser && listing.currentBidInfo && listing.currentBidInfo.vendor_id === currentUser.id ? (
-                  <Badge className="absolute top-2 left-2 bg-blue-500 text-white">
-                    🏆 Highest Bid
+                  <Badge className="absolute top-2 left-2 bg-blue-500 text-white flex items-center gap-1">
+                    <Icons.trophy className="w-3 h-3" /> Highest Bid
                   </Badge>
                 ) : listing.isHot && (
-                  <Badge className="absolute top-2 left-2 bg-purple-500 text-white">
-                    🔥 HOT
+                  <Badge className="absolute top-2 left-2 bg-purple-500 text-white flex items-center gap-1">
+                    <Icons.zap className="w-3 h-3" /> HOT
                   </Badge>
                 )}
                 
                 {listing.status === 'receiving_bids' && (
                   <div className={`absolute bottom-2 left-2 px-2 py-1 rounded text-sm font-medium ${isListingExpired(listing) ? 'text-red-600 bg-red-100' : getTimeLeftColor(listing.timeRemaining || listing.timeLeft)}`}>
-                    ⏱️ {isListingExpired(listing) ? 'Expired' : (listing.timeRemaining || listing.timeLeft)}
+                    <Icons.clock className="w-3.5 h-3.5 inline mr-1" /> {isListingExpired(listing) ? 'Expired' : (listing.timeRemaining || listing.timeLeft)}
                   </div>
                 )}
               </div>
@@ -839,7 +839,7 @@ export function MarketplaceTab() {
                     <div className="pt-4 border-t">
                       {trackingData.agent?.number && (
                         <Button className="w-full" variant="outline" onClick={() => window.open(`tel:${trackingData.agent.number}`)}>
-                          📞 Call Agent
+                          <Icons.phoneCall className="w-4 h-4 mr-1" /> Call Agent
                         </Button>
                       )}
                     </div>
@@ -849,7 +849,7 @@ export function MarketplaceTab() {
                 {/* Order Timeline */}
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">📋 Order Timeline</CardTitle>
+                    <CardTitle className="text-lg flex items-center gap-2"><Icons.list className="w-5 h-5" /> Order Timeline</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
@@ -859,42 +859,42 @@ export function MarketplaceTab() {
                           label: 'Bid Accepted', 
                           date: 'Completed', 
                           completed: true, 
-                          icon: '✅' 
+                          icon: 'check' 
                         },
                         { 
                           status: 'agent_assigned', 
                           label: 'Agent Assigned', 
                           date: trackingData.status === 'agent_assigned' ? 'In Progress' : trackingData.status === 'verification' || trackingData.status === 'ready_for_pickup' || trackingData.status === 'pickedup' || trackingData.status === 'completed' ? 'Completed' : 'Pending', 
                           completed: trackingData.status === 'agent_assigned' || trackingData.status === 'verification' || trackingData.status === 'ready_for_pickup' || trackingData.status === 'pickedup' || trackingData.status === 'completed', 
-                          icon: '👤' 
+                          icon: 'user' 
                         },
                         { 
                           status: 'verification', 
                           label: 'Device Verification', 
                           date: trackingData.status === 'verification' ? 'In Progress' : trackingData.status === 'ready_for_pickup' || trackingData.status === 'pickedup' || trackingData.status === 'completed' ? 'Completed' : 'Pending', 
                           completed: trackingData.status === 'verification' || trackingData.status === 'ready_for_pickup' || trackingData.status === 'pickedup' || trackingData.status === 'completed', 
-                          icon: '🔍' 
+                          icon: 'search' 
                         },
                         { 
                           status: 'ready_for_pickup', 
                           label: 'Ready for Pickup', 
                           date: trackingData.status === 'ready_for_pickup' ? 'Ready Now' : trackingData.status === 'pickedup' || trackingData.status === 'completed' ? 'Completed' : 'Pending', 
                           completed: trackingData.status === 'ready_for_pickup' || trackingData.status === 'pickedup' || trackingData.status === 'completed', 
-                          icon: '📦' 
+                          icon: 'package' 
                         },
                         { 
                           status: 'pickedup', 
                           label: 'Device Picked Up', 
                           date: trackingData.status === 'pickedup' ? 'Picked Up' : trackingData.status === 'completed' ? 'Completed' : 'Pending', 
                           completed: trackingData.status === 'pickedup' || trackingData.status === 'completed', 
-                          icon: '🚚' 
+                          icon: 'truck' 
                         },
                         { 
                           status: 'completed', 
                           label: 'Delivered & Completed', 
                           date: trackingData.status === 'completed' ? 'Completed' : 'Pending', 
                           completed: trackingData.status === 'completed', 
-                          icon: '🎉' 
+                          icon: 'partyPopper' 
                         }
                       ].map((step, index) => (
                         <div key={index} className={`flex items-center gap-3 p-3 rounded-lg border ${
@@ -907,7 +907,7 @@ export function MarketplaceTab() {
                             trackingData.status === step.status ? 'bg-blue-500 text-white' : 
                             'bg-gray-300 text-gray-600'
                           }`}>
-                            {step.icon}
+                            {(() => { const IconComp = Icons[step.icon as keyof typeof Icons]; return IconComp ? <IconComp className="w-4 h-4" /> : null; })()}
                           </div>
                           <div className="flex-1">
                             <p className={`font-medium ${
@@ -954,7 +954,7 @@ export function MarketplaceTab() {
               </Button>
               {trackingData && (
                 <Button>
-                  📱 Get Updates via WhatsApp
+                  <Icons.smartphone className="w-4 h-4 mr-1" /> Get Updates via WhatsApp
                 </Button>
               )}
             </div>

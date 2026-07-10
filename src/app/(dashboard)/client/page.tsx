@@ -387,7 +387,7 @@ export default function ClientDashboard() {
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-bold text-gray-900">Your Active Listings</h3>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
               {[1, 2, 3].map((i) => (
                 <Card key={i} className="border-0 shadow-lg bg-white rounded-2xl">
                   <CardContent className="p-0">
@@ -413,7 +413,7 @@ export default function ClientDashboard() {
                 </Button>
               </Link>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
               {updateListingTimes(currentListings).map((listing) => {
                 const statusInfo = getStatusInfo(listing.status)
                 const StatusIcon = statusInfo.icon
@@ -530,7 +530,7 @@ export default function ClientDashboard() {
                 <CardTitle className="text-xl sm:text-2xl font-bold text-gray-900">How SELLIKO Works</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
                   <div className="text-center">
                     <div className="w-14 h-14 sm:w-16 sm:h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
                       <Icons.smartphone className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />

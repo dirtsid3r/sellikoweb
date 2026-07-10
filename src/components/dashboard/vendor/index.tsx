@@ -59,7 +59,7 @@ export default function VendorDashboard() {
           <CardContent className="p-6 text-center">
             <div className="text-2xl font-bold text-blue-600">{stats.activeBids}</div>
             <div className="text-sm text-gray-600">Active Bids</div>
-            <div className="text-xs text-blue-600 mt-1">🔥 Currently bidding</div>
+            <div className="text-xs text-blue-600 mt-1 flex items-center gap-1"><Icons.zap className="w-3 h-3" /> Currently bidding</div>
           </CardContent>
         </Card>
         
@@ -67,7 +67,7 @@ export default function VendorDashboard() {
           <CardContent className="p-6 text-center">
             <div className="text-2xl font-bold text-green-600">{stats.wonBids}</div>
             <div className="text-sm text-gray-600">Won Bids</div>
-            <div className="text-xs text-green-600 mt-1">🏆 Successful purchases</div>
+            <div className="text-xs text-green-600 mt-1 flex items-center gap-1"><Icons.trophy className="w-3 h-3" /> Successful purchases</div>
           </CardContent>
         </Card>
         
@@ -75,7 +75,7 @@ export default function VendorDashboard() {
           <CardContent className="p-6 text-center">
             <div className="text-2xl font-bold text-purple-600">{formatCurrency(stats.totalSpent)}</div>
             <div className="text-sm text-gray-600">Total Spent</div>
-            <div className="text-xs text-purple-600 mt-1">💰 Investment made</div>
+            <div className="text-xs text-purple-600 mt-1 flex items-center gap-1"><Icons.dollarSign className="w-3 h-3" /> Investment made</div>
           </CardContent>
         </Card>
         
@@ -83,7 +83,7 @@ export default function VendorDashboard() {
           <CardContent className="p-6 text-center">
             <div className="text-2xl font-bold text-orange-600">{stats.notifications}</div>
             <div className="text-sm text-gray-600">Notifications</div>
-            <div className="text-xs text-orange-600 mt-1">🔔 Requires attention</div>
+            <div className="text-xs text-orange-600 mt-1 flex items-center gap-1"><Icons.bell className="w-3 h-3" /> Requires attention</div>
           </CardContent>
         </Card>
       </div>
@@ -98,10 +98,10 @@ export default function VendorDashboard() {
             onChange={(e) => setActiveTab(e.target.value)}
             className="w-full p-3.5 pl-10 pr-10 bg-white border border-gray-300 rounded-xl shadow-sm text-gray-900 font-medium focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none"
           >
-            <option value="marketplace">📱 Marketplace ({stats.marketplaceListings})</option>
-            <option value="bids">📋 My Bids ({stats.activeBids})</option>
-            <option value="orders">📦 Orders ({stats.wonBids})</option>
-            <option value="notifications">🔔 Notifications ({stats.notifications})</option>
+            <option value="marketplace">Marketplace ({stats.marketplaceListings})</option>
+            <option value="bids">My Bids ({stats.activeBids})</option>
+            <option value="orders">Orders ({stats.wonBids})</option>
+            <option value="notifications">Notifications ({stats.notifications})</option>
           </select>
           <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
             <Icons.chevronDown className="h-5 w-5" />

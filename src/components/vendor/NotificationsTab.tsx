@@ -94,13 +94,13 @@ export function NotificationsTab() {
 
   const getNotificationIcon = (type: string) => {
     const typeLower = type.toLowerCase();
-    if (typeLower.includes('listing')) return '📱'
-    if (typeLower.includes('placed')) return '🔥'
-    if (typeLower.includes('outbid')) return '⚠️'
-    if (typeLower.includes('win') || typeLower.includes('won')) return '🏆'
-    if (typeLower.includes('order')) return '📦'
-    if (typeLower.includes('delivery') || typeLower.includes('pickup')) return '🚚'
-    return '🔔'
+    if (typeLower.includes('listing')) return <Icons.smartphone className="w-4 h-4" />
+    if (typeLower.includes('placed')) return <Icons.zap className="w-4 h-4" />
+    if (typeLower.includes('outbid')) return <Icons.exclamationTriangle className="w-4 h-4" />
+    if (typeLower.includes('win') || typeLower.includes('won')) return <Icons.trophy className="w-4 h-4" />
+    if (typeLower.includes('order')) return <Icons.package className="w-4 h-4" />
+    if (typeLower.includes('delivery') || typeLower.includes('pickup')) return <Icons.truck className="w-4 h-4" />
+    return <Icons.bell className="w-4 h-4" />
   }
 
   const getNotificationColor = (type: string, isImportant: boolean) => {
@@ -161,7 +161,7 @@ export function NotificationsTab() {
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">🔔 Notifications</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2 flex items-center gap-2"><Icons.bell className="w-6 h-6 text-green-600" /> Notifications</h2>
           <p className="text-gray-600">Stay updated with your bidding activity and order status.</p>
         </div>
         {unreadCount > 0 && (
@@ -298,8 +298,8 @@ export function NotificationsTab() {
                 <p className="font-medium text-gray-900">WhatsApp Notifications</p>
                 <p className="text-sm text-gray-600">Get critical updates via WhatsApp</p>
               </div>
-              <Badge variant="outline" className="text-green-600 bg-green-50">
-                ✅ Enabled
+              <Badge variant="outline" className="text-green-600 bg-green-50 flex items-center gap-1">
+                <Icons.check className="w-3 h-3" /> Enabled
               </Badge>
             </div>
             <div className="flex items-center justify-between">
@@ -307,8 +307,8 @@ export function NotificationsTab() {
                 <p className="font-medium text-gray-900">New Listing Alerts</p>
                 <p className="text-sm text-gray-600">Notify when devices matching your interests are listed</p>
               </div>
-              <Badge variant="outline" className="text-green-600 bg-green-50">
-                ✅ Enabled
+              <Badge variant="outline" className="text-green-600 bg-green-50 flex items-center gap-1">
+                <Icons.check className="w-3 h-3" /> Enabled
               </Badge>
             </div>
             <div className="flex items-center justify-between">
@@ -316,8 +316,8 @@ export function NotificationsTab() {
                 <p className="font-medium text-gray-900">Bid Updates</p>
                 <p className="text-sm text-gray-600">Get notified when you're outbid or win auctions</p>
               </div>
-              <Badge variant="outline" className="text-green-600 bg-green-50">
-                ✅ Enabled
+              <Badge variant="outline" className="text-green-600 bg-green-50 flex items-center gap-1">
+                <Icons.check className="w-3 h-3" /> Enabled
               </Badge>
             </div>
           </div>
