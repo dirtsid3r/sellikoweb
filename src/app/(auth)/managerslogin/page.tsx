@@ -6,9 +6,11 @@ import { Icons } from '@/components/ui/icons'
 import { toast } from 'react-hot-toast'
 import sellikoClient from '@/selliko-client'
 import Link from 'next/link'
+import { useAuth } from '@/lib/auth'
 
 export default function ManagerLoginPage() {
 
+    const { managerLogin } = useAuth()
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [isLoading, setIsLoading] = useState(false)
@@ -51,7 +53,7 @@ export default function ManagerLoginPage() {
 
         try {
             console.log('💼 [MANAGER-LOGIN] Attempting login for:', email)
-            const result = await sellikoClient.managerLogin(email, password)
+            const result = await managerLogin(email, password)
 
             if (result.success) {
                 toast.success('Login successful!')

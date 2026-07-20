@@ -316,8 +316,11 @@ export default function ListDevice() {
         }
         return null
       case 1: // IMEI Numbers
-        if (!data.imei1 || data.imei1.trim().length < 10) {
-          return "Please enter a valid IMEI 1 number (minimum 10 characters)."
+        if (!data.imei1 || !/^\d{15}$/.test(data.imei1.trim())) {
+          return "Please enter a valid 15-digit IMEI 1 number."
+        }
+        if (data.imei2 && !/^\d{15}$/.test(data.imei2.trim())) {
+          return "Please enter a valid 15-digit IMEI 2 number or leave it blank."
         }
         return null
       case 2: // Device Details
@@ -335,8 +338,16 @@ export default function ListDevice() {
         if (!data.warrantyStatus) {
           return "Please select your device's warranty status (Active or Expired)."
         }
-        if (data.warrantyStatus === 'active' && !data.warrantyExpiry) {
-          return "Please enter the warranty expiry date."
+        if (data.warrantyStatus === 'active') {
+          if (!data.warrantyExpiry) {
+            return "Please enter the warranty expiry date."
+          }
+          const expiry = new Date(data.warrantyExpiry)
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          if (expiry <= today) {
+            return "Warranty expiry date must be in the future for active warranty."
+          }
         }
         return null
       case 4: // Bill Details
@@ -380,6 +391,15 @@ export default function ListDevice() {
         if (missingInfo.length > 0) {
           return `Please fill in all personal details. Missing: ${missingInfo.join(', ')}.`
         }
+        if (!/^[a-zA-Z\s]{3,32}$/.test(data.name.trim())) {
+          return "Full Name must contain only letters and spaces (between 3 and 32 characters)."
+        }
+        if (!/^[6-9]\d{9}$/.test(data.mobile.trim())) {
+          return "Alternate Number must be a valid 10-digit mobile number."
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())) {
+          return "Please enter a valid email address."
+        }
         return null
       case 7: // Address
         const missingAddr = []
@@ -389,6 +409,12 @@ export default function ListDevice() {
         if (missingAddr.length > 0) {
           return `Please enter your complete address details. Missing: ${missingAddr.join(', ')}.`
         }
+        if (data.address.trim().length < 10) {
+          return "Address must be at least 10 characters long."
+        }
+        if (!/^\d{6}$/.test(data.pincode.trim())) {
+          return "Pincode must be exactly 6 digits."
+        }
         return null
       case 8: // Pickup Address
         const missingPickup = []
@@ -397,6 +423,12 @@ export default function ListDevice() {
         if (!data.pickupPincode || !data.pickupPincode.trim()) missingPickup.push('Pickup Pincode')
         if (missingPickup.length > 0) {
           return `Please enter your complete pickup address details. Missing: ${missingPickup.join(', ')}.`
+        }
+        if (data.pickupAddress.trim().length < 10) {
+          return "Pickup Address must be at least 10 characters long."
+        }
+        if (!/^\d{6}$/.test(data.pickupPincode.trim())) {
+          return "Pickup Pincode must be exactly 6 digits."
         }
         return null
       case 9: // Terms
@@ -711,7 +743,10 @@ function IMEIStep({ data, updateData }: { data: DeviceData, updateData: (field: 
             type="text"
             placeholder="Enter first IMEI number"
             value={data.imei1}
-            onChange={(e) => updateData('imei1', e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value.replace(/\D/g, '')
+              updateData('imei1', val)
+            }}
             maxLength={15}
           />
         </div>
@@ -723,7 +758,10 @@ function IMEIStep({ data, updateData }: { data: DeviceData, updateData: (field: 
             type="text"
             placeholder="Enter second IMEI number"
             value={data.imei2}
-            onChange={(e) => updateData('imei2', e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value.replace(/\D/g, '')
+              updateData('imei2', val)
+            }}
             maxLength={15}
           />
         </div>
@@ -1142,7 +1180,10 @@ function PersonalInfoStep({ data, updateData }: { data: DeviceData, updateData: 
             type="tel"
             placeholder="Enter mobile number"
             value={data.mobile}
-            onChange={(e) => updateData('mobile', e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value.replace(/\D/g, '')
+              updateData('mobile', val)
+            }}
             maxLength={10}
           />
         </div>
@@ -1155,7 +1196,7 @@ function PersonalInfoStep({ data, updateData }: { data: DeviceData, updateData: 
           type="email"
           placeholder="Enter email address"
           value={data.email}
-          onChange={(e) => updateData('email', e.target.value)}
+          onChange={(e) => updateData('email', e.target.value.trim())}
           maxLength={32}
         />
       </div>
@@ -1202,7 +1243,10 @@ function AddressStep({ data, updateData, availableCities, isConfigLoading }: { d
             type="text"
             placeholder="Enter pincode"
             value={data.pincode}
-            onChange={(e) => updateData('pincode', e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value.replace(/\D/g, '')
+              updateData('pincode', val)
+            }}
             maxLength={6}
           />
         </div>
@@ -1377,7 +1421,10 @@ function PickupAddressStep({ data, updateData, availableCities, isConfigLoading 
             type="text"
             placeholder="Enter pincode"
             value={data.pickupPincode}
-            onChange={(e) => updateData('pickupPincode', e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value.replace(/\D/g, '')
+              updateData('pickupPincode', val)
+            }}
             maxLength={6}
           />
         </div>

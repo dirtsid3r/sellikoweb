@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import sellikoClient from '@/selliko-client'
 
 // Types from integrationguide.md
 export interface User {
@@ -19,6 +20,7 @@ export interface AuthContextType {
   isLoading: boolean
   isAuthenticated: boolean
   login: (phone: string, otp: string, otpId: string) => Promise<{ success: boolean; error?: string }>
+  managerLogin: (email: string, password: string) => Promise<{ success: boolean; error?: string; message?: string; user?: any }>
   logout: () => Promise<boolean>
   sendOTP: (phone: string) => Promise<{ success: boolean; otpId?: string; error?: string }>
   refreshToken: () => Promise<boolean>
@@ -164,7 +166,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (storedUser && token) {
       try {
-        setUser(JSON.parse(storedUser))
+        const parsed = JSON.parse(storedUser)
+        const role = (parsed.role || parsed.user_role || 'CLIENT').toUpperCase() as any
+        setUser({
+          ...parsed,
+          role,
+          user_role: role
+        })
         setIsAuthenticated(true)
       } catch (error) {
         console.error('Error parsing stored user:', error)
@@ -187,7 +195,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const result = await authAPI.verifyOTP(phone, otp, otpId)
       
       if (result.success && result.user) {
-        setUser(result.user)
+        const role = (result.user.role || result.user.user_role || 'CLIENT').toUpperCase() as any
+        const normalizedUser = {
+          ...result.user,
+          role,
+          user_role: role
+        }
+        setUser(normalizedUser)
         setIsAuthenticated(true)
         return { success: true }
       }
@@ -195,6 +209,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { success: false, error: result.error || 'Authentication failed' }
     } catch (error) {
       return { success: false, error: 'Network error' }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const managerLogin = async (email: string, password: string) => {
+    setIsLoading(true)
+    try {
+      const result = await sellikoClient.managerLogin(email, password)
+      
+      if (result.success && result.user) {
+        const role = (result.user.role || result.user.user_role || 'CLIENT').toUpperCase() as any
+        const normalizedUser = {
+          ...result.user,
+          role,
+          user_role: role
+        }
+        setUser(normalizedUser)
+        setIsAuthenticated(true)
+      }
+      return result
+    } catch (error) {
+      return { success: false, error: 'Network error occurred during manager login', message: 'Network error occurred during manager login' }
     } finally {
       setIsLoading(false)
     }
@@ -328,6 +365,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading,
     isAuthenticated,
     login,
+    managerLogin,
     logout,
     sendOTP,
     refreshToken,

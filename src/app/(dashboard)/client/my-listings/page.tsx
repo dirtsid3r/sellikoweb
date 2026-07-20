@@ -144,8 +144,9 @@ export default function MyListings() {
       status: bid.status === 'active' ? 'active' : bid.status === 'accepted' ? 'accepted' : 'declined'
     }))
 
-    // Extract current bid from highest_bid object
-    const currentBidAmount = apiListing.highest_bid?.bid_amount || undefined
+    // Extract current bid from computed highest_bid_value or max of bids array
+    const currentBidAmount = apiListing.highest_bid_value || 
+      (bidsArray.length > 0 ? Math.max(...bidsArray.map((b: any) => b.bid_amount || 0)) : undefined)
 
     return {
       id: apiListing.id,
