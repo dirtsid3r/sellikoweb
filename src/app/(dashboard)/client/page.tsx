@@ -14,13 +14,33 @@ import Header from '@/components/layout/header'
 
 // Helper function to calculate time remaining based on approval time
 const calculateTimeRemaining = (timeApproved: string | null, status: string): string => {
-  // Only show time calculation for receiving_bids status
-  if (status !== 'receiving_bids') {
-    return 'Pending approval'
+  const normalizedStatus = (status || '').toLowerCase()
+
+  if (normalizedStatus === 'pending_approval' || normalizedStatus === 'pending') {
+    return 'Under review'
+  }
+  if (normalizedStatus === 'bidding_ended') {
+    return 'Bidding ended'
+  }
+  if (normalizedStatus === 'bid_accepted') {
+    return 'Bid accepted'
+  }
+  if (['agent_assigned', 'verification', 'ready_for_pickup', 'pickedup'].includes(normalizedStatus)) {
+    return 'In fulfillment'
+  }
+  if (normalizedStatus === 'completed' || normalizedStatus === 'sold') {
+    return 'Completed'
+  }
+  if (normalizedStatus === 'rejected') {
+    return 'Rejected'
+  }
+  if (normalizedStatus === 'cancelled') {
+    return 'Cancelled'
   }
 
+  // Calculate countdown for receiving_bids / active auctions
   if (!timeApproved) {
-    return 'Pending approval'
+    return '24h left'
   }
 
   try {
@@ -42,18 +62,24 @@ const calculateTimeRemaining = (timeApproved: string | null, status: string): st
     } else if (minutesLeft > 0) {
       return `${minutesLeft}m left`
     } else {
-      return '0m left'
+      return 'Less than 1m left'
     }
   } catch (error) {
     console.error('Error calculating time remaining:', error)
-    return 'Pending approval'
+    return 'Time unavailable'
   }
 }
 
 // Helper function to get time remaining status color
 const getTimeRemainingColor = (timeRemaining: string): string => {
-  if (timeRemaining.includes('Pending') || timeRemaining === '0m left') {
-    return 'text-gray-600'
+  if (timeRemaining.includes('ended') || timeRemaining === '0m left' || timeRemaining.includes('Rejected')) {
+    return 'text-red-600'
+  }
+  if (timeRemaining.includes('Under review') || timeRemaining.includes('accepted') || timeRemaining.includes('fulfillment')) {
+    return 'text-purple-600'
+  }
+  if (timeRemaining.includes('Completed')) {
+    return 'text-emerald-600'
   }
   
   // Extract hours if present
@@ -82,8 +108,7 @@ export default function ClientDashboard() {
   useEffect(() => {
     const interval = setInterval(() => {
       setLastUpdateTime(Date.now())
-      // This will cause listings to re-render with updated time calculations
-    }, 60000) // Update every minute
+    }, 60000)
 
     return () => clearInterval(interval)
   }, [])
@@ -135,8 +160,6 @@ export default function ClientDashboard() {
     checkAuthAndRole()
   }, [router])
 
-
-
   // Transform API listing data to match card format
   const transformListingData = (apiListing: any) => {
     const device = apiListing.devices?.[0] || {}
@@ -151,49 +174,42 @@ export default function ClientDashboard() {
     
     // Get ALL available images (device images + bill/warranty as fallbacks)
     const availableImages = [
-      // Device images (priority)
       device.front_image_url,
       device.back_image_url, 
       device.top_image_url,
       device.bottom_image_url,
-      // Bill and warranty images as fallbacks
       device.bill_image_url,
       device.warranty_image_url
-    ].filter(Boolean) // Remove null/undefined values
+    ].filter(Boolean)
     
-    // Use a solid color placeholder if no images available
     const image = availableImages.length > 0 ? availableImages[0] : 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDMwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xMjUgMTAwSDE3NVYxMjVIMTc1VjE3NUgxMjVWMTAwWiIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4K'
     
-    console.log('🖼️ [CLIENT-DASH] Image analysis for listing', apiListing.id, ':', {
-      deviceImages: {
-        front: device.front_image_url ? 'Available' : 'NULL',
-        back: device.back_image_url ? 'Available' : 'NULL',
-        top: device.top_image_url ? 'Available' : 'NULL',
-        bottom: device.bottom_image_url ? 'Available' : 'NULL'
-      },
-      fallbackImages: {
-        bill: device.bill_image_url ? 'Available' : 'NULL',
-        warranty: device.warranty_image_url ? 'Available' : 'NULL'
-      },
-      selectedImage: image,
-      totalAvailable: availableImages.length,
-      actualUrls: availableImages
-    })
+    // Extract bid information reliably
+    const bidsList = Array.isArray(apiListing.bids) ? apiListing.bids : []
+    const validBidAmounts = bidsList
+      .map((b: any) => typeof b === 'object' && b !== null ? Number(b.bid_amount || 0) : 0)
+      .filter((amt: number) => amt > 0)
+    
+    const highestFromBids = validBidAmounts.length > 0 ? Math.max(...validBidAmounts) : 0
+    const highestBidAmount = Number(apiListing.highest_bid_value || 0) || 
+                             (typeof apiListing.highest_bid === 'object' && apiListing.highest_bid ? Number(apiListing.highest_bid.bid_amount || 0) : 0) ||
+                             highestFromBids
+
+    const bidsCount = bidsList.length
 
     return {
       id: apiListing.id,
       device: deviceName,
-      status: apiListing.status === 'pending' ? 'pending_approval' : apiListing.status,
-      currentBid: apiListing.highest_bid_value || 0,
-      askingPrice: apiListing.asking_price || apiListing.expected_price || 0,
-      bidsCount: Array.isArray(apiListing.bids) ? apiListing.bids.length : 0,
+      status: apiListing.status === 'pending' ? 'pending_approval' : (apiListing.status || 'pending_approval'),
+      currentBid: highestBidAmount,
+      askingPrice: Number(apiListing.asking_price || apiListing.expected_price || 0),
+      bidsCount: bidsCount,
       timeLeft: calculateTimeRemaining(apiListing.time_approved, apiListing.status),
       image: image,
       storage: device.storage,
       condition: device.condition,
       color: device.color,
       created_at: apiListing.created_at,
-      // Include all available images for potential use
       allImages: {
         front: device.front_image_url,
         back: device.back_image_url,
@@ -202,70 +218,71 @@ export default function ClientDashboard() {
         bill: device.bill_image_url,
         warranty: device.warranty_image_url
       },
-      // Include time_approved for real-time calculations
       time_approved: apiListing.time_approved
     }
   }
 
-  // Load user listings when authentication is complete
+  // Load user listings when authentication is complete and auto-refresh periodically
   useEffect(() => {
-    const loadListings = async () => {
+    let isMounted = true
+
+    const loadListings = async (showLoadingSpinner = false) => {
       if (isAuthChecking || isLoading) {
-        console.log('⏳ [CLIENT-DASH] Waiting for auth check to complete...')
         return
       }
 
-      console.log('📋 [CLIENT-DASH] Loading user listings...')
-      setIsLoadingListings(true)
+      if (showLoadingSpinner) {
+        setIsLoadingListings(true)
+      }
       
       try {
-        // Get current user's listings
-        console.log('👤 [CLIENT-DASH] Calling getMyListings()...')
         const myListingsResult = await sellikoClient.getMyListings({
-          limit: 10,
+          limit: 20,
           sort_by: 'created_at',
           sort_order: 'desc'
         } as any)
         
-        console.log('📊 [CLIENT-DASH] My listings result:', myListingsResult)
-        
-        if ((myListingsResult as any).success && (myListingsResult as any).listings) {
-          // Transform API data to match card format
-          const transformedListings = (myListingsResult as any).listings.map(transformListingData)
-          console.log('🔄 [CLIENT-DASH] Transformed listings:', transformedListings)
-          setCurrentListings(transformedListings)
-        } else {
-          console.warn('⚠️ [CLIENT-DASH] Failed to load listings or no listings found')
-          setCurrentListings([])
+        if (isMounted) {
+          if ((myListingsResult as any).success && (myListingsResult as any).listings) {
+            const transformedListings = (myListingsResult as any).listings.map(transformListingData)
+            setCurrentListings(transformedListings)
+          } else {
+            setCurrentListings([])
+          }
         }
-        
       } catch (error) {
         console.error('💥 [CLIENT-DASH] Error loading listings:', error)
-        setCurrentListings([])
+        if (isMounted && showLoadingSpinner) {
+          setCurrentListings([])
+        }
       } finally {
-        setIsLoadingListings(false)
+        if (isMounted && showLoadingSpinner) {
+          setIsLoadingListings(false)
+        }
       }
     }
 
-    loadListings()
+    loadListings(true)
+
+    // Poll every 15s so incoming bids and status transitions show automatically
+    const intervalId = setInterval(() => {
+      loadListings(false)
+    }, 15000)
+
+    return () => {
+      isMounted = false
+      clearInterval(intervalId)
+    }
   }, [isAuthChecking, isLoading])
 
-  // Redirect to list-device if no listings are found
+  // Redirect to list-device if no listings are found after initial load
   useEffect(() => {
-    console.log('🔍 [CLIENT-DASH] Redirection check:', {
-      isLoadingListings,
-      isAuthChecking,
-      isLoading,
-      currentListingsLength: currentListings.length,
-      shouldRedirect: !isLoadingListings && !isAuthChecking && !isLoading && currentListings.length === 0
-    })
-    
     if (!isLoadingListings && !isAuthChecking && !isLoading && currentListings.length === 0) {
       console.log('🔄 [CLIENT-DASH] No listings found, redirecting to list-device...')
-      setTimeout(() => {
-        console.log('🔄 [CLIENT-DASH] Executing redirect after timeout...')
+      const timer = setTimeout(() => {
         router.replace('/client/list-device')
-      }, 500) // Small delay to ensure all states are settled
+      }, 500)
+      return () => clearTimeout(timer)
     }
   }, [isLoadingListings, isAuthChecking, isLoading, currentListings.length, router])
 
@@ -286,11 +303,62 @@ export default function ClientDashboard() {
   const getStatusInfo = (status: string) => {
     switch (status) {
       case 'receiving_bids':
+      case 'approved':
         return {
           label: 'Receiving Bids',
           color: 'bg-green-100 text-green-800 border-green-200',
           icon: Icons.clock,
           description: 'Your device is live and getting bids!'
+        }
+      case 'bidding_ended':
+        return {
+          label: 'Bidding Ended',
+          color: 'bg-orange-100 text-orange-800 border-orange-200',
+          icon: Icons.clock,
+          description: 'Auction closed. Please review and accept a bid.'
+        }
+      case 'bid_accepted':
+        return {
+          label: 'Bid Accepted',
+          color: 'bg-purple-100 text-purple-800 border-purple-200',
+          icon: Icons.check,
+          description: 'Winning bid accepted! Agent assignment pending.'
+        }
+      case 'agent_assigned':
+        return {
+          label: 'Agent Assigned',
+          color: 'bg-blue-100 text-blue-800 border-blue-200',
+          icon: Icons.users,
+          description: 'An agent has been assigned for inspection & pickup.'
+        }
+      case 'verification':
+        return {
+          label: 'Verification in Progress',
+          color: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+          icon: Icons.shield,
+          description: 'Agent is verifying the device condition.'
+        }
+      case 'ready_for_pickup':
+        return {
+          label: 'Ready for Pickup',
+          color: 'bg-amber-100 text-amber-800 border-amber-200',
+          icon: Icons.calendar,
+          description: 'Device verified. Pickup and payout scheduled.'
+        }
+      case 'pickedup':
+        return {
+          label: 'Device Picked Up',
+          color: 'bg-teal-100 text-teal-800 border-teal-200',
+          icon: Icons.check,
+          description: 'Device picked up by agent.'
+        }
+      case 'completed':
+      case 'sold':
+        return {
+          label: 'Completed',
+          color: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+          icon: Icons.check,
+          description: 'Transaction completed successfully!'
         }
       case 'pending_approval':
       case 'pending':
@@ -298,53 +366,25 @@ export default function ClientDashboard() {
           label: 'Under Review',
           color: 'bg-blue-100 text-blue-800 border-blue-200',
           icon: Icons.clock,
-          description: 'Our team is reviewing your listing'
-        }
-      case 'approved':
-        return {
-          label: 'Approved',
-          color: 'bg-green-100 text-green-800 border-green-200',
-          icon: Icons.check,
-          description: 'Your listing is approved and live'
-        }
-      case 'bid_accepted':
-        return {
-          label: 'Bid Accepted',
-          color: 'bg-purple-100 text-purple-800 border-purple-200',
-          icon: Icons.check,
-          description: 'Agent will contact you for pickup'
-        }
-      case 'pickup_scheduled':
-        return {
-          label: 'Pickup Scheduled',
-          color: 'bg-orange-100 text-orange-800 border-orange-200',
-          icon: Icons.calendar,
-          description: 'Your device pickup is confirmed'
-        }
-      case 'completed':
-        return {
-          label: 'Completed',
-          color: 'bg-green-100 text-green-800 border-green-200',
-          icon: Icons.check,
-          description: 'Transaction completed successfully'
+          description: 'Our team is reviewing your listing.'
         }
       case 'rejected':
         return {
           label: 'Rejected',
           color: 'bg-red-100 text-red-800 border-red-200',
           icon: Icons.x,
-          description: 'Listing was rejected - please review requirements'
+          description: 'Listing was rejected - please review requirements.'
         }
       case 'cancelled':
         return {
           label: 'Cancelled',
           color: 'bg-gray-100 text-gray-800 border-gray-200',
           icon: Icons.x,
-          description: 'Listing was cancelled'
+          description: 'Listing was cancelled.'
         }
       default:
         return {
-          label: status.charAt(0).toUpperCase() + status.slice(1),
+          label: (status || 'Unknown').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
           color: 'bg-gray-100 text-gray-800 border-gray-200',
           icon: Icons.smartphone,
           description: `Status: ${status}`
@@ -417,6 +457,8 @@ export default function ClientDashboard() {
               {updateListingTimes(currentListings).map((listing) => {
                 const statusInfo = getStatusInfo(listing.status)
                 const StatusIcon = statusInfo.icon
+                const hasBids = listing.currentBid > 0 || listing.bidsCount > 0
+                const isFulfilledOrAccepted = ['bid_accepted', 'agent_assigned', 'verification', 'ready_for_pickup', 'pickedup', 'completed', 'sold'].includes(listing.status)
                 
                 return (
                   <Card key={`${listing.id}-${lastUpdateTime}`} className="group overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-500 border-0 shadow-lg bg-white cursor-pointer rounded-2xl"
@@ -429,8 +471,6 @@ export default function ClientDashboard() {
                           alt={listing.device}
                           className="w-full h-48 object-cover rounded-t-lg group-hover:scale-105 transition-transform duration-500"
                           onError={(e) => {
-                            console.warn('🖼️ [CLIENT-DASH] Image failed to load:', listing.image, 'for listing:', listing.id)
-                            // Try alternative images if available
                             const target = e.target as HTMLImageElement
                             if (listing.allImages && !target.dataset.retried) {
                               const alternatives = [
@@ -445,19 +485,12 @@ export default function ClientDashboard() {
                               if (alternatives.length > 0) {
                                 target.dataset.retried = 'true'
                                 target.src = alternatives[0]
-                                console.log('🔄 [CLIENT-DASH] Trying alternative image:', alternatives[0])
                                 return
                               }
                             }
-                            // Final fallback - solid SVG placeholder
                             target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDMwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xMjUgMTAwSDE3NVYxMjVIMTc1VjE3NUgxMjVWMTAwWiIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4K'
-                            console.log('📷 [CLIENT-DASH] Using SVG placeholder for listing:', listing.id)
-                          }}
-                          onLoad={() => {
-                            console.log('✅ [CLIENT-DASH] Image loaded successfully:', listing.image, 'for listing:', listing.id)
                           }}
                         />
-                        {/* Subtle overlay for better badge contrast */}
                         <div className="absolute inset-0 bg-black/5"></div>
                         
                         <Badge className={`absolute top-4 right-4 ${statusInfo.color} border-0 font-semibold text-xs px-3 py-1.5 shadow-lg backdrop-blur-sm`}>
@@ -469,23 +502,47 @@ export default function ClientDashboard() {
                       {/* Card Content */}
                       <div className="p-4 sm:p-6">
                         <div className="mb-4">
-                          <h4 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">{listing.device}</h4>
-                          <p className="text-gray-500 text-sm leading-relaxed">{statusInfo.description}</p>
+                          <h4 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">{listing.device}</h4>
+                          <p className="text-gray-500 text-xs sm:text-sm leading-relaxed line-clamp-1">{statusInfo.description}</p>
                         </div>
                         
                         {/* Key Metrics */}
-                        {listing.status === 'receiving_bids' ? (
-                          <div className="space-y-3 mb-6">
-                            <div className="flex justify-between items-center py-2">
+                        {isFulfilledOrAccepted && hasBids ? (
+                          <div className="space-y-2 mb-6">
+                            <div className="flex justify-between items-center py-1">
+                              <span className="text-gray-500 text-sm font-medium">Winning Bid</span>
+                              <span className="font-bold text-lg sm:text-xl text-purple-600">₹{listing.currentBid.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-1">
+                              <span className="text-gray-500 text-xs sm:text-sm">{listing.bidsCount} total bids</span>
+                              <span className="font-medium text-xs px-2.5 py-1 rounded-full bg-purple-50 text-purple-700">
+                                {statusInfo.label}
+                              </span>
+                            </div>
+                          </div>
+                        ) : listing.status === 'bidding_ended' && hasBids ? (
+                          <div className="space-y-2 mb-6">
+                            <div className="flex justify-between items-center py-1">
                               <span className="text-gray-500 text-sm font-medium">Highest Bid</span>
                               <span className="font-bold text-lg sm:text-xl text-emerald-600">₹{listing.currentBid.toLocaleString()}</span>
                             </div>
                             <div className="flex justify-between items-center py-1">
-                              <span className="text-gray-500 text-sm">{listing.bidsCount} bids</span>
-                              <span className={`font-semibold text-sm px-2 py-1 rounded-full ${
-                                listing.timeLeft.includes('Pending') 
-                                  ? 'bg-blue-50 text-blue-600' 
-                                  : listing.timeLeft === '0m left'
+                              <span className="text-gray-500 text-xs sm:text-sm">{listing.bidsCount} bids received</span>
+                              <span className="font-semibold text-xs px-2.5 py-1 rounded-full bg-orange-50 text-orange-700">
+                                Review & Accept
+                              </span>
+                            </div>
+                          </div>
+                        ) : listing.status === 'receiving_bids' && hasBids ? (
+                          <div className="space-y-2 mb-6">
+                            <div className="flex justify-between items-center py-1">
+                              <span className="text-gray-500 text-sm font-medium">Highest Bid</span>
+                              <span className="font-bold text-lg sm:text-xl text-emerald-600">₹{listing.currentBid.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-1">
+                              <span className="text-gray-500 text-xs sm:text-sm">{listing.bidsCount} bids</span>
+                              <span className={`font-semibold text-xs px-2.5 py-1 rounded-full ${
+                                listing.timeLeft === '0m left'
                                   ? 'bg-red-50 text-red-600'
                                   : listing.timeLeft.includes('h') && parseInt(listing.timeLeft) >= 6
                                   ? 'bg-green-50 text-green-600'
@@ -498,10 +555,18 @@ export default function ClientDashboard() {
                             </div>
                           </div>
                         ) : (
-                          <div className="mb-6">
-                            <div className="flex justify-between items-center py-3">
+                          <div className="space-y-2 mb-6">
+                            <div className="flex justify-between items-center py-1">
                               <span className="text-gray-500 text-sm font-medium">Asking Price</span>
                               <span className="font-bold text-lg sm:text-xl text-gray-900">₹{listing.askingPrice.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-1">
+                              <span className="text-gray-500 text-xs sm:text-sm">
+                                {listing.status === 'receiving_bids' ? 'No bids yet' : statusInfo.label}
+                              </span>
+                              <span className="font-medium text-xs text-gray-500 px-2 py-0.5 rounded bg-gray-100">
+                                {listing.timeLeft}
+                              </span>
                             </div>
                           </div>
                         )}
@@ -589,7 +654,7 @@ export default function ClientDashboard() {
                 </div>
               </Link>
               
-              <Link href="/my-listings" className="block">
+              <Link href="/client/my-listings" className="block">
                 <div className="flex items-center p-3 rounded-lg hover:bg-gray-50 transition-colors">
                   <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3">
                     <Icons.eye className="w-5 h-5 text-green-600" />

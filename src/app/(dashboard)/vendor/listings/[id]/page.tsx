@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Icons } from '@/components/ui/icons'
 import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
 import sellikoClient from '@/selliko-client'
@@ -777,7 +777,7 @@ export default function VendorListingDetailPage() {
                         <div>
                           <p className="text-sm font-medium text-gray-500">Has Original Bill</p>
                           <p className="text-sm text-gray-900">
-                            {listing.deviceDetails.has_bill ? '✅ Yes' : '❌ No'}
+                            {listing.deviceDetails.has_bill ? 'Yes' : 'No'}
                           </p>
                         </div>
                       </div>
@@ -950,7 +950,7 @@ export default function VendorListingDetailPage() {
                     size="lg"
                   >
                     <Icons.star className="w-4 h-4 mr-2" />
-                    🎯 Buy at Asking Price
+                    Buy at Asking Price
                   </Button>
                 )}
                 
@@ -962,7 +962,7 @@ export default function VendorListingDetailPage() {
                     size="lg"
                   >
                     <Icons.package className="w-4 h-4 mr-2" />
-                    🚚 Track Order
+                    Track Order
                   </Button>
                 )}
                 
@@ -982,7 +982,7 @@ export default function VendorListingDetailPage() {
                 {currentVendorHasHighestBid && listing.status === 'completed' && (
                   <div className="w-full text-center py-4">
                     <div className="text-2xl font-bold text-green-600">
-                      🎉 DELIVERED
+                      DELIVERED
                     </div>
                     <p className="text-sm text-green-700 mt-1">Your order has been completed!</p>
                   </div>
@@ -1116,10 +1116,13 @@ export default function VendorListingDetailPage() {
       <Dialog open={trackingModalOpen} onOpenChange={setTrackingModalOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Icons.package className="w-5 h-5" />
-              Order Tracking - {listing.device}
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <Icons.truck className="w-5 h-5 text-green-600" />
+              Order Tracking & Fulfillment
             </DialogTitle>
+            <DialogDescription>
+              Tracking fulfillment progress for {listing.device}
+            </DialogDescription>
           </DialogHeader>
 
           {trackingLoading ? (
@@ -1134,7 +1137,10 @@ export default function VendorListingDetailPage() {
               {/* Agent Details */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">👤 Agent Details</CardTitle>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Icons.user className="w-5 h-5 text-gray-500" />
+                    Agent Details
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center gap-4">
@@ -1157,19 +1163,19 @@ export default function VendorListingDetailPage() {
                   
                   <div className="space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">📞 Phone:</span>
+                      <span className="text-gray-600">Phone:</span>
                       <span>{trackingData.agent?.number || trackingData.agent?.contact_person_phone || 'N/A'}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">📧 Email:</span>
+                      <span className="text-gray-600">Email:</span>
                       <span>{trackingData.agent?.email || 'N/A'}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">👤 Contact Person:</span>
+                      <span className="text-gray-600">Contact Person:</span>
                       <span>{trackingData.agent?.contact_person || trackingData.agent?.name || 'N/A'}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">📍 Location:</span>
+                      <span className="text-gray-600">Location:</span>
                       <span>{listing.location}</span>
                     </div>
                   </div>
@@ -1179,7 +1185,9 @@ export default function VendorListingDetailPage() {
                     <Card className="border-green-200 bg-green-50">
                       <CardContent className="p-4">
                         <div className="text-center">
-                          <h4 className="font-semibold text-green-800 mb-2">🔑 Delivery OTP</h4>
+                          <h4 className="font-semibold text-green-800 mb-2 flex items-center justify-center gap-1.5">
+                            <Icons.key className="w-4 h-4 text-green-700" /> Delivery OTP
+                          </h4>
                           <div className="text-2xl font-bold text-green-600 bg-white rounded-lg py-2 px-4 inline-block">
                             {trackingData.delivery_otp}
                           </div>
@@ -1194,7 +1202,7 @@ export default function VendorListingDetailPage() {
                   <div className="pt-4 border-t">
                     {trackingData.agent?.number && (
                       <Button className="w-full" variant="outline" onClick={() => window.open(`tel:${trackingData.agent.number}`)}>
-                        📞 Call Agent
+                        <Icons.phoneCall className="w-4 h-4 mr-2" /> Call Agent
                       </Button>
                     )}
                   </div>
@@ -1204,7 +1212,10 @@ export default function VendorListingDetailPage() {
               {/* Order Timeline */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">📋 Order Timeline</CardTitle>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Icons.list className="w-5 h-5 text-gray-500" />
+                    Order Timeline
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -1214,79 +1225,82 @@ export default function VendorListingDetailPage() {
                         label: 'Bid Accepted', 
                         date: 'Completed', 
                         completed: true, 
-                        icon: '✅' 
+                        icon: Icons.check 
                       },
                       { 
                         status: 'agent_assigned', 
                         label: 'Agent Assigned', 
                         date: trackingData.status === 'agent_assigned' ? 'In Progress' : trackingData.status === 'verification' || trackingData.status === 'ready_for_pickup' || trackingData.status === 'pickedup' || trackingData.status === 'completed' ? 'Completed' : 'Pending', 
                         completed: trackingData.status === 'agent_assigned' || trackingData.status === 'verification' || trackingData.status === 'ready_for_pickup' || trackingData.status === 'pickedup' || trackingData.status === 'completed', 
-                        icon: '👤' 
+                        icon: Icons.user 
                       },
                       { 
                         status: 'verification', 
                         label: 'Device Verification', 
                         date: trackingData.status === 'verification' ? 'In Progress' : trackingData.status === 'ready_for_pickup' || trackingData.status === 'pickedup' || trackingData.status === 'completed' ? 'Completed' : 'Pending', 
                         completed: trackingData.status === 'verification' || trackingData.status === 'ready_for_pickup' || trackingData.status === 'pickedup' || trackingData.status === 'completed', 
-                        icon: '🔍' 
+                        icon: Icons.search 
                       },
                       { 
                         status: 'ready_for_pickup', 
                         label: 'Ready for Pickup', 
                         date: trackingData.status === 'ready_for_pickup' ? 'Ready Now' : trackingData.status === 'pickedup' || trackingData.status === 'completed' ? 'Completed' : 'Pending', 
                         completed: trackingData.status === 'ready_for_pickup' || trackingData.status === 'pickedup' || trackingData.status === 'completed', 
-                        icon: '📦' 
+                        icon: Icons.package 
                       },
                       { 
                         status: 'pickedup', 
                         label: 'Device Picked Up', 
                         date: trackingData.status === 'pickedup' ? 'Picked Up' : trackingData.status === 'completed' ? 'Completed' : 'Pending', 
                         completed: trackingData.status === 'pickedup' || trackingData.status === 'completed', 
-                        icon: '🚚' 
+                        icon: Icons.truck 
                       },
                       { 
                         status: 'completed', 
                         label: 'Delivered & Completed', 
                         date: trackingData.status === 'completed' ? 'Completed' : 'Pending', 
                         completed: trackingData.status === 'completed', 
-                        icon: '🎉' 
+                        icon: Icons.check 
                       }
-                    ].map((step, index) => (
-                      <div key={index} className={`flex items-center gap-3 p-3 rounded-lg border ${
-                        step.completed ? 'bg-green-50 border-green-200' : 
-                        trackingData.status === step.status ? 'bg-blue-50 border-blue-200' : 
-                        'bg-gray-50 border-gray-200'
-                      }`}>
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${
-                          step.completed ? 'bg-green-500 text-white' : 
-                          trackingData.status === step.status ? 'bg-blue-500 text-white' : 
-                          'bg-gray-300 text-gray-600'
+                    ].map((step, index) => {
+                      const StepIcon = step.icon
+                      return (
+                        <div key={index} className={`flex items-center gap-3 p-3 rounded-lg border ${
+                          step.completed ? 'bg-green-50 border-green-200' : 
+                          trackingData.status === step.status ? 'bg-blue-50 border-blue-200' : 
+                          'bg-gray-50 border-gray-200'
                         }`}>
-                          {step.icon}
-                        </div>
-                        <div className="flex-1">
-                          <p className={`font-medium ${
-                            step.completed ? 'text-green-800' : 
-                            trackingData.status === step.status ? 'text-blue-800' : 
-                            'text-gray-700'
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${
+                            step.completed ? 'bg-green-500 text-white' : 
+                            trackingData.status === step.status ? 'bg-blue-500 text-white' : 
+                            'bg-gray-300 text-gray-600'
                           }`}>
-                            {step.label}
-                          </p>
-                          <p className={`text-sm ${
-                            step.completed ? 'text-green-600' : 
-                            trackingData.status === step.status ? 'text-blue-600' : 
-                            'text-gray-500'
-                          }`}>
-                            {step.date}
-                          </p>
+                            <StepIcon className="w-4 h-4" />
+                          </div>
+                          <div className="flex-1">
+                            <p className={`font-medium ${
+                              step.completed ? 'text-green-800' : 
+                              trackingData.status === step.status ? 'text-blue-800' : 
+                              'text-gray-700'
+                            }`}>
+                              {step.label}
+                            </p>
+                            <p className={`text-sm ${
+                              step.completed ? 'text-green-600' : 
+                              trackingData.status === step.status ? 'text-blue-600' : 
+                              'text-gray-500'
+                            }`}>
+                              {step.date}
+                            </p>
+                          </div>
+                          {trackingData.status === step.status && (
+                            <Badge className="bg-blue-100 text-blue-800 text-xs">
+                              Current
+                            </Badge>
+                          )}
                         </div>
-                        {trackingData.status === step.status && (
-                          <Badge className="bg-blue-100 text-blue-800 text-xs">
-                            Current
-                          </Badge>
-                        )}
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </CardContent>
               </Card>
@@ -1309,7 +1323,7 @@ export default function VendorListingDetailPage() {
             </Button>
             {trackingData && (
               <Button>
-                📱 Get Updates via WhatsApp
+                Get Updates via WhatsApp
               </Button>
             )}
           </div>

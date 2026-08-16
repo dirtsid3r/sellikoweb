@@ -216,17 +216,9 @@ export default function VendorDashboard() {
 
           {/* Dashboard Tab */}
           <TabsContent value="dashboard" className="space-y-6">
-            {/* Welcome Section */}
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Welcome back, {user?.name?.split(' ')[0] || 'Vendor'}!
-              </h2>
-              <p className="text-gray-600">Manage your device purchases and track your business from Kerala's trusted mobile resale platform.</p>
-            </div>
-
             {/* Business Summary Stats */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2"><Icons.trendingUp className="w-5 h-5 text-green-600" /> Your Business Summary</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Business Summary</h3>
               {isLoadingStats ? (
                 <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                   {[1, 2, 3, 4].map((i) => (
@@ -264,8 +256,7 @@ export default function VendorDashboard() {
                     <CardContent className="p-4 sm:p-6">
                        <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-xs sm:text-sm font-medium text-gray-600 flex items-center gap-1"><Icons.zap className="w-3.5 h-3.5 text-red-500" /> Active</p>
-                          <p className="text-xs sm:text-sm font-medium text-gray-600">Bids</p>
+                          <p className="text-xs sm:text-sm font-medium text-gray-600">Active Bids</p>
                           <p className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mt-1 sm:mt-2">{stats.activeBids}</p>
                         </div>
                         <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -279,8 +270,7 @@ export default function VendorDashboard() {
                     <CardContent className="p-4 sm:p-6">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-xs sm:text-sm font-medium text-gray-600 flex items-center gap-1"><Icons.check className="w-3.5 h-3.5 text-green-500" /> Won</p>
-                          <p className="text-xs sm:text-sm font-medium text-gray-600">This Month</p>
+                          <p className="text-xs sm:text-sm font-medium text-gray-600">Won This Month</p>
                           <p className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mt-1 sm:mt-2">{stats.wonThisMonth}</p>
                         </div>
                         <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -294,8 +284,7 @@ export default function VendorDashboard() {
                     <CardContent className="p-4 sm:p-6">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-xs sm:text-sm font-medium text-gray-600 flex items-center gap-1"><Icons.smartphone className="w-3.5 h-3.5 text-blue-500" /> Total</p>
-                          <p className="text-xs sm:text-sm font-medium text-gray-600">Devices</p>
+                          <p className="text-xs sm:text-sm font-medium text-gray-600">Total Devices</p>
                           <p className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mt-1 sm:mt-2">{stats.totalDevices}</p>
                         </div>
                         <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -309,8 +298,7 @@ export default function VendorDashboard() {
                     <CardContent className="p-4 sm:p-6">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-xs sm:text-sm font-medium text-gray-600 flex items-center gap-1"><Icons.star className="w-3.5 h-3.5 text-yellow-500" /> Win</p>
-                          <p className="text-xs sm:text-sm font-medium text-gray-600">Rate</p>
+                          <p className="text-xs sm:text-sm font-medium text-gray-600">Win Rate</p>
                           <p className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mt-1 sm:mt-2">{stats.winRate}%</p>
                         </div>
                         <div className="w-10 h-10 sm:w-12 sm:h-12 bg-yellow-100 rounded-lg flex items-center justify-center flex-shrink-0">

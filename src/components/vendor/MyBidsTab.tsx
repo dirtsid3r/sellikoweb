@@ -212,7 +212,7 @@ export function MyBidsTab() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">📋 My Bids & Transaction History</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">My Bids & Transaction History</h2>
         <p className="text-gray-600">Track your bid history, manage won auctions, and monitor your bidding performance.</p>
       </div>
 
@@ -247,7 +247,10 @@ export function MyBidsTab() {
         {/* Financial Stats Card */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">💰 Financial</CardTitle>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Icons.dollarSign className="w-5 h-5 text-purple-600" />
+              Financial
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="text-center">
@@ -264,7 +267,10 @@ export function MyBidsTab() {
         {/* Activity Stats Card */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">🎯 Current Activity</CardTitle>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Icons.activity className="w-5 h-5 text-blue-600" />
+              Current Activity
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="text-center">
@@ -288,7 +294,10 @@ export function MyBidsTab() {
       {/* Monthly Performance */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">📈 Monthly Performance</CardTitle>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Icons.trendingUp className="w-5 h-5 text-green-600" />
+            Monthly Performance
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
@@ -309,7 +318,7 @@ export function MyBidsTab() {
                 variant="outline" 
                 className={`text-xs mt-1 ${stats.monthlyStats.growth > 0 ? 'text-green-600 border-green-600' : 'text-red-600 border-red-600'}`}
               >
-                {stats.monthlyStats.growth > 0 ? '📈 Trending Up' : '📉 Trending Down'}
+                {stats.monthlyStats.growth > 0 ? 'Trending Up' : 'Trending Down'}
               </Badge>
             </div>
           </div>

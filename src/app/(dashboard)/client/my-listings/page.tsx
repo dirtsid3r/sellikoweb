@@ -27,14 +27,16 @@ interface DeviceListing {
   totalBids: number
   timeLeft: string
   timeLeftMinutes: number
-  status: 'pending' | 'active' | 'sold' | 'rejected'
+  status: string
+  statusCategory: 'active' | 'pending' | 'accepted' | 'sold' | 'rejected'
+  statusLabel: string
   submittedAt: string
   bids: Array<{
     id: string
     vendorName: string
     amount: number
     timestamp: string
-    status: 'active' | 'accepted' | 'declined'
+    status: string
   }>
   rejectionReason?: string
   description: string
@@ -47,8 +49,7 @@ export default function MyListings() {
   const [listings, setListings] = useState<DeviceListing[]>([])
   const [isLoadingListings, setIsLoadingListings] = useState(true)
   const [isAuthChecking, setIsAuthChecking] = useState(true)
-  const [selectedTab, setSelectedTab] = useState<'all' | 'active' | 'pending' | 'sold'>('all')
-
+  const [selectedTab, setSelectedTab] = useState<'all' | 'active' | 'accepted' | 'pending' | 'sold'>('all')
 
   // Authentication and role check
   useEffect(() => {
@@ -56,29 +57,21 @@ export default function MyListings() {
       console.log('🔒 [MY-LISTINGS] Checking authentication and role...')
       try {
         const user = await sellikoClient.getCurrentUser()
-        console.log('👤 [MY-LISTINGS] Current user:', user ? {
-          id: user.id,
-          role: user.user_role,
-        } : 'No user found')
         
         if (!user) {
-          console.log('❌ [MY-LISTINGS] No user found, redirecting to login')
           toast.error('Please login to continue')
           router.replace('/login')
           return
         }
 
         const userRole = (user.user_role || user.role || '').toLowerCase()
-        console.log('👑 [MY-LISTINGS] User role:', userRole)
         
         if (userRole !== 'client') {
-          console.log(`⚠️ [MY-LISTINGS] Invalid role access attempt: ${userRole}`)
           toast.error('Access denied. Redirecting to your dashboard.')
           router.replace(`/${userRole}`)
           return
         }
 
-        console.log('✅ [MY-LISTINGS] Role verification successful')
         setIsAuthChecking(false)
       } catch (error) {
         console.error('💥 [MY-LISTINGS] Auth check error:', error)
@@ -89,8 +82,6 @@ export default function MyListings() {
 
     checkAuthAndRole()
   }, [router])
-
-
 
   // Transform API listing data to match card format
   const transformListingData = (apiListing: any): DeviceListing => {
@@ -116,40 +107,78 @@ export default function MyListings() {
     // Use placeholder if no images
     const images = availableImages.length > 0 ? availableImages : ['/api/placeholder/300/300']
     
-    // Determine status
-    let status: 'pending' | 'active' | 'sold' | 'rejected' = 'pending'
-    if (apiListing.status === 'receiving_bids' || apiListing.status === 'approved') {
-      status = 'active'
-    } else if (apiListing.status === 'completed' || apiListing.status === 'sold') {
-      status = 'sold'
-    } else if (apiListing.status === 'rejected') {
-      status = 'rejected'
+    const rawStatus = (apiListing.status || 'pending_approval').toLowerCase()
+    
+    // Categorize status for tabs
+    let statusCategory: 'active' | 'pending' | 'accepted' | 'sold' | 'rejected' = 'pending'
+    let statusLabel = 'Under Review'
+
+    if (rawStatus === 'receiving_bids' || rawStatus === 'approved') {
+      statusCategory = 'active'
+      statusLabel = 'Receiving Bids'
+    } else if (rawStatus === 'bidding_ended') {
+      statusCategory = 'accepted'
+      statusLabel = 'Bidding Ended'
+    } else if (rawStatus === 'bid_accepted') {
+      statusCategory = 'accepted'
+      statusLabel = 'Bid Accepted'
+    } else if (['agent_assigned', 'verification', 'ready_for_pickup', 'pickedup'].includes(rawStatus)) {
+      statusCategory = 'accepted'
+      statusLabel = rawStatus === 'agent_assigned' ? 'Agent Assigned' :
+                    rawStatus === 'verification' ? 'Verification' :
+                    rawStatus === 'ready_for_pickup' ? 'Ready for Pickup' : 'Picked Up'
+    } else if (rawStatus === 'completed' || rawStatus === 'sold') {
+      statusCategory = 'sold'
+      statusLabel = 'Completed'
+    } else if (rawStatus === 'rejected') {
+      statusCategory = 'rejected'
+      statusLabel = 'Rejected'
+    } else if (rawStatus === 'cancelled') {
+      statusCategory = 'rejected'
+      statusLabel = 'Cancelled'
     }
 
-    // Calculate time left based on status
-    let timeLeft = 'Under review'
+    // Calculate actual time left
+    let timeLeft = statusLabel
     let timeLeftMinutes = 0
-    if (status === 'active') {
-      timeLeft = '24h left' // Default for active listings
-      timeLeftMinutes = 1440 // 24 hours in minutes
+
+    if (statusCategory === 'active') {
+      if (apiListing.time_approved) {
+        const approvedTime = new Date(apiListing.time_approved).getTime()
+        const endTime = approvedTime + 24 * 60 * 60 * 1000
+        const diffMs = endTime - Date.now()
+        timeLeftMinutes = Math.max(0, Math.floor(diffMs / (1000 * 60)))
+        const hours = Math.floor(timeLeftMinutes / 60)
+        const mins = timeLeftMinutes % 60
+        timeLeft = timeLeftMinutes > 0 ? `${hours}h ${mins}m left` : '0m left'
+      } else {
+        timeLeft = '24h left'
+        timeLeftMinutes = 1440
+      }
     }
 
     // Process bids data correctly
     const bidsArray = Array.isArray(apiListing.bids) ? apiListing.bids : []
-    const transformedBids = bidsArray.map((bid: any) => ({
-      id: bid.id?.toString() || '',
-      vendorName: bid.vendor_profile?.name || 'Unknown Vendor',
-      amount: bid.bid_amount || 0,
-      timestamp: bid.created_at || new Date().toISOString(),
-      status: bid.status === 'active' ? 'active' : bid.status === 'accepted' ? 'accepted' : 'declined'
-    }))
+    const transformedBids = bidsArray
+      .filter((b: any) => typeof b === 'object' && b !== null)
+      .sort((a: any, b: any) => (b.bid_amount || 0) - (a.bid_amount || 0))
+      .map((bid: any) => ({
+        id: bid.id?.toString() || '',
+        vendorName: bid.vendor_profile?.name || bid.vendor?.name || 'Verified Vendor',
+        amount: Number(bid.bid_amount || 0),
+        timestamp: bid.created_at || new Date().toISOString(),
+        status: bid.status || 'active'
+      }))
 
-    // Extract current bid from computed highest_bid_value or max of bids array
-    const currentBidAmount = apiListing.highest_bid_value || 
-      (bidsArray.length > 0 ? Math.max(...bidsArray.map((b: any) => b.bid_amount || 0)) : undefined)
+    // Calculate highest bid reliably
+    const validAmounts = transformedBids.map((b: { amount: number }) => b.amount).filter((a: number) => a > 0)
+    const highestFromBids = validAmounts.length > 0 ? Math.max(...validAmounts) : 0
+    const highestBidAmount = Number(apiListing.highest_bid_value || 0) || 
+                             (typeof apiListing.highest_bid === 'object' && apiListing.highest_bid ? Number(apiListing.highest_bid.bid_amount || 0) : 0) ||
+                             highestFromBids || undefined
 
     return {
-      id: apiListing.id,
+      id: apiListing.id?.toString() || '',
       device: {
         brand,
         model,
@@ -158,149 +187,78 @@ export default function MyListings() {
         condition
       },
       images,
-      askingPrice: apiListing.asking_price || apiListing.expected_price || 0,
-      currentBid: currentBidAmount,
+      askingPrice: Number(apiListing.asking_price || apiListing.expected_price || 0),
+      currentBid: highestBidAmount,
       totalBids: bidsArray.length,
       timeLeft,
       timeLeftMinutes,
-      status,
+      status: rawStatus,
+      statusCategory,
+      statusLabel,
       submittedAt: apiListing.created_at || new Date().toISOString(),
       bids: transformedBids,
+      rejectionReason: apiListing.rejection_note || apiListing.rejection_reason || apiListing.reason_note,
       description: device.description || 'No description available',
-      location: apiListing.pickup_city || 'Unknown location'
+      location: apiListing.pickup_city || 'Kerala, India'
     }
   }
 
-  // Load user listings when authentication is complete
+  // Load user listings with periodic background polling
   useEffect(() => {
-    const loadListings = async () => {
+    let isMounted = true
+
+    const loadListings = async (showLoadingSpinner = false) => {
       if (isAuthChecking || isLoading) {
-        console.log('⏳ [MY-LISTINGS] Waiting for auth check to complete...')
         return
       }
 
-      console.log('📋 [MY-LISTINGS] Loading user listings...')
-      setIsLoadingListings(true)
+      if (showLoadingSpinner) {
+        setIsLoadingListings(true)
+      }
       
       try {
-        // Get current user's listings
-        console.log('👤 [MY-LISTINGS] Calling getMyListings()...')
         const myListingsResult = await sellikoClient.getMyListings({
-          limit: 50, // Get more listings for the listings page
+          limit: 50,
           sort_by: 'created_at',
           sort_order: 'desc'
         } as any)
         
-        console.log('📊 [MY-LISTINGS] My listings result:', myListingsResult)
-        
-        if ((myListingsResult as any).success && (myListingsResult as any).listings) {
-          // Transform API data to match card format
-          const transformedListings = (myListingsResult as any).listings.map(transformListingData)
-          console.log('🔄 [MY-LISTINGS] Transformed listings:', transformedListings)
-          setListings(transformedListings)
-
-          // Demonstrate getListingById function with the first listing
-          if (transformedListings.length > 0) {
-            const firstListingId = transformedListings[0].id
-            console.log('🔍 [MY-LISTINGS] Demonstrating getListingById with first listing:', firstListingId)
-            
-            try {
-              const listingDetails = await sellikoClient.getListingById(firstListingId, {
-                include_images: true,
-                include_bids: true,
-                include_user_details: false
-              })
-              
-              console.log('✨ [MY-LISTINGS] DEMONSTRATION - getListingById result for first listing:', listingDetails)
-            } catch (detailError) {
-              console.error('❌ [MY-LISTINGS] Failed to fetch first listing details:', detailError)
-            }
+        if (isMounted) {
+          if ((myListingsResult as any).success && (myListingsResult as any).listings) {
+            const transformedListings = (myListingsResult as any).listings.map(transformListingData)
+            setListings(transformedListings)
+          } else {
+            setListings([])
           }
-        } else {
-          console.warn('⚠️ [MY-LISTINGS] Failed to load listings or no listings found')
-          setListings([])
         }
-        
       } catch (error) {
         console.error('💥 [MY-LISTINGS] Error loading listings:', error)
-        setListings([])
-        toast.error('Failed to load listings. Please try again.')
+        if (isMounted && showLoadingSpinner) {
+          setListings([])
+        }
       } finally {
-        setIsLoadingListings(false)
+        if (isMounted && showLoadingSpinner) {
+          setIsLoadingListings(false)
+        }
       }
     }
 
-    loadListings()
+    loadListings(true)
+
+    // Poll every 15s for live updates
+    const pollInterval = setInterval(() => {
+      loadListings(false)
+    }, 15000)
+
+    return () => {
+      isMounted = false
+      clearInterval(pollInterval)
+    }
   }, [isAuthChecking, isLoading])
 
   // Function to handle listing card click and navigate to listing details page
   const handleListingClick = (listingId: string) => {
-    console.log('🖱️ [MY-LISTINGS] Listing card clicked, navigating to:', `/client/listings/${listingId}`)
     router.push(`/client/listings/${listingId}`)
-  }
-
-  // Real-time updates simulation
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setListings(prev => prev.map(listing => {
-        if (listing.status === 'active' && listing.timeLeftMinutes > 0) {
-          return {
-            ...listing,
-            timeLeftMinutes: Math.max(0, listing.timeLeftMinutes - 1),
-            timeLeft: formatTimeLeft(Math.max(0, listing.timeLeftMinutes - 1))
-          }
-        }
-        return listing
-      }))
-    }, 60000) // Update every minute
-
-    return () => clearInterval(timer)
-  }, [])
-
-  // Simulate new bids
-  useEffect(() => {
-    const bidTimer = setInterval(() => {
-      if (Math.random() < 0.05) { // 5% chance every 30 seconds
-        setListings(prev => prev.map(listing => {
-          if (listing.status === 'active' && listing.timeLeftMinutes > 0 && Math.random() < 0.3) {
-            const vendors = ['TechWorld Kerala', 'Mobile Express', 'Phone Hub', 'Digital Bazaar']
-            const randomVendor = vendors[Math.floor(Math.random() * vendors.length)]
-            const newBidAmount = (listing.currentBid || listing.askingPrice - 5000) + Math.floor(Math.random() * 1000) + 500
-            
-            const newBid = {
-              id: `bid-${Date.now()}`,
-              vendorName: randomVendor,
-              amount: newBidAmount,
-              timestamp: 'Just now',
-              status: 'active' as const
-            }
-
-            toast.success(`🔔 New bid on your ${listing.device.model}!\n₹${newBidAmount.toLocaleString()} from ${randomVendor}`)
-
-            return {
-              ...listing,
-              currentBid: newBidAmount,
-              totalBids: listing.totalBids + 1,
-              bids: [newBid, ...listing.bids]
-            }
-          }
-          return listing
-        }))
-      }
-    }, 30000) // Check every 30 seconds
-
-    return () => clearInterval(bidTimer)
-  }, [])
-
-  const formatTimeLeft = (minutes: number): string => {
-    if (minutes <= 0) return 'Ended'
-    const days = Math.floor(minutes / 1440)
-    const hours = Math.floor((minutes % 1440) / 60)
-    const mins = minutes % 60
-    
-    if (days > 0) return `${days}d ${hours}h`
-    if (hours > 0) return `${hours}h ${mins}m`
-    return `${mins}m`
   }
 
   const formatCurrency = (amount: number) => {
@@ -319,11 +277,29 @@ export default function MyListings() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'bg-green-100 text-green-800'
-      case 'pending': return 'bg-yellow-100 text-yellow-800'
-      case 'sold': return 'bg-blue-100 text-blue-800'
-      case 'rejected': return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'receiving_bids':
+      case 'approved':
+      case 'active':
+        return 'bg-green-100 text-green-800'
+      case 'bid_accepted':
+      case 'bidding_ended':
+      case 'agent_assigned':
+      case 'verification':
+      case 'ready_for_pickup':
+      case 'pickedup':
+      case 'accepted':
+        return 'bg-purple-100 text-purple-800'
+      case 'pending_approval':
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800'
+      case 'sold':
+      case 'completed':
+        return 'bg-emerald-100 text-emerald-800'
+      case 'rejected':
+      case 'cancelled':
+        return 'bg-red-100 text-red-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
     }
   }
 
@@ -335,16 +311,15 @@ export default function MyListings() {
 
   const filteredListings = listings.filter(listing => {
     if (selectedTab === 'all') return true
-    return listing.status === selectedTab
+    return listing.statusCategory === selectedTab
   })
-
-
 
   const tabs = [
     { key: 'all', label: 'All Listings', count: listings.length },
-    { key: 'active', label: 'Active', count: listings.filter(l => l.status === 'active').length },
-    { key: 'pending', label: 'Pending Approval', count: listings.filter(l => l.status === 'pending').length },
-    { key: 'sold', label: 'Sold', count: listings.filter(l => l.status === 'sold').length }
+    { key: 'active', label: 'Receiving Bids', count: listings.filter(l => l.statusCategory === 'active').length },
+    { key: 'accepted', label: 'In Progress / Accepted', count: listings.filter(l => l.statusCategory === 'accepted').length },
+    { key: 'pending', label: 'Under Review', count: listings.filter(l => l.statusCategory === 'pending').length },
+    { key: 'sold', label: 'Completed', count: listings.filter(l => l.statusCategory === 'sold').length }
   ]
 
   // Loading state
@@ -374,7 +349,7 @@ export default function MyListings() {
               <Link href="/client" className="text-gray-500 hover:text-gray-700">
                 <Icons.arrowLeft className="w-5 h-5" />
               </Link>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">📱 My Device Listings</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Device Listings</h1>
             </div>
             <p className="text-gray-600">Track your device sales and manage bids</p>
           </div>
@@ -493,9 +468,9 @@ export default function MyListings() {
                       className="w-full h-48 object-cover rounded-t-lg"
                     />
                     <Badge className={`absolute top-2 left-2 ${getStatusColor(listing.status)}`}>
-                      {listing.status.charAt(0).toUpperCase() + listing.status.slice(1)}
+                      {listing.statusLabel}
                     </Badge>
-                    {listing.status === 'active' && (
+                    {listing.statusCategory === 'active' && (
                       <Badge className={`absolute top-2 right-2 bg-white/90 ${getTimeColor(listing.timeLeftMinutes)}`}>
                         ⏱️ {listing.timeLeft}
                       </Badge>
@@ -520,32 +495,42 @@ export default function MyListings() {
                     <div className="mb-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm text-gray-600">Your Asking Price</p>
-                          <p className="text-lg font-bold text-green-600">{formatCurrency(listing.askingPrice)}</p>
+                          <p className="text-xs sm:text-sm text-gray-600">Asking Price</p>
+                          <p className="text-base sm:text-lg font-bold text-gray-900">{formatCurrency(listing.askingPrice)}</p>
                         </div>
-                        {listing.currentBid && (
+                        {listing.currentBid ? (
                           <div className="text-right">
-                            <p className="text-sm text-gray-600">Highest Bid</p>
-                            <p className="text-lg font-semibold text-blue-600">{formatCurrency(listing.currentBid)}</p>
+                            <p className="text-xs sm:text-sm text-gray-600">
+                              {listing.statusCategory === 'accepted' || listing.statusCategory === 'sold'
+                                ? 'Winning Bid'
+                                : 'Highest Bid'}
+                            </p>
+                            <p className={`text-base sm:text-lg font-bold ${
+                              listing.statusCategory === 'accepted' || listing.statusCategory === 'sold'
+                                ? 'text-purple-600'
+                                : 'text-emerald-600'
+                            }`}>
+                              {formatCurrency(listing.currentBid)}
+                            </p>
                           </div>
-                        )}
+                        ) : null}
                       </div>
                     </div>
 
                     {/* Bidding Status */}
-                    <div className="mb-4">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className={`font-medium ${listing.totalBids > 0 ? 'text-green-600' : 'text-gray-600'}`}>
-                          {listing.totalBids === 0 ? 'No bids yet' : `${listing.totalBids} bid${listing.totalBids > 1 ? 's' : ''} received`}
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between text-xs sm:text-sm">
+                        <span className={`font-medium ${listing.totalBids > 0 ? 'text-emerald-600' : 'text-gray-500'}`}>
+                          {listing.totalBids === 0 ? 'No bids placed yet' : `${listing.totalBids} bid${listing.totalBids > 1 ? 's' : ''} received`}
                         </span>
                       </div>
                     </div>
 
                     {/* Latest Bid Alert */}
-                    {listing.status === 'active' && listing.bids.length > 0 && (
-                      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    {listing.statusCategory === 'active' && listing.bids.length > 0 && (
+                      <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                         <div>
-                          <p className="text-sm font-medium text-blue-900">Latest Bid</p>
+                          <p className="text-xs font-semibold text-blue-900">Highest Active Bid</p>
                           <p className="text-xs text-blue-700">
                             {formatCurrency(listing.bids[0].amount)} by {listing.bids[0].vendorName}
                           </p>
@@ -554,33 +539,55 @@ export default function MyListings() {
                     )}
 
                     {/* Status-specific content */}
-                    {listing.status === 'pending' && (
-                      <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm">
+                    {listing.statusCategory === 'accepted' && (
+                      <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg text-xs sm:text-sm">
                         <div className="flex items-center gap-2">
-                          <Icons.clock className="w-4 h-4 text-yellow-600" />
-                          <span className="text-yellow-800">Awaiting admin approval</span>
+                          <Icons.check className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                          <span className="text-purple-800 font-semibold">{listing.statusLabel}</span>
                         </div>
-                        <p className="text-yellow-700 text-xs mt-1">Your listing will be live once approved</p>
+                        <p className="text-purple-700 text-xs mt-1">
+                          {listing.status === 'bid_accepted'
+                            ? 'Winning bid accepted. Agent will be assigned for pickup.'
+                            : listing.status === 'agent_assigned'
+                            ? 'An agent is assigned to inspect and collect your device.'
+                            : listing.status === 'verification'
+                            ? 'Agent is verifying your device condition.'
+                            : listing.status === 'ready_for_pickup'
+                            ? 'Inspection complete. Ready for pickup and bank payout.'
+                            : listing.status === 'bidding_ended'
+                            ? 'Bidding ended. Click to review and accept the highest bid.'
+                            : 'Fulfillment in progress.'}
+                        </p>
                       </div>
                     )}
 
-                    {listing.status === 'rejected' && listing.rejectionReason && (
-                      <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm">
+                    {listing.statusCategory === 'pending' && (
+                      <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-xs sm:text-sm">
+                        <div className="flex items-center gap-2">
+                          <Icons.clock className="w-4 h-4 text-yellow-600 flex-shrink-0" />
+                          <span className="text-yellow-800 font-medium">Awaiting Admin Approval</span>
+                        </div>
+                        <p className="text-yellow-700 text-xs mt-1">Your listing will be live for bidding once approved.</p>
+                      </div>
+                    )}
+
+                    {listing.statusCategory === 'rejected' && (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs sm:text-sm">
                         <div className="flex items-center gap-2 mb-1">
-                          <Icons.x className="w-4 h-4 text-red-600" />
+                          <Icons.x className="w-4 h-4 text-red-600 flex-shrink-0" />
                           <span className="text-red-800 font-medium">Listing Rejected</span>
                         </div>
-                        <p className="text-red-700 text-xs">{listing.rejectionReason}</p>
+                        <p className="text-red-700 text-xs">{listing.rejectionReason || 'Please review device details and resubmit.'}</p>
                       </div>
                     )}
 
-                    {listing.status === 'sold' && (
-                      <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm">
+                    {listing.statusCategory === 'sold' && (
+                      <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-xs sm:text-sm">
                         <div className="flex items-center gap-2">
-                          <Icons.check className="w-4 h-4 text-green-600" />
+                          <Icons.check className="w-4 h-4 text-green-600 flex-shrink-0" />
                           <span className="text-green-800 font-medium">Successfully Sold!</span>
                         </div>
-                        <p className="text-green-700 text-xs mt-1">Order tracking has been initiated</p>
+                        <p className="text-green-700 text-xs mt-1">Payment and order fulfillment completed.</p>
                       </div>
                     )}
                   </div>

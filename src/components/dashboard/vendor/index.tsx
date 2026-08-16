@@ -39,7 +39,7 @@ export default function VendorDashboard() {
       {/* Dashboard Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">🏢 Vendor Dashboard</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Vendor Dashboard</h1>
           <p className="text-gray-600 mt-1">Manage your bidding activities and track your performance</p>
         </div>
         <div className="flex items-center space-x-3">
@@ -59,7 +59,7 @@ export default function VendorDashboard() {
           <CardContent className="p-6 text-center">
             <div className="text-2xl font-bold text-blue-600">{stats.activeBids}</div>
             <div className="text-sm text-gray-600">Active Bids</div>
-            <div className="text-xs text-blue-600 mt-1 flex items-center gap-1"><Icons.zap className="w-3 h-3" /> Currently bidding</div>
+            <div className="text-xs text-blue-600 mt-1 flex items-center justify-center gap-1"><Icons.zap className="w-3 h-3" /> Currently bidding</div>
           </CardContent>
         </Card>
         
@@ -67,7 +67,7 @@ export default function VendorDashboard() {
           <CardContent className="p-6 text-center">
             <div className="text-2xl font-bold text-green-600">{stats.wonBids}</div>
             <div className="text-sm text-gray-600">Won Bids</div>
-            <div className="text-xs text-green-600 mt-1 flex items-center gap-1"><Icons.trophy className="w-3 h-3" /> Successful purchases</div>
+            <div className="text-xs text-green-600 mt-1 flex items-center justify-center gap-1"><Icons.trophy className="w-3 h-3" /> Successful purchases</div>
           </CardContent>
         </Card>
         
@@ -75,7 +75,7 @@ export default function VendorDashboard() {
           <CardContent className="p-6 text-center">
             <div className="text-2xl font-bold text-purple-600">{formatCurrency(stats.totalSpent)}</div>
             <div className="text-sm text-gray-600">Total Spent</div>
-            <div className="text-xs text-purple-600 mt-1 flex items-center gap-1"><Icons.dollarSign className="w-3 h-3" /> Investment made</div>
+            <div className="text-xs text-purple-600 mt-1 flex items-center justify-center gap-1"><Icons.dollarSign className="w-3 h-3" /> Investment made</div>
           </CardContent>
         </Card>
         
@@ -83,7 +83,7 @@ export default function VendorDashboard() {
           <CardContent className="p-6 text-center">
             <div className="text-2xl font-bold text-orange-600">{stats.notifications}</div>
             <div className="text-sm text-gray-600">Notifications</div>
-            <div className="text-xs text-orange-600 mt-1 flex items-center gap-1"><Icons.bell className="w-3 h-3" /> Requires attention</div>
+            <div className="text-xs text-orange-600 mt-1 flex items-center justify-center gap-1"><Icons.bell className="w-3 h-3" /> Requires attention</div>
           </CardContent>
         </Card>
       </div>
@@ -163,7 +163,7 @@ export default function VendorDashboard() {
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <Icons.package className="w-5 h-5" />
-                <span>📦 Order Management</span>
+                <span>Order Management</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -203,7 +203,7 @@ export default function VendorDashboard() {
       {/* Quick Actions Footer */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">⚡ Quick Actions</CardTitle>
+          <CardTitle className="text-lg">Quick Actions</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

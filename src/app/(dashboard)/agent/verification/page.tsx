@@ -1747,8 +1747,8 @@ export default function AgentVerification() {
                     <p className="mt-2 text-sm text-red-600">{pickupError}</p>
                   )}
                   {deviceInfo?.pickup_otp && pickupOtp === deviceInfo.pickup_otp && (
-                    <p className="mt-2 text-sm text-green-600">
-                      ✅ OTP pre-filled from system - ready to confirm pickup
+                    <p className="mt-2 text-sm text-green-600 flex items-center gap-1">
+                      <Icons.check className="w-4 h-4 inline" /> OTP pre-filled from system - ready to confirm pickup
                     </p>
                   )}
                 </div>

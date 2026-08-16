@@ -57,6 +57,8 @@ import {
   XCircle,
   DollarSign,
   PartyPopper,
+  Key,
+  Activity,
 } from "lucide-react"
 
 export const Icons = {
@@ -118,4 +120,6 @@ export const Icons = {
   xCircle: XCircle,
   dollarSign: DollarSign,
   partyPopper: PartyPopper,
+  key: Key,
+  activity: Activity,
 } 

@@ -34,7 +34,7 @@ export interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 // API endpoints from integrationguide.md
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.sellikko.com'
 
 class AuthAPI {
   private getHeaders() {

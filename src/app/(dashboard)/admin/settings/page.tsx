@@ -813,7 +813,7 @@ function VendorManagement({ availableCities, configLoading }: {
         throw new Error('No access token found')
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_SELLIKO_API_BASE || 'http://127.0.0.1:54321/'}functions/v1/list-vendors`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SELLIKO_API_BASE || 'https://api.sellikko.com/'}functions/v1/list-vendors`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -1089,47 +1089,51 @@ function VendorManagement({ availableCities, configLoading }: {
         toast.success('Vendor updated successfully!')
         console.log('✅ [VENDOR-MGMT] Vendor updated successfully:', result.vendor_profile)
 
-        // Refresh the vendors list to get updated data
-        console.log('🔄 [VENDOR-MGMT] Refreshing vendors list after successful update...')
-        await loadVendors()
+        const updatedProfile = result.vendor_profile || updatePayload
 
-        // After reloading vendors, re-select the current vendor to refresh the form
-        console.log('🔄 [VENDOR-MGMT] Reloading selected vendor data after list refresh...')
-        setTimeout(() => {
-          handleVendorSelect(selectedVendorId)
-        }, 100) // Small delay to ensure vendors list is updated
+        // 1. Immediately update vendorData in form state
+        setVendorData(prev => ({
+          ...prev,
+          name: updatedProfile.name || prev.name,
+          email: updatedProfile.email || prev.email,
+          number: updatedProfile.number || prev.number,
+          address: updatedProfile.address || prev.address,
+          city: updatedProfile.city || prev.city,
+          pincode: updatedProfile.pincode || prev.pincode,
+          state: updatedProfile.state || prev.state,
+          landmark: updatedProfile.landmark || prev.landmark,
+          contact_person: updatedProfile.contact_person || prev.contact_person,
+          contact_person_phone: updatedProfile.contact_person_phone || prev.contact_person_phone,
+          working_pincodes: updatedProfile.working_pincodes !== undefined ? updatedProfile.working_pincodes : prev.working_pincodes,
+          base_price: updatedProfile.base_price !== undefined ? String(updatedProfile.base_price) : prev.base_price
+        }))
 
-        // Also update the current form data with the response
-        if (result.vendor_profile) {
-          const updatedProfile = result.vendor_profile
-          setVendorData(prev => ({
-            ...prev,
-            name: updatedProfile.name || prev.name,
-            email: updatedProfile.email || prev.email,
-            number: updatedProfile.number || prev.number,
-            address: updatedProfile.address || prev.address,
-            city: updatedProfile.city || prev.city,
-            pincode: updatedProfile.pincode || prev.pincode,
-            state: updatedProfile.state || prev.state,
-            landmark: updatedProfile.landmark || prev.landmark,
-            contact_person: updatedProfile.contact_person || prev.contact_person,
-            contact_person_phone: updatedProfile.contact_person_phone || prev.contact_person_phone,
-            working_pincodes: updatedProfile.working_pincodes || prev.working_pincodes,
-            base_price: updatedProfile.base_price !== undefined ? String(updatedProfile.base_price) : prev.base_price
-          }))
+        // 2. Immediately update working pincodes array
+        const rawPincodes = updatedProfile.working_pincodes !== undefined ? updatedProfile.working_pincodes : vendorData.working_pincodes
+        const updatedPincodes = rawPincodes
+          ? rawPincodes.split(',').map((p: string) => p.trim()).filter((p: string) => p.length > 0)
+          : []
+        setWorkingPincodesArray(updatedPincodes)
 
-          // Update working pincodes array if it was updated
-          if (updatedProfile.working_pincodes !== undefined) {
-            const updatedPincodes = updatedProfile.working_pincodes
-              ? updatedProfile.working_pincodes.split(',').map((p: string) => p.trim()).filter((p: string) => p.length > 0)
-              : []
-            setWorkingPincodesArray(updatedPincodes)
-            console.log('📍 [VENDOR-MGMT] Working pincodes updated from API response:', updatedPincodes)
-            console.log('📍 [VENDOR-MGMT] Raw working_pincodes string:', updatedProfile.working_pincodes)
+        // 3. Immediately update the in-memory vendors array
+        setVendors(prev => prev.map(vendor => {
+          if (vendor.vendor_profile?.vendor_id === selectedVendorId || vendor.id === vendorData.user_id) {
+            return {
+              ...vendor,
+              name: updatedProfile.name || vendor.name,
+              phone: updatedProfile.number || vendor.phone,
+              email: updatedProfile.email || vendor.email,
+              vendor_profile: {
+                ...vendor.vendor_profile,
+                ...updatedProfile
+              }
+            }
           }
+          return vendor
+        }))
 
-          console.log('✅ [VENDOR-MGMT] Form data updated with API response')
-        }
+        // 4. Background refresh vendors list to keep full parity with backend
+        loadVendors().catch(err => console.error('Error refreshing vendors in background:', err))
       } else {
         console.error('❌ [VENDOR-MGMT] Update failed:', result.error)
         toast.error(result.error || 'Failed to update vendor')
@@ -1804,46 +1808,51 @@ function AgentManagement({ availableCities, configLoading }: {
         toast.success('Agent updated successfully!')
         console.log('✅ [AGENT-MGMT] Agent updated successfully:', result.agent_profile)
 
-        // Refresh the agents list to get updated data
-        console.log('🔄 [AGENT-MGMT] Refreshing agents list after successful update...')
-        await loadAgents()
+        const updatedProfile = result.agent_profile || updatePayload
 
-        // After reloading agents, re-select the current agent to refresh the form
-        console.log('🔄 [AGENT-MGMT] Reloading selected agent data after list refresh...')
-        setTimeout(() => {
-          handleAgentSelect(selectedAgentId)
-        }, 100) // Small delay to ensure agents list is updated
+        // 1. Immediately update agentData in form state
+        setAgentData(prev => ({
+          ...prev,
+          agent_code: updatedProfile.agent_code !== undefined ? updatedProfile.agent_code : prev.agent_code,
+          name: updatedProfile.name || prev.name,
+          email: updatedProfile.email || prev.email,
+          number: updatedProfile.number || prev.number,
+          address: updatedProfile.address || prev.address,
+          city: updatedProfile.city || prev.city,
+          pincode: updatedProfile.pincode || prev.pincode,
+          state: updatedProfile.state || prev.state,
+          landmark: updatedProfile.landmark || prev.landmark,
+          contact_person: updatedProfile.contact_person || prev.contact_person,
+          contact_person_phone: updatedProfile.contact_person_phone || prev.contact_person_phone,
+          working_pincodes: updatedProfile.working_pincodes !== undefined ? updatedProfile.working_pincodes : prev.working_pincodes
+        }))
 
-        // Also update the current form data with the response
-        if (result.agent_profile) {
-          const updatedProfile = result.agent_profile
-          setAgentData(prev => ({
-            ...prev,
-            agent_code: updatedProfile.agent_code || prev.agent_code,
-            name: updatedProfile.name || prev.name,
-            email: updatedProfile.email || prev.email,
-            number: updatedProfile.number || prev.number,
-            address: updatedProfile.address || prev.address,
-            city: updatedProfile.city || prev.city,
-            pincode: updatedProfile.pincode || prev.pincode,
-            state: updatedProfile.state || prev.state,
-            landmark: updatedProfile.landmark || prev.landmark,
-            contact_person: updatedProfile.contact_person || prev.contact_person,
-            contact_person_phone: updatedProfile.contact_person_phone || prev.contact_person_phone,
-            working_pincodes: updatedProfile.working_pincodes || prev.working_pincodes
-          }))
+        // 2. Immediately update working pincodes array
+        const rawPincodes = updatedProfile.working_pincodes !== undefined ? updatedProfile.working_pincodes : agentData.working_pincodes
+        const updatedPincodes = rawPincodes
+          ? rawPincodes.split(',').map((p: string) => p.trim()).filter((p: string) => p.length > 0)
+          : []
+        setWorkingPincodesArray(updatedPincodes)
 
-          // Update working pincodes array if it was updated
-          if (updatedProfile.working_pincodes !== undefined) {
-            const updatedPincodes = updatedProfile.working_pincodes
-              ? updatedProfile.working_pincodes.split(',').map((p: string) => p.trim()).filter((p: string) => p.length === 6)
-              : []
-            setWorkingPincodesArray(updatedPincodes)
-            console.log('📍 [AGENT-MGMT] Working pincodes updated:', updatedPincodes)
+        // 3. Immediately update the in-memory agents list so the dropdown and internal state stay in sync without needing a reload
+        setAgents(prev => prev.map(agent => {
+          if (agent.agent_profile?.agent_id === parseInt(selectedAgentId) || agent.id === agentData.user_id) {
+            return {
+              ...agent,
+              name: updatedProfile.name || agent.name,
+              phone: updatedProfile.number || agent.phone,
+              email: updatedProfile.email || agent.email,
+              agent_profile: {
+                ...agent.agent_profile,
+                ...updatedProfile
+              }
+            }
           }
+          return agent
+        }))
 
-          console.log('✅ [AGENT-MGMT] Form data updated with API response')
-        }
+        // 4. Background refresh agents list to keep full parity with backend
+        loadAgents().catch(err => console.error('Error refreshing agents in background:', err))
       } else {
         console.error('❌ [AGENT-MGMT] Update failed:', result.error)
         toast.error(result.error || 'Failed to update agent')

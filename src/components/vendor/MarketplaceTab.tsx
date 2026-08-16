@@ -343,7 +343,7 @@ export function MarketplaceTab() {
 
     // New: bidded (if not receiving_bids, but has bids)
     if (listing.totalBids > 0 && listing.status !== 'receiving_bids') {
-      return <Badge className="bg-blue-500 text-white">📈 Bidded</Badge>
+      return <Badge className="bg-blue-500 text-white">Bidded</Badge>
     }
 
     return null
@@ -546,28 +546,24 @@ export function MarketplaceTab() {
                   src={listing.image || (listing.images && listing.images.length > 0 ? listing.images[0] : '/api/placeholder/300/200')} 
                   alt={listing.device}
                   className="w-full h-48 object-cover"
-                  onError={(e) => {
-                    // Fallback to placeholder if image fails to load
-                    e.currentTarget.src = '/api/placeholder/300/200'
-                  }}
                 />
-                
-                {/* Status badges */}
-                <div className="absolute top-2 right-2 flex flex-col gap-1">
+                <div className="absolute top-2 left-2 flex flex-col gap-1">
                   {getStatusBadge(listing)}
+                  {listing.condition && (
+                    <Badge variant="outline" className="bg-white/90 text-gray-800 text-xs">
+                      {listing.condition}
+                    </Badge>
+                  )}
                 </div>
-                
-                {/* Check if user has the highest bid */}
-                {currentUser && listing.currentBidInfo && listing.currentBidInfo.vendor_id === currentUser.id ? (
-                  <Badge className="absolute top-2 left-2 bg-blue-500 text-white flex items-center gap-1">
-                    <Icons.trophy className="w-3 h-3" /> Highest Bid
-                  </Badge>
-                ) : listing.isHot && (
-                  <Badge className="absolute top-2 left-2 bg-purple-500 text-white flex items-center gap-1">
-                    <Icons.zap className="w-3 h-3" /> HOT
-                  </Badge>
+                {/* Hot/Featured Badge */}
+                {listing.totalBids >= 3 && (
+                  <div className="absolute top-2 right-2">
+                    <Badge className="bg-red-500 text-white text-xs">
+                      Hot
+                    </Badge>
+                  </div>
                 )}
-                
+                {/* Time Remaining - Bottom of Image */}
                 {listing.status === 'receiving_bids' && (
                   <div className={`absolute bottom-2 left-2 px-2 py-1 rounded text-sm font-medium ${isListingExpired(listing) ? 'text-red-600 bg-red-100' : getTimeLeftColor(listing.timeRemaining || listing.timeLeft)}`}>
                     <Icons.clock className="w-3.5 h-3.5 inline mr-1" /> {isListingExpired(listing) ? 'Expired' : (listing.timeRemaining || listing.timeLeft)}
@@ -605,14 +601,12 @@ export function MarketplaceTab() {
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Bids:</span>
                     <span className={`font-medium ${getBidStatusColor(listing.totalBids)}`}>
-                      {listing.totalBids === 0 ? '🆕 New' : 
-                       listing.totalBids <= 2 ? `🟢 ${listing.totalBids} bid${listing.totalBids > 1 ? 's' : ''}` :
-                       listing.totalBids <= 5 ? `🟡 ${listing.totalBids} bids` :
-                       `🔴 ${listing.totalBids} bids`}
+                      {listing.totalBids === 0 ? 'New' : 
+                       `${listing.totalBids} bid${listing.totalBids > 1 ? 's' : ''}`}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm gap-2">
-                    <span className="text-gray-600 shrink-0">📍 Location:</span>
+                    <span className="text-gray-600 shrink-0">Location:</span>
                     <span className="truncate text-right" title={listing.location}>{listing.location}</span>
                   </div>
                   {listing.currentBidInfo && (
@@ -622,7 +616,7 @@ export function MarketplaceTab() {
                       </p>
                       <p className="text-blue-600">
                         Bid: ₹{listing.currentBidInfo.amount.toLocaleString()}
-                        {listing.currentBidInfo.instant_win && <span className="ml-1">⚡</span>}
+                        {listing.currentBidInfo.instant_win && <span className="ml-1 font-semibold text-orange-600">(Instant Win)</span>}
                       </p>
                     </div>
                   )}
@@ -648,7 +642,7 @@ export function MarketplaceTab() {
                       {listing.status === 'completed' ? (
                         <div className="flex-1 text-center">
                           <div className="text-2xl font-bold text-green-600 py-2">
-                            🎉 DELIVERED
+                            DELIVERED
                           </div>
                         </div>
                       ) : (
@@ -663,7 +657,7 @@ export function MarketplaceTab() {
                             className="flex-1 bg-green-600 hover:bg-green-700"
                             onClick={() => handleTrackOrder(listing)}
                           >
-                            🚚 Track Order
+                            Track Order
                           </Button>
                         )
                       )}
@@ -779,7 +773,7 @@ export function MarketplaceTab() {
                 {/* Agent Details */}
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">👤 Agent Details</CardTitle>
+                    <CardTitle className="text-lg">Agent Details</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex items-center gap-4">
@@ -802,19 +796,19 @@ export function MarketplaceTab() {
                     
                     <div className="space-y-2">
                       <div className="flex justify-between">
-                        <span className="text-gray-600">📞 Phone:</span>
+                        <span className="text-gray-600">Phone:</span>
                         <span>{trackingData.agent?.number || trackingData.agent?.contact_person_phone || 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">📧 Email:</span>
+                        <span className="text-gray-600">Email:</span>
                         <span>{trackingData.agent?.email || 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">👤 Contact Person:</span>
+                        <span className="text-gray-600">Contact Person:</span>
                         <span>{trackingData.agent?.contact_person || trackingData.agent?.name || 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">📍 Location:</span>
+                        <span className="text-gray-600">Location:</span>
                         <span>{selectedWinningListing.location}</span>
                       </div>
                     </div>
@@ -824,7 +818,7 @@ export function MarketplaceTab() {
                       <Card className="border-green-200 bg-green-50">
                         <CardContent className="p-4">
                           <div className="text-center">
-                            <h4 className="font-semibold text-green-800 mb-2">🔑 Delivery OTP</h4>
+                            <h4 className="font-semibold text-green-800 mb-2">Delivery OTP</h4>
                             <div className="text-2xl font-bold text-green-600 bg-white rounded-lg py-2 px-4 inline-block">
                               {trackingData.delivery_otp}
                             </div>

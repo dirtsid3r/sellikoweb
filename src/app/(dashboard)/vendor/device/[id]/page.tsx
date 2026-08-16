@@ -444,7 +444,7 @@ export default function VendorDeviceDetailPage() {
                         <div>
                           <p className="text-sm font-medium text-gray-500">Has Original Bill</p>
                           <p className="text-sm text-gray-900">
-                            {device.deviceDetails.has_bill ? '✅ Yes' : '❌ No'}
+                            {device.deviceDetails.has_bill ? 'Yes' : 'No'}
                           </p>
                         </div>
                       </div>

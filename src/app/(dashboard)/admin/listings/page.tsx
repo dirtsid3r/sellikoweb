@@ -216,46 +216,46 @@ export default function AdminListingsPage() {
 
   const getStatusBadge = (listing: MarketplaceListing) => {
     if (listing.status === 'receiving_bids') {
-      return <Badge className="bg-orange-500 text-white">⏳ Accepting Bids</Badge>
+      return <Badge className="bg-orange-500 text-white">Accepting Bids</Badge>
     }
     if (listing.status === 'bid_accepted') {
-      return <Badge className="bg-green-500 text-white">✅ Bid Accepted</Badge>
+      return <Badge className="bg-green-500 text-white">Bid Accepted</Badge>
     }
     if (listing.status === 'pickedup') {
-      return <Badge className="bg-orange-500 text-white">🚚 Picked Up</Badge>
+      return <Badge className="bg-orange-500 text-white">Picked Up</Badge>
     }
     if (listing.status === 'completed') {
-      return <Badge className="bg-green-600 text-white">🎉 Delivered</Badge>
+      return <Badge className="bg-green-600 text-white">Delivered</Badge>
     }
     if (listing.status === 'agent_assigned') {
-      return <Badge className="bg-blue-500 text-white">👤 Agent Assigned</Badge>
+      return <Badge className="bg-blue-500 text-white">Agent Assigned</Badge>
     }
     if (listing.status === 'verification') {
-      return <Badge className="bg-yellow-500 text-white">🔍 Verifying</Badge>
+      return <Badge className="bg-yellow-500 text-white">Verifying</Badge>
     }
     if (listing.status === 'ready_for_pickup') {
-      return <Badge className="bg-purple-500 text-white">📦 Ready for Pickup</Badge>
+      return <Badge className="bg-purple-500 text-white">Ready for Pickup</Badge>
     }
     if (listing.status === 'bidding_ended') {
-      return <Badge className="bg-gray-500 text-white">⏰ Bidding Ended</Badge>
+      return <Badge className="bg-gray-500 text-white">Bidding Ended</Badge>
     }
     if (listing.status === 'pending_approval') {
-      return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">🕒 Pending Approval</Badge>
+      return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Pending Approval</Badge>
     }
     if (listing.status === 'rejected') {
-      return <Badge className="bg-red-100 text-red-800 border-red-200">❌ Rejected</Badge>
+      return <Badge className="bg-red-100 text-red-800 border-red-200">Rejected</Badge>
     }
     if (listing.status === 'cancelled') {
-      return <Badge className="bg-gray-100 text-gray-800 border-gray-200">🚫 Cancelled</Badge>
+      return <Badge className="bg-gray-100 text-gray-800 border-gray-200">Cancelled</Badge>
     }
     if (!listing.isBiddable) {
-      return <Badge className="bg-gray-500 text-white">🚫 Not Available</Badge>
+      return <Badge className="bg-gray-500 text-white">Not Available</Badge>
     }
     if (listing.isInstantWin) {
-      return <Badge className="bg-orange-100 text-orange-800 border-orange-200">⚡ Instant Win</Badge>
+      return <Badge className="bg-orange-100 text-orange-800 border-orange-200">Instant Win</Badge>
     }
     if (listing.totalBids > 0 && listing.status !== 'receiving_bids') {
-      return <Badge className="bg-blue-500 text-white">📈 Bidded</Badge>
+      return <Badge className="bg-blue-500 text-white">Bidded</Badge>
     }
     if (listing.status) {
       return <Badge className="bg-blue-100 text-blue-800 border-blue-200">{listing.status}</Badge>
@@ -276,7 +276,7 @@ export default function AdminListingsPage() {
           <CardContent className="p-6 space-y-6">
             <div className="flex justify-between items-start">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">📱 Device Listings (Admin)</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Device Listings</h2>
                 <p className="text-gray-600">Browse all device listings as an admin. You can view details for each listing.</p>
               </div>
               <div className="flex items-center gap-2">
@@ -384,7 +384,7 @@ export default function AdminListingsPage() {
                       </div>
                       {listing.isHot && (
                         <Badge className="absolute top-2 left-2 bg-purple-500 text-white">
-                          🔥 HOT
+                          Hot
                         </Badge>
                       )}
                       {listing.status === 'receiving_bids' && (

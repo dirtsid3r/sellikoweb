@@ -82,50 +82,61 @@ export default function ListingDetailPage() {
   const [isAcceptingBid, setIsAcceptingBid] = useState(false)
   const [acceptedBidDetails, setAcceptedBidDetails] = useState<any>(null)
 
-  // Load listing data when page loads
+  // Load listing data when page loads and poll periodically
   useEffect(() => {
-    const loadListingData = async () => {
+    let isMounted = true
+
+    const loadListingData = async (showLoadingSpinner = false) => {
       if (!listingId) {
-        setError('No listing ID provided')
-        setIsLoading(false)
+        if (isMounted) {
+          setError('No listing ID provided')
+          setIsLoading(false)
+        }
         return
       }
 
-      console.log('🔍 [LISTING-DETAIL] Loading listing data for ID:', listingId)
-      setIsLoading(true)
-      setError(null)
+      if (showLoadingSpinner) {
+        setIsLoading(true)
+        setError(null)
+      }
 
       try {
-        // Call getListingById function from selliko-client
         const result = await sellikoClient.getListingById(listingId, {
           include_images: true,
           include_bids: true,
           include_user_details: true
         })
 
-        console.log('📊 [LISTING-DETAIL] Received listing data:', result)
+        if (!isMounted) return
 
         if ((result as any).success && (result as any).listing) {
           const apiListing = (result as any).listing
           
-          // Get highest bid from sorted bids array
-          const sortedBids = Array.isArray(apiListing.bids) ? 
-            [...apiListing.bids].sort((a, b) => b.bid_amount - a.bid_amount) : []
-          const highestBid = sortedBids.length > 0 ? sortedBids[0].bid_amount : 0
+          // Process bids
+          const bidsArray = Array.isArray(apiListing.bids) ? apiListing.bids : []
+          const sortedBids = [...bidsArray]
+            .filter((b: any) => typeof b === 'object' && b !== null)
+            .sort((a, b) => Number(b.bid_amount || 0) - Number(a.bid_amount || 0))
+          
+          const validAmounts = sortedBids.map(b => Number(b.bid_amount || 0)).filter(amt => amt > 0)
+          const highestFromBids = validAmounts.length > 0 ? Math.max(...validAmounts) : 0
+          const highestBid = Number(apiListing.highest_bid_value || 0) || 
+                             (typeof apiListing.highest_bid === 'object' && apiListing.highest_bid ? Number(apiListing.highest_bid.bid_amount || 0) : 0) ||
+                             highestFromBids
           
           // Transform API data to match component format
           const transformedListing = {
-            id: apiListing.id,
+            id: apiListing.id?.toString() || '',
             device: `${apiListing.devices?.[0]?.brand || 'Unknown'} ${apiListing.devices?.[0]?.model || 'Device'}`,
             model: `${apiListing.devices?.[0]?.storage || ''} ${apiListing.devices?.[0]?.color || ''}`.trim(),
             condition: apiListing.devices?.[0]?.condition || 'Unknown',
-            askingPrice: apiListing.asking_price || apiListing.expected_price || 0,
+            askingPrice: Number(apiListing.asking_price || apiListing.expected_price || 0),
             description: apiListing.devices?.[0]?.description || 'No description available',
             images: getListingImages(apiListing),
             status: transformStatus(apiListing.status),
             timeLeft: calculateTimeRemaining(apiListing.time_approved),
-            totalBids: Array.isArray(apiListing.bids) ? apiListing.bids.length : 0,
-            bids: transformBids(apiListing.bids || []),
+            totalBids: bidsArray.length,
+            bids: transformBids(bidsArray),
             highestBid: highestBid,
             instantWin: apiListing.instant_win || false,
             // Additional data from API
@@ -158,26 +169,39 @@ export default function ListingDetailPage() {
             agreements: apiListing.agreements?.[0] || {}
           }
 
-          console.log('🔄 [LISTING-DETAIL] Transformed listing data:', transformedListing)
           setListing(transformedListing)
-          toast.success('Listing details loaded successfully')
         } else {
           const errorMsg = (result as any).error || 'Failed to load listing data'
-          setError(errorMsg)
-          toast.error(errorMsg)
-          console.error('❌ [LISTING-DETAIL] Failed to load listing:', errorMsg)
+          if (showLoadingSpinner) {
+            setError(errorMsg)
+            toast.error(errorMsg)
+          }
         }
       } catch (error) {
         console.error('💥 [LISTING-DETAIL] Error loading listing:', error)
-        const errorMsg = 'Network error while loading listing'
-        setError(errorMsg)
-        toast.error(errorMsg)
+        if (showLoadingSpinner && isMounted) {
+          const errorMsg = 'Network error while loading listing'
+          setError(errorMsg)
+          toast.error(errorMsg)
+        }
       } finally {
-        setIsLoading(false)
+        if (showLoadingSpinner && isMounted) {
+          setIsLoading(false)
+        }
       }
     }
 
-    loadListingData()
+    loadListingData(true)
+
+    // Poll every 15s so vendor bids update in real-time
+    const pollInterval = setInterval(() => {
+      loadListingData(false)
+    }, 15000)
+
+    return () => {
+      isMounted = false
+      clearInterval(pollInterval)
+    }
   }, [listingId])
 
   // Update time remaining every minute for active auctions
@@ -189,27 +213,20 @@ export default function ListingDetailPage() {
       setTimeRemaining(newTimeRemaining)
     }
 
-    // Update immediately
     updateTimeRemaining()
-
-    // Set up interval to update every minute
     const interval = setInterval(updateTimeRemaining, 60000)
-
     return () => clearInterval(interval)
   }, [listing?.time_approved])
 
   // Helper function to get listing images
   const getListingImages = (apiListing: any) => {
-    // Get the first device from the devices array
     const device = apiListing.devices?.[0] || {}
     
-    // Return the 4 main device images from the device object
     return {
       front: device.front_image_url || '/api/placeholder/400/400',
       back: device.back_image_url || '/api/placeholder/400/400',
       top: device.top_image_url || '/api/placeholder/400/400',
       bottom: device.bottom_image_url || '/api/placeholder/400/400',
-      // Additional images for potential use
       bill: device.bill_image_url,
       warranty: device.warranty_image_url
     }
@@ -229,22 +246,35 @@ export default function ListingDetailPage() {
 
   // Helper function to transform API status to component status
   const transformStatus = (apiStatus: string) => {
-    switch (apiStatus) {
+    const s = (apiStatus || '').toLowerCase()
+    switch (s) {
       case 'pending':
       case 'pending_approval':
         return 'pending_approval'
       case 'approved':
       case 'receiving_bids':
         return 'receiving_bids'
+      case 'bidding_ended':
+        return 'bidding_ended'
       case 'bid_accepted':
         return 'bid_accepted'
+      case 'agent_assigned':
+        return 'agent_assigned'
+      case 'verification':
+        return 'verification'
+      case 'ready_for_pickup':
+        return 'ready_for_pickup'
+      case 'pickedup':
+        return 'pickedup'
       case 'completed':
       case 'sold':
         return 'sold'
       case 'rejected':
         return 'rejected'
+      case 'cancelled':
+        return 'cancelled'
       default:
-        return apiStatus || 'unknown'
+        return s || 'unknown'
     }
   }
 
@@ -365,8 +395,10 @@ export default function ListingDetailPage() {
   const highestBidAmount = listing.highestBid || highestBid?.amount || 0
 
   const getStatusInfo = (status: string) => {
-    switch (status) {
+    const s = (status || '').toLowerCase()
+    switch (s) {
       case 'receiving_bids':
+      case 'approved':
         return {
           label: 'Receiving Bids',
           color: 'bg-green-100 text-green-800 border-green-200',
@@ -374,39 +406,83 @@ export default function ListingDetailPage() {
           description: 'Your device is live and getting bids!'
         }
       case 'pending_approval':
+      case 'pending':
         return {
           label: 'Under Review',
           color: 'bg-blue-100 text-blue-800 border-blue-200',
           icon: Icons.clock,
-          description: 'Our team is reviewing your listing'
+          description: 'Our team is reviewing your listing.'
         }
       case 'bid_accepted':
         return {
           label: 'Bid Accepted',
           color: 'bg-purple-100 text-purple-800 border-purple-200',
           icon: Icons.check,
-          description: 'Agent will contact you for pickup'
+          description: 'Winning bid accepted! Waiting for agent assignment.'
+        }
+      case 'agent_assigned':
+        return {
+          label: 'Agent Assigned',
+          color: 'bg-blue-100 text-blue-800 border-blue-200',
+          icon: Icons.users,
+          description: 'An agent has been assigned for inspection & pickup.'
+        }
+      case 'verification':
+        return {
+          label: 'Verification in Progress',
+          color: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+          icon: Icons.shield,
+          description: 'Agent is performing device quality checks.'
+        }
+      case 'ready_for_pickup':
+        return {
+          label: 'Ready for Pickup',
+          color: 'bg-amber-100 text-amber-800 border-amber-200',
+          icon: Icons.calendar,
+          description: 'Inspection complete! Ready for handover & payout.'
+        }
+      case 'pickedup':
+        return {
+          label: 'Device Picked Up',
+          color: 'bg-teal-100 text-teal-800 border-teal-200',
+          icon: Icons.check,
+          description: 'Device collected by agent.'
+        }
+      case 'sold':
+      case 'completed':
+        return {
+          label: 'Completed',
+          color: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+          icon: Icons.check,
+          description: 'Transaction and payout completed successfully.'
         }
       case 'bidding_ended':
         return {
           label: 'Bidding Ended',
           color: 'bg-orange-100 text-orange-800 border-orange-200',
           icon: Icons.clock,
-          description: 'Bidding period has ended'
+          description: 'Bidding period has ended. Please review & accept the bid.'
         }
       case 'rejected':
         return {
           label: 'Rejected',
           color: 'bg-red-100 text-red-800 border-red-200',
           icon: Icons.x,
-          description: 'Listing was rejected during review'
+          description: 'Listing was rejected during review.'
+        }
+      case 'cancelled':
+        return {
+          label: 'Cancelled',
+          color: 'bg-gray-100 text-gray-800 border-gray-200',
+          icon: Icons.x,
+          description: 'Listing was cancelled.'
         }
       default:
         return {
-          label: status,
+          label: (status || 'Unknown').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
           color: 'bg-gray-100 text-gray-800 border-gray-200',
           icon: Icons.smartphone,
-          description: ''
+          description: `Status: ${status}`
         }
     }
   }
@@ -531,7 +607,7 @@ export default function ListingDetailPage() {
                       </Button>
                       <Button
                         variant="outline"
-                        onClick={() => router.push('/client/listings')}
+                        onClick={() => router.push('/client/my-listings')}
                         className="border-red-300 text-red-700 hover:bg-red-50"
                       >
                         <Icons.list className="w-4 h-4 mr-2" />
@@ -729,7 +805,7 @@ export default function ListingDetailPage() {
                         <div>
                           <p className="text-sm font-medium text-gray-500">Has Original Bill</p>
                           <p className="text-sm text-gray-900">
-                            {listing.deviceDetails.has_bill ? '✅ Yes' : '❌ No'}
+                            {listing.deviceDetails.has_bill ? 'Yes' : 'No'}
                           </p>
                         </div>
                       </div>
@@ -757,7 +833,7 @@ export default function ListingDetailPage() {
                             <p className={`text-sm font-medium ${
                               listing.deviceDetails.warranty_status === 'active' ? 'text-green-600' : 'text-red-600'
                             }`}>
-                              {listing.deviceDetails.warranty_status === 'active' ? '✅ Active' : '❌ Expired'}
+                              {listing.deviceDetails.warranty_status === 'active' ? 'Active' : 'Expired'}
                             </p>
                           </div>
                         )}

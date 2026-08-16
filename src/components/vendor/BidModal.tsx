@@ -471,7 +471,7 @@ export function BidModal({ listing, open, onOpenChange, currentUserId }: BidModa
       
       if (result.success) {
         if (result.instant_win || isInstantWin) {
-          toast.success(`🎉 Congratulations! You won this auction instantly!\n\nDevice: ${currentListing.device}\nAmount: ₹${parseInt(bidAmount).toLocaleString()}\n\nOrder tracking will begin automatically.`)
+          toast.success(`Congratulations! You won this auction instantly!\n\nDevice: ${currentListing.device}\nAmount: ₹${parseInt(bidAmount).toLocaleString()}\n\nOrder tracking will begin automatically.`)
         
         // Add winning bid to history
         const winningBid: BidHistory = {
@@ -491,7 +491,7 @@ export function BidModal({ listing, open, onOpenChange, currentUserId }: BidModa
         // Close auction
         setTimeRemaining(0)
       } else {
-          toast.success(`✅ Bid placed successfully!\n\nDevice: ${currentListing.device}\nYour Bid: ₹${parseInt(bidAmount).toLocaleString()}\n\nYou'll be notified if you're outbid.`)
+          toast.success(`Bid placed successfully!\n\nDevice: ${currentListing.device}\nYour Bid: ₹${parseInt(bidAmount).toLocaleString()}\n\nYou'll be notified if you're outbid.`)
         
         // Add bid to history
         const newBid: BidHistory = {
@@ -830,11 +830,11 @@ export function BidModal({ listing, open, onOpenChange, currentUserId }: BidModa
                     </div>
                     <div className="mt-2 space-y-1">
                       <p className="text-xs text-gray-600">
-                        ⚠️ Minimum bid: {formatCurrency(minimumBid)}
+                        Minimum bid: {formatCurrency(minimumBid)}
                       </p>
                       {isInstantWin && (
                         <p className="text-xs text-orange-600 font-medium">
-                          🎯 Instant Win: This bid will immediately close the auction!
+                          Instant Win: This bid will immediately close the auction!
                         </p>
                       )}
                     </div>
@@ -852,7 +852,7 @@ export function BidModal({ listing, open, onOpenChange, currentUserId }: BidModa
                       <Icons.star className="w-4 h-4 text-orange-600" />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-orange-900 mb-1">🏆 BID AT ASKING PRICE TO WIN INSTANTLY</h4>
+                      <h4 className="font-semibold text-orange-900 mb-1">Bid At Asking Price To Win Instantly</h4>
                       <p className="text-sm text-orange-800">
                         Bidding at or above {formatCurrency(currentListing.askingPrice)} will immediately close this auction and you'll win the device. Order tracking will begin automatically.
                       </p>
@@ -910,7 +910,7 @@ export function BidModal({ listing, open, onOpenChange, currentUserId }: BidModa
                         {isInstantWin ? 'Winning...' : 'Placing Bid...'}
                       </>
                     ) : (
-                      isInstantWin ? '🏆 Win Instantly' : 'Place Bid'
+                      isInstantWin ? 'Win Instantly' : 'Place Bid'
                     )}
                   </Button>
                 )

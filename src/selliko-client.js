@@ -3,8 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 // SELLIKO Client Integration Layer
 // This file will handle all Supabase API interactions
 
-const API_BASE = process.env.NEXT_PUBLIC_SELLIKO_API_BASE || 'http://127.0.0.1:54321/'
-const STORAGE_URL = process.env.NEXT_PUBLIC_S3_URL || process.env.NEXT_PUBLIC_SELLIKO_API_BASE || 'http://127.0.0.1:54321/'
+const API_BASE = process.env.NEXT_PUBLIC_SELLIKO_API_BASE || 'https://api.sellikko.com/'
+const STORAGE_URL = process.env.NEXT_PUBLIC_S3_URL || process.env.NEXT_PUBLIC_SELLIKO_API_BASE || 'https://api.sellikko.com/'
 
 class SellikoClient {
   constructor() {

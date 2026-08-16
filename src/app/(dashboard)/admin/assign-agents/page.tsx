@@ -209,7 +209,7 @@ export default function AssignAgents() {
         const deviceInfo = `${selectedBid.device.brand} ${selectedBid.device.model}`
         
         toast.success(
-          `✅ ${agentName} (${agentCode}) assigned to pickup ${deviceInfo}. Task created successfully!`,
+          `${agentName} (${agentCode}) assigned to pickup ${deviceInfo}. Task created successfully!`,
           { duration: 5000 }
         )
         
@@ -230,28 +230,47 @@ export default function AssignAgents() {
         setSelectedBid(null)
       } else {
         const errorMessage = result.error || 'Failed to assign agent'
-        toast.error(`❌ Assignment failed: ${errorMessage}`)
+        toast.error(`Assignment failed: ${errorMessage}`)
         console.error('❌ [ASSIGN-AGENTS] Assignment failed:', result.error)
       }
     } catch (error: any) {
       console.error('💥 [ASSIGN-AGENTS] Assignment error:', error)
-      toast.error('❌ Network error occurred while assigning agent')
+      toast.error('Network error occurred while assigning agent')
     } finally {
       setProcessingId(null)
     }
   }
 
   const getSuitableAgents = (bid: AcceptedBid) => {
-    // Get agents that work in the pickup city's pincode
+    const pickupPincode = (bid.pickup_address?.pincode || '').trim()
+    const pickupCity = (bid.pickup_address?.city || '').trim().toLowerCase()
+
     return bid.agents_available.filter(agent => {
-      // If working_pincodes is null, check if agent is in the same city as fallback
-      if (!agent.agent_profile.working_pincodes) {
-        // Fallback: check if agent is in the same city
-        return agent.agent_profile.city.toLowerCase() === bid.pickup_address.city.toLowerCase() && agent.agent_tasks < 5
+      if (agent.agent_tasks >= 5) return false
+
+      // 1. If agent has working_pincodes defined, check if pickup pincode is covered
+      if (agent.agent_profile?.working_pincodes) {
+        const workingPincodes = agent.agent_profile.working_pincodes
+          .split(',')
+          .map(p => p.trim())
+          .filter(Boolean)
+        if (workingPincodes.includes(pickupPincode)) {
+          return true
+        }
       }
-      
-      const workingPincodes = agent.agent_profile.working_pincodes.split(',').map(p => p.trim())
-      return workingPincodes.includes(bid.pickup_address.pincode) && agent.agent_tasks < 5
+
+      // 2. Check if agent's primary registered pincode matches
+      if (agent.agent_profile?.pincode && agent.agent_profile.pincode.trim() === pickupPincode) {
+        return true
+      }
+
+      // 3. Fallback: If no working_pincodes specified, check if in the same city
+      if (!agent.agent_profile?.working_pincodes) {
+        const agentCity = (agent.agent_profile?.city || '').trim().toLowerCase()
+        return agentCity === pickupCity
+      }
+
+      return false
     }).sort((a, b) => a.agent_tasks - b.agent_tasks) // Sort by least busy first
   }
 

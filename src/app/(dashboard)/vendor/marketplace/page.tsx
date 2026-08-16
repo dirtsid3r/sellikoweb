@@ -108,7 +108,7 @@ export default function VendorMarketplace() {
       <Header variant="vendor" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">📱 Vendor Marketplace</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Vendor Marketplace</h1>
           <p className="text-gray-600">Bid on verified device listings across Kerala</p>
         </div>
 
@@ -191,11 +191,11 @@ export default function VendorMarketplace() {
                   />
                   {listing.isHot && (
                     <Badge className="absolute top-2 left-2 bg-red-500 text-white">
-                      🔥 HOT
+                      Hot
                     </Badge>
                   )}
-                  <Badge className="absolute top-2 right-2 bg-green-100 text-green-800">
-                    ⏱️ {listing.timeLeft}
+                  <Badge className="absolute top-2 right-2 bg-green-100 text-green-800 flex items-center gap-1">
+                    <Icons.clock className="w-3 h-3 inline" /> {listing.timeLeft}
                   </Badge>
                 </div>
 
@@ -253,7 +253,7 @@ export default function VendorMarketplace() {
                       variant="outline"
                       className="w-full border-orange-500 text-orange-600 hover:bg-orange-50"
                     >
-                      🎯 Buy at Asking Price
+                      Buy at Asking Price
                     </Button>
                   </div>
                 </div>
