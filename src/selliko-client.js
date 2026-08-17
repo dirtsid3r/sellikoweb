@@ -60,83 +60,128 @@ class SellikoClient {
     })
   }
 
-  // Convert image to WebP format
-  async convertToWebP(file) {
-    console.log('🖼️ [SELLIKO-CLIENT] Converting image to WebP:', file.name)
-
-    // Older Safari/iOS builds don't support WebP encoding; skip conversion so
-    // the upload can still proceed instead of failing before the API call.
-    if (!this.isWebPSupported()) {
-      console.log('ℹ️ [SELLIKO-CLIENT] Skipping WebP conversion (unsupported); falling back to PNG')
-      return this.convertToPng(file)
+  /**
+   * Process and compress image file for fast and safe upload across all browsers (including iOS Safari).
+   * - Downscales images exceeding 1920px to avoid iOS Safari canvas memory limit crashes
+   * - Converts to WebP (or JPEG fallback for maximum iOS compatibility) with 85% quality
+   * - Safely falls back to the original file if canvas decoding fails (e.g. HEIC / HEIF / raw formats)
+   * 
+   * @param {File|Blob} file - The image file to process
+   * @param {Object} [options]
+   * @param {number} [options.maxDimension=1920] - Maximum width or height
+   * @param {number} [options.quality=0.85] - Compression quality
+   * @returns {Promise<{ blob: Blob|File, extension: string, mimeType: string }>}
+   */
+  async processAndCompressImage(file, options = {}) {
+    if (!file || typeof window === 'undefined') {
+      return { blob: file, extension: '.jpg', mimeType: 'image/jpeg' }
     }
 
-    return new Promise((resolve, reject) => {
-      const canvas = document.createElement('canvas')
-      const ctx = canvas.getContext('2d')
+    const maxDimension = options.maxDimension || 1920
+    const quality = options.quality || 0.85
+    const originalName = file.name || 'image.jpg'
+    const originalExt = originalName.includes('.') ? `.${originalName.split('.').pop().toLowerCase()}` : '.jpg'
+
+    const isHeic = (file.type && (file.type.includes('heic') || file.type.includes('heif'))) ||
+                   originalExt === '.heic' || originalExt === '.heif'
+
+    return new Promise((resolve) => {
+      let objectUrl = null
+      try {
+        objectUrl = URL.createObjectURL(file)
+      } catch (err) {
+        console.warn('⚠️ [SELLIKO-CLIENT] URL.createObjectURL failed, using raw file:', err)
+        return resolve({ blob: file, extension: originalExt, mimeType: file.type || 'image/jpeg' })
+      }
+
       const img = new Image()
 
+      const cleanup = () => {
+        if (objectUrl) {
+          try { URL.revokeObjectURL(objectUrl) } catch (_) {}
+        }
+      }
+
       img.onload = () => {
-        // Set canvas dimensions to image dimensions
-        canvas.width = img.width
-        canvas.height = img.height
+        try {
+          let { width, height } = img
 
-        // Draw image on canvas
-        ctx.drawImage(img, 0, 0)
-
-        // Convert to WebP blob
-        canvas.toBlob((blob) => {
-          if (blob) {
-            console.log('✅ [SELLIKO-CLIENT] Image converted to WebP successfully')
-            resolve(blob)
-          } else {
-            console.warn('⚠️ [SELLIKO-CLIENT] Canvas returned null WebP blob; falling back to PNG')
-            this.convertToPng(file).then(resolve).catch(reject)
+          // Calculate downscaled dimensions to stay within iOS Safari canvas limits
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round((height * maxDimension) / width)
+              width = maxDimension
+            } else {
+              width = Math.round((width * maxDimension) / height)
+              height = maxDimension
+            }
           }
-        }, 'image/webp', 0.8) // 80% quality
+
+          const canvas = document.createElement('canvas')
+          canvas.width = width
+          canvas.height = height
+          const ctx = canvas.getContext('2d')
+
+          if (!ctx) {
+            cleanup()
+            console.warn('⚠️ [SELLIKO-CLIENT] 2D canvas context unavailable, using original file')
+            return resolve({ blob: file, extension: originalExt, mimeType: file.type || 'image/jpeg' })
+          }
+
+          ctx.drawImage(img, 0, 0, width, height)
+
+          const supportsWebp = this.isWebPSupported()
+          const preferredMime = supportsWebp ? 'image/webp' : 'image/jpeg'
+          const preferredExt = supportsWebp ? '.webp' : '.jpg'
+
+          canvas.toBlob((blob) => {
+            if (blob && blob.size > 0) {
+              cleanup()
+              console.log(`✅ [SELLIKO-CLIENT] Image compressed: ${file.name || 'image'} (${(file.size / 1024).toFixed(0)}KB -> ${(blob.size / 1024).toFixed(0)}KB, ${width}x${height} ${preferredExt})`)
+              resolve({ blob, extension: preferredExt, mimeType: preferredMime })
+            } else {
+              // Try fallback to JPEG if WebP produced a null blob on Safari
+              canvas.toBlob((jpegBlob) => {
+                cleanup()
+                if (jpegBlob && jpegBlob.size > 0) {
+                  console.log(`✅ [SELLIKO-CLIENT] Image compressed to JPEG fallback: ${(jpegBlob.size / 1024).toFixed(0)}KB`)
+                  resolve({ blob: jpegBlob, extension: '.jpg', mimeType: 'image/jpeg' })
+                } else {
+                  console.warn('⚠️ [SELLIKO-CLIENT] Canvas toBlob returned null, using original file')
+                  resolve({ blob: file, extension: originalExt, mimeType: file.type || 'image/jpeg' })
+                }
+              }, 'image/jpeg', quality)
+            }
+          }, preferredMime, quality)
+        } catch (canvasErr) {
+          cleanup()
+          console.warn('⚠️ [SELLIKO-CLIENT] Canvas processing exception, using original file:', canvasErr)
+          resolve({ blob: file, extension: originalExt, mimeType: file.type || 'image/jpeg' })
+        }
       }
 
-      img.onerror = () => {
-        console.error('❌ [SELLIKO-CLIENT] Failed to load image for conversion')
-        reject(new Error('Failed to load image'))
+      img.onerror = (err) => {
+        cleanup()
+        console.warn(`⚠️ [SELLIKO-CLIENT] Image failed to decode in browser (isHeic=${isHeic}), uploading raw file directly:`, err)
+        resolve({ blob: file, extension: originalExt, mimeType: file.type || 'image/jpeg' })
       }
 
-      img.src = URL.createObjectURL(file)
+      img.src = objectUrl
     })
+  }
+
+  // Convert image to WebP format (or safe compressed fallback)
+  async convertToWebP(file) {
+    console.log('🖼️ [SELLIKO-CLIENT] Processing image for upload:', file?.name)
+    const result = await this.processAndCompressImage(file)
+    return result.blob
   }
 
   // Fallback: convert image to PNG (supported across browsers)
   async convertToPng(file) {
-    console.log('🖼️ [SELLIKO-CLIENT] Converting image to PNG as fallback:', file.name)
-
-    return new Promise((resolve, reject) => {
-      const canvas = document.createElement('canvas')
-      const ctx = canvas.getContext('2d')
-      const img = new Image()
-
-      img.onload = () => {
-        canvas.width = img.width
-        canvas.height = img.height
-        ctx.drawImage(img, 0, 0)
-
-        canvas.toBlob((blob) => {
-          if (blob) {
-            console.log('✅ [SELLIKO-CLIENT] Image converted to PNG successfully')
-            resolve(blob)
-          } else {
-            console.error('❌ [SELLIKO-CLIENT] Failed to convert image to PNG')
-            reject(new Error('Failed to convert image to PNG'))
-          }
-        }, 'image/png')
-      }
-
-      img.onerror = () => {
-        console.error('❌ [SELLIKO-CLIENT] Failed to load image for PNG conversion')
-        reject(new Error('Failed to load image'))
-      }
-
-      img.src = URL.createObjectURL(file)
-    })
+    console.log('🖼️ [SELLIKO-CLIENT] Converting image to PNG as fallback:', file?.name)
+    const result = await this.processAndCompressImage(file, { quality: 0.9 })
+    return result.blob
   }
 
   // Convert file to data URL (fallback method)
@@ -512,7 +557,7 @@ class SellikoClient {
       const processedData = { ...listingData }
 
       // Process and upload images
-      console.log('🖼️ [SELLIKO-CLIENT] Processing images...')
+      console.log('🖼️ [SELLIKO-CLIENT] Processing images with Apple/Safari-resilient pipeline...')
       const imageUrls = {}
 
       for (const [position, file] of Object.entries(listingData.images || {})) {
@@ -520,34 +565,38 @@ class SellikoClient {
           try {
             console.log(`📸 [SELLIKO-CLIENT] Processing ${position} image:`, file.name)
 
-            // Convert to WebP if it's an image
-            const isImage = file.type.startsWith('image/')
-            let uploadFile = file
-            let fileName = `${this.generateUUID()}`
-
-            if (isImage) {
-              uploadFile = await this.convertToWebP(file)
-              fileName += '.webp'
-            } else {
-              fileName += `.${file.name.split('.').pop()}`
-            }
+            const processed = await this.processAndCompressImage(file)
+            const fileName = `${this.generateUUID()}${processed.extension}`
 
             // Upload file
             try {
-              const fileUrl = await this.uploadFile(uploadFile, fileName)
+              const fileUrl = await this.uploadFile(processed.blob, fileName)
               imageUrls[position] = fileUrl
             } catch (uploadError) {
-              console.warn(`⚠️ [SELLIKO-CLIENT] Upload failed for ${position}, using fallback...`)
-              // Fallback: use data URL for now (not recommended for production)
-              const dataUrl = await this.fileToDataUrl(uploadFile)
-              imageUrls[position] = dataUrl
+              console.warn(`⚠️ [SELLIKO-CLIENT] Primary upload failed for ${position}, trying alternative:`, uploadError)
+              try {
+                const fileUrl = await this.uploadFileAlternative(processed.blob, fileName)
+                imageUrls[position] = fileUrl
+              } catch (altError) {
+                console.warn(`⚠️ [SELLIKO-CLIENT] Alternative upload failed for ${position}, using dataUrl fallback:`, altError)
+                const dataUrl = await this.fileToDataUrl(processed.blob)
+                imageUrls[position] = dataUrl
+              }
             }
 
           } catch (error) {
-            console.error(`💥 [SELLIKO-CLIENT] Failed to process ${position} image:`, error)
-            return {
-              success: false,
-              error: `Failed to process ${position} image: ${error.message}`
+            console.warn(`⚠️ [SELLIKO-CLIENT] Error processing ${position} image, attempting raw file upload fallback:`, error)
+            try {
+              const rawExt = file.name?.includes('.') ? `.${file.name.split('.').pop()}` : '.jpg'
+              const fileName = `${this.generateUUID()}${rawExt}`
+              const fileUrl = await this.uploadFile(file, fileName)
+              imageUrls[position] = fileUrl
+            } catch (rawUploadError) {
+              console.error(`💥 [SELLIKO-CLIENT] Failed all upload methods for ${position}:`, rawUploadError)
+              return {
+                success: false,
+                error: `Failed to upload ${position} image: ${rawUploadError.message}`
+              }
             }
           }
         }
@@ -557,14 +606,20 @@ class SellikoClient {
       if (listingData.warrantyImage) {
         try {
           console.log('📄 [SELLIKO-CLIENT] Processing warranty image...')
-          const fileName = `warranty_${this.generateUUID()}.webp`
-          const webpFile = await this.convertToWebP(listingData.warrantyImage)
-          processedData.warrantyImageUrl = await this.uploadFile(webpFile, fileName)
+          const processed = await this.processAndCompressImage(listingData.warrantyImage)
+          const fileName = `warranty_${this.generateUUID()}${processed.extension}`
+          processedData.warrantyImageUrl = await this.uploadFile(processed.blob, fileName)
         } catch (error) {
-          console.error('💥 [SELLIKO-CLIENT] Failed to process warranty image:', error)
-          return {
-            success: false,
-            error: `Failed to upload warranty image: ${error.message}`
+          console.warn('⚠️ [SELLIKO-CLIENT] Failed to process warranty image, falling back to raw upload:', error)
+          try {
+            const rawExt = listingData.warrantyImage.name?.includes('.') ? `.${listingData.warrantyImage.name.split('.').pop()}` : '.jpg'
+            const fileName = `warranty_${this.generateUUID()}${rawExt}`
+            processedData.warrantyImageUrl = await this.uploadFile(listingData.warrantyImage, fileName)
+          } catch (rawError) {
+            return {
+              success: false,
+              error: `Failed to upload warranty image: ${rawError.message}`
+            }
           }
         }
       }
@@ -573,14 +628,20 @@ class SellikoClient {
       if (listingData.billImage) {
         try {
           console.log('🧾 [SELLIKO-CLIENT] Processing bill image...')
-          const fileName = `bill_${this.generateUUID()}.webp`
-          const webpFile = await this.convertToWebP(listingData.billImage)
-          processedData.billImageUrl = await this.uploadFile(webpFile, fileName)
+          const processed = await this.processAndCompressImage(listingData.billImage)
+          const fileName = `bill_${this.generateUUID()}${processed.extension}`
+          processedData.billImageUrl = await this.uploadFile(processed.blob, fileName)
         } catch (error) {
-          console.error('💥 [SELLIKO-CLIENT] Failed to process bill image:', error)
-          return {
-            success: false,
-            error: `Failed to upload bill image: ${error.message}`
+          console.warn('⚠️ [SELLIKO-CLIENT] Failed to process bill image, falling back to raw upload:', error)
+          try {
+            const rawExt = listingData.billImage.name?.includes('.') ? `.${listingData.billImage.name.split('.').pop()}` : '.jpg'
+            const fileName = `bill_${this.generateUUID()}${rawExt}`
+            processedData.billImageUrl = await this.uploadFile(listingData.billImage, fileName)
+          } catch (rawError) {
+            return {
+              success: false,
+              error: `Failed to upload bill image: ${rawError.message}`
+            }
           }
         }
       }
@@ -1504,13 +1565,20 @@ class SellikoClient {
           hasImageChanges = true
 
           try {
-            const fileName = `${this.generateUUID()}.webp`
-            const webpFile = await this.convertToWebP(updatedFile)
-            imageUrls[position] = await this.uploadFile(webpFile, fileName)
+            const processed = await this.processAndCompressImage(updatedFile)
+            const fileName = `${this.generateUUID()}${processed.extension}`
+            imageUrls[position] = await this.uploadFile(processed.blob, fileName)
             console.log(`✅ [SELLIKO-CLIENT] ${position} image uploaded:`, imageUrls[position])
           } catch (uploadError) {
-            console.error(`💥 [SELLIKO-CLIENT] Failed to upload ${position} image:`, uploadError)
-            throw new Error(`Failed to upload ${position} image: ${uploadError.message}`)
+            console.warn(`⚠️ [SELLIKO-CLIENT] Error compressing/uploading ${position} image, trying raw file fallback:`, uploadError)
+            try {
+              const rawExt = updatedFile.name?.includes('.') ? `.${updatedFile.name.split('.').pop()}` : '.jpg'
+              const fileName = `${this.generateUUID()}${rawExt}`
+              imageUrls[position] = await this.uploadFile(updatedFile, fileName)
+            } catch (rawErr) {
+              console.error(`💥 [SELLIKO-CLIENT] Failed to upload ${position} image:`, rawErr)
+              throw new Error(`Failed to upload ${position} image: ${rawErr.message}`)
+            }
           }
         } else if (updatedData.images?.[position] === '' && originalUrl) {
           // Image was removed
@@ -1530,22 +1598,36 @@ class SellikoClient {
       if (updatedData.warrantyImage && typeof updatedData.warrantyImage === 'object') {
         console.log('📄 [SELLIKO-CLIENT] Processing warranty image...')
         try {
-          const fileName = `warranty_${this.generateUUID()}.webp`
-          const webpFile = await this.convertToWebP(updatedData.warrantyImage)
-          updatedData.warrantyImageUrl = await this.uploadFile(webpFile, fileName)
+          const processed = await this.processAndCompressImage(updatedData.warrantyImage)
+          const fileName = `warranty_${this.generateUUID()}${processed.extension}`
+          updatedData.warrantyImageUrl = await this.uploadFile(processed.blob, fileName)
         } catch (error) {
-          throw new Error(`Failed to upload warranty image: ${error.message}`)
+          console.warn('⚠️ [SELLIKO-CLIENT] Failed to process warranty image, falling back to raw upload:', error)
+          try {
+            const rawExt = updatedData.warrantyImage.name?.includes('.') ? `.${updatedData.warrantyImage.name.split('.').pop()}` : '.jpg'
+            const fileName = `warranty_${this.generateUUID()}${rawExt}`
+            updatedData.warrantyImageUrl = await this.uploadFile(updatedData.warrantyImage, fileName)
+          } catch (rawError) {
+            throw new Error(`Failed to upload warranty image: ${rawError.message}`)
+          }
         }
       }
 
       if (updatedData.billImage && typeof updatedData.billImage === 'object') {
         console.log('🧾 [SELLIKO-CLIENT] Processing bill image...')
         try {
-          const fileName = `bill_${this.generateUUID()}.webp`
-          const webpFile = await this.convertToWebP(updatedData.billImage)
-          updatedData.billImageUrl = await this.uploadFile(webpFile, fileName)
+          const processed = await this.processAndCompressImage(updatedData.billImage)
+          const fileName = `bill_${this.generateUUID()}${processed.extension}`
+          updatedData.billImageUrl = await this.uploadFile(processed.blob, fileName)
         } catch (error) {
-          throw new Error(`Failed to upload bill image: ${error.message}`)
+          console.warn('⚠️ [SELLIKO-CLIENT] Failed to process bill image, falling back to raw upload:', error)
+          try {
+            const rawExt = updatedData.billImage.name?.includes('.') ? `.${updatedData.billImage.name.split('.').pop()}` : '.jpg'
+            const fileName = `bill_${this.generateUUID()}${rawExt}`
+            updatedData.billImageUrl = await this.uploadFile(updatedData.billImage, fileName)
+          } catch (rawError) {
+            throw new Error(`Failed to upload bill image: ${rawError.message}`)
+          }
         }
       }
 
@@ -3758,15 +3840,22 @@ class SellikoClient {
         if (step.type === 'image' && step.value instanceof File) {
           console.log(`📸 [SELLIKO-CLIENT] Uploading image for step ${step.id}: ${step.item}`)
           try {
-            // Convert to WebP and upload
-            const fileName = `verification_${listingId}_step_${step.id}_${this.generateUUID()}.webp`
-            const webpFile = await this.convertToWebP(step.value)
-            const imageUrl = await this.uploadFile(webpFile, fileName)
+            const processed = await this.processAndCompressImage(step.value)
+            const fileName = `verification_${listingId}_step_${step.id}_${this.generateUUID()}${processed.extension}`
+            const imageUrl = await this.uploadFile(processed.blob, fileName)
             processedStep.value = imageUrl
             console.log(`✅ [SELLIKO-CLIENT] Image uploaded for step ${step.id}:`, imageUrl)
           } catch (uploadError) {
-            console.error(`💥 [SELLIKO-CLIENT] Failed to upload image for step ${step.id}:`, uploadError)
-            throw new Error(`Failed to upload verification image for step ${step.id}: ${uploadError.message}`)
+            console.warn(`⚠️ [SELLIKO-CLIENT] Failed to compress verification image, falling back to raw upload:`, uploadError)
+            try {
+              const rawExt = step.value.name?.includes('.') ? `.${step.value.name.split('.').pop()}` : '.jpg'
+              const fileName = `verification_${listingId}_step_${step.id}_${this.generateUUID()}${rawExt}`
+              const imageUrl = await this.uploadFile(step.value, fileName)
+              processedStep.value = imageUrl
+            } catch (rawError) {
+              console.error(`💥 [SELLIKO-CLIENT] Failed to upload image for step ${step.id}:`, rawError)
+              throw new Error(`Failed to upload verification image for step ${step.id}: ${rawError.message}`)
+            }
           }
         }
 

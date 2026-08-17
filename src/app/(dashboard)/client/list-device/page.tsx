@@ -342,7 +342,8 @@ export default function ListDevice() {
           if (!data.warrantyExpiry) {
             return "Please enter the warranty expiry date."
           }
-          const expiry = new Date(data.warrantyExpiry)
+          const [ey, em, ed] = data.warrantyExpiry.split('-').map(Number)
+          const expiry = ey && em && ed ? new Date(ey, em - 1, ed) : new Date(data.warrantyExpiry)
           const today = new Date()
           today.setHours(0, 0, 0, 0)
           if (expiry <= today) {
@@ -355,8 +356,10 @@ export default function ListDevice() {
           if (!data.purchaseDate) {
             return "Please enter the purchase date for active warranty verification."
           }
-          const purchase = new Date(data.purchaseDate)
-          const expiry = new Date(data.warrantyExpiry)
+          const [py, pm, pd] = data.purchaseDate.split('-').map(Number)
+          const purchase = py && pm && pd ? new Date(py, pm - 1, pd) : new Date(data.purchaseDate)
+          const [ey, em, ed] = data.warrantyExpiry.split('-').map(Number)
+          const expiry = ey && em && ed ? new Date(ey, em - 1, ed) : new Date(data.warrantyExpiry)
           const minExpiry = new Date(purchase)
           minExpiry.setMonth(minExpiry.getMonth() + 6)
           if (expiry < minExpiry) {
@@ -367,7 +370,8 @@ export default function ListDevice() {
           if (!data.purchaseDate) {
             return "Please enter the purchase date."
           }
-          const purchase = new Date(data.purchaseDate)
+          const [py, pm, pd] = data.purchaseDate.split('-').map(Number)
+          const purchase = py && pm && pd ? new Date(py, pm - 1, pd) : new Date(data.purchaseDate)
           const today = new Date()
           today.setHours(0, 0, 0, 0)
           if (purchase >= today) {
@@ -666,7 +670,7 @@ function DeviceImagesStep({ data, updateImages }: { data: DeviceData, updateImag
         <input
           ref={fileInputRefs[type]}
           type="file"
-          accept="image/*"
+          accept="image/*,.heic,.heif,.HEIC,.HEIF"
           onChange={(e) => handleImageUpload(type, e)}
           className="hidden"
         />
@@ -964,7 +968,7 @@ function WarrantyStep({ data, updateData, updateImages }: { data: DeviceData, up
               <input
                 ref={warrantyFileRef}
                 type="file"
-                accept="image/*"
+                accept="image/*,.heic,.heif,.HEIC,.HEIF"
                 onChange={(e) => {
                   const file = e.target.files?.[0]
                   if (file) updateData('warrantyImage', file)
@@ -1085,7 +1089,7 @@ function BillDetailsStep({ data, updateData, updateImages }: { data: DeviceData,
             <input
               ref={billFileRef}
               type="file"
-              accept="image/*"
+              accept="image/*,.heic,.heif,.HEIC,.HEIF"
               onChange={(e) => {
                 const file = e.target.files?.[0]
                 if (file) updateData('billImage', file)
